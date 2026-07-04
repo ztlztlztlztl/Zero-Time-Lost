@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.19)
 project(Zero-Time-Lost-tobedone LANGUAGES CXX)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets OpenGLWidgets)
 
 qt_standard_project_setup()
 
@@ -11,12 +11,19 @@ qt_add_executable(Zero-Time-Lost-tobedone
     mainwindow.cpp
     mainwindow.h
     mainwindow.ui
+
+    constants.h
+    homebackgroundshader.h homebackgroundshader.cpp
+    homeinfowidget.h homeinfowidget.cpp
+    homewidget.h homewidget.cpp
+
 )
 
 target_link_libraries(Zero-Time-Lost-tobedone
     PRIVATE
         Qt::Core
         Qt::Widgets
+        Qt::OpenGLWidgets
 )
 
 install(TARGETS Zero-Time-Lost-tobedone
