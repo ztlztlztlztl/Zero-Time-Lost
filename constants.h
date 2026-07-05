@@ -11,7 +11,7 @@ namespace Home{
 
 namespace Background{
 
-const double timeInterval = 0.016f; // 计时器间隔
+const double timeInterval = 0.050f; // 计时器间隔
 
 
 

@@ -9,6 +9,7 @@ static const char* vertexShaderSource =
     "}\n";
 
 // 片段着色器源码
+// 2. 片段着色器源码：极致极简 —— 凌厉硬边流动色带
 static const char* fragmentShaderSource = R"glsl(
     #version 330 core
 
@@ -16,66 +17,28 @@ static const char* fragmentShaderSource = R"glsl(
     uniform vec2 u_resolution;
     uniform float u_time;
 
-    #define COUNT 20.
-    #define COL_BLACK vec3(16,18,22) / 255.0
-
-    #define SF 1./min(u_resolution.x, u_resolution.y)
-    #define SS(l,s) smoothstep(SF,-SF,l-s)
-    #define hue(h) clamp( abs( fract(h + vec4(3,2,1,0)/3.) * 6. - 3.) -1. , 0., 1.)
-
-    #define MOD3 vec3(.1031,.11369,.13787)
-
-    vec3 hash33(vec3 p3)
-    {
-        p3 = fract(p3 * MOD3);
-        p3 += dot(p3, p3.yxz+19.19);
-        return -1.0 + 2.0 * fract(vec3((p3.x + p3.y)*p3.z, (p3.x+p3.z)*p3.y, (p3.y+p3.z)*p3.x));
-    }
-
-    float simplex_noise(vec3 p)
-    {
-        const float K1 = 0.333333333;
-        const float K2 = 0.166666667;
-
-        vec3 i = floor(p + (p.x + p.y + p.z) * K1);
-        vec3 d0 = p - (i - (i.x + i.y + i.z) * K2);
-
-        vec3 e = step(vec3(0.0), d0 - d0.yzx);
-        vec3 i1 = e * (1.0 - e.zxy);
-        vec3 i2 = 1.0 - e.zxy * (1.0 - e);
-
-        vec3 d1 = d0 - (i1 - 1.0 * K2);
-        vec3 d2 = d0 - (i2 - 2.0 * K2);
-        vec3 d3 = d0 - (1.0 - 3.0 * K2);
-
-        vec4 h = max(0.6 - vec4(dot(d0, d0), dot(d1, d1), dot(d2, d2), dot(d3, d3)), 0.0);
-        vec4 n = h * h * h * h * vec4(dot(d0, hash33(i)), dot(d1, hash33(i + i1)), dot(d2, hash33(i + i2)), dot(d3, hash33(i + 1.0)));
-
-        return dot(vec4(31.316), n);
-    }
+    #define COL_BLACK vec3(16, 18, 22) / 255.0
 
     void main()
     {
-        vec2 fragCoord = gl_FragCoord.xy;
-        vec2 uv = fragCoord / u_resolution.y;
+        vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+        float t = u_time * 0.2;
+        float wave = sin(uv.x * 2.5 + t) * 0.12
+                   + cos(uv.x * 5.5 - t * 1.3) * 0.04;
+        float totalWave = wave + 0.35;
+        float distanceToWave = abs(totalWave - uv.y);
+        float edgeWidth = 0.025;
+        float aaBuffer = 1.5 / u_resolution.y;
 
-        float m = 0.;
-        float t = u_time * .2;
-        vec3 col;
+        float ribbonMask = smoothstep(edgeWidth + aaBuffer, edgeWidth - aaBuffer, distanceToWave);
 
-        for(float i=COUNT; i>=0.; i-=1.){
-            float edge = simplex_noise(vec3(uv * vec2(2., 0.) + vec2(0, t + i*.15), 1.)) * 0.2 + (0.4 / COUNT) * i + 0.2;
-            float mi = SS(edge, uv.y) - SS(edge + .005, uv.y);
-            m *= SS(edge, uv.y+.015);
-            m += mi;
+        vec3 waveCol = 0.5 + 0.5 * cos(totalWave * 5.0 + t * 0.6 + vec3(0.0, 2.0, 4.0));
 
-            if(mi > 0.){
-                col = hue(i/COUNT).rgb;
-            }
-        }
+        waveCol *= 0.9;
 
-        col = mix(COL_BLACK, col, m);
-        FragColor = vec4(col, 1.0);
+        vec3 finalCol = mix(COL_BLACK, waveCol, ribbonMask);
+
+        FragColor = vec4(finalCol, 1.0);
     }
 )glsl";
 
