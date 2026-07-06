@@ -3,6 +3,7 @@
 
 #include "homewidget.h"
 #include "settingwidget.h"
+#include "configmanager.h"
 
 #include <QMainWindow>
 #include <QVBoxLayout>

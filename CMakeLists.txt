@@ -17,6 +17,8 @@ qt_add_executable(Zero-Time-Lost-tobedone
     homeinfowidget.h homeinfowidget.cpp
     homewidget.h homewidget.cpp
     settingwidget.h settingwidget.cpp
+    configmanager.h configmanager.cpp
+    datatype.h
 
 )
 

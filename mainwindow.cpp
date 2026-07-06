@@ -5,6 +5,8 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
+    // 启动 ConfigManager
+    ConfigManager::getInstance()->initialize();
     ui->setupUi(this);
     // 栈
     m_stackedWidget = new QStackedWidget(ui->centralwidget);
