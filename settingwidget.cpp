@@ -12,8 +12,8 @@ SettingWidget::SettingWidget(QWidget *parent)
     // 按钮们
     QVBoxLayout *buttonsLayout = new QVBoxLayout();
     m_buttons = new QButtonGroup(this);
-    QStringList names = {"首页", "邮箱", "AI"};
-    for (int i = 0; i < 3;i++){
+    QStringList names = {"首页", "待补充"};
+    for (int i = 0; i < 2;i++){
         QPushButton *btn = new QPushButton(names[i]);
         btn->setCheckable(true);
         btn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
@@ -28,7 +28,7 @@ SettingWidget::SettingWidget(QWidget *parent)
 
     // 页面们
     m_pages = new QStackedWidget();
-    for (int i = 0;i < 3;i++){
+    for (int i = 0;i < 2;i++){
         QLabel *test = new QLabel(QString("page %1").arg(i), this);
         m_pages->addWidget(test);
     }
