@@ -16,6 +16,7 @@ qt_add_executable(Zero-Time-Lost-tobedone
     homebackgroundshader.h homebackgroundshader.cpp
     homeinfowidget.h homeinfowidget.cpp
     homewidget.h homewidget.cpp
+    settingwidget.h settingwidget.cpp
 
 )
 

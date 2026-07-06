@@ -16,6 +16,8 @@ public:
     explicit HomeWidget(QWidget *parent = nullptr);
     ~HomeWidget();
 
+
+
 signals:
 
 private:

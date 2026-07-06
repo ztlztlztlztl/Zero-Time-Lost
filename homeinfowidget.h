@@ -1,6 +1,8 @@
 #ifndef HOMEINFOWIDGET_H
 #define HOMEINFOWIDGET_H
 
+#include "constants.h"
+
 #include <QWidget>
 #include <QLabel>
 #include <QTimer>

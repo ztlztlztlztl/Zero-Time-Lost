@@ -22,6 +22,10 @@ protected:
     void resizeGL(int w, int h) override; // 适配大小，窗口改变和初始化时激活
     void paintGL() override; // 激活 Shader，绘制全屏矩形
 
+    // 看不到的时候停止绘制
+    void hideEvent(QHideEvent *event) override;
+    void showEvent(QShowEvent *event) override;
+
 private slots:
     void onTimeout(); // 计时器每次超时激活的槽函数
 

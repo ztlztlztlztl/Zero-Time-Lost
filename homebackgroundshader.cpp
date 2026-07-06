@@ -60,6 +60,9 @@ HomeBackgroundShader::~HomeBackgroundShader()
     doneCurrent();
 }
 
+
+
+
 void HomeBackgroundShader::initializeGL()
 {
     // 初始化 OpenGL 的函数指针
@@ -105,6 +108,26 @@ void HomeBackgroundShader::paintGL()
     // 解绑，释放控制权
     m_shaderProgram.release();
 }
+
+void HomeBackgroundShader::hideEvent(QHideEvent *event){
+    QOpenGLWidget::hideEvent(event);
+
+    if (m_timer && m_timer->isActive()) {
+        m_timer->stop();
+        qDebug() << "背景暂停";
+    }
+}
+
+void HomeBackgroundShader::showEvent(QShowEvent *event){
+    QOpenGLWidget::showEvent(event);
+
+    if (m_timer && !m_timer->isActive()) {
+        m_timer->start(ZTL::Home::Background::timeInterval);
+        qDebug() << "背景继续";
+    }
+}
+
+
 
 void HomeBackgroundShader::onTimeout()
 {

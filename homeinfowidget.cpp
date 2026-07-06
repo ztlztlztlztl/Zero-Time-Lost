@@ -20,26 +20,26 @@ HomeInfoWidget::HomeInfoWidget(QWidget *parent) : QWidget(parent)
     weatherLayout->setSpacing(8);
     m_lblTemp = new QLabel("--", this);
     m_lblWeather = new QLabel("正在加载...", this);
-    m_lblTemp->setStyleSheet("color: #FFFFFF; font-family: 'JetBrains Mono', 'Segoe UI'; font-weight: bold;");
-    m_lblWeather->setStyleSheet("color: #FFFFFF; font-family: 'Microsoft YaHei';");
+    m_lblTemp->setStyleSheet(ZTL::Home::Info::tempStyle);
+    m_lblWeather->setStyleSheet(ZTL::Home::Info::weatherStyle);
     // 居中右对齐
     weatherLayout->addWidget(m_lblTemp, 0, Qt::AlignRight | Qt::AlignVCenter);
     weatherLayout->addWidget(m_lblWeather, 0, Qt::AlignRight | Qt::AlignVCenter);
     // 时间
     m_lblClock = new QLabel("00 : 00", this);
-    m_lblClock->setStyleSheet("color: #FFFFFF; font-family: 'JetBrains Mono', 'Consolas'; font-weight: 300;");
+    m_lblClock->setStyleSheet(ZTL::Home::Info::timeStyle);
     m_lblClock->setAlignment(Qt::AlignCenter);
     // 日期
     m_lblDate = new QLabel("0000.0.0 星期几", this);
-    m_lblDate->setStyleSheet("color: #FFFFFF; font-family: 'JetBrains Mono', 'Microsoft YaHei';");
+    m_lblDate->setStyleSheet(ZTL::Home::Info::dateStyle);
     m_lblDate->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     // 组装
     topLayout->addWidget(weatherWidget, 1, Qt::AlignRight);
     topLayout->addWidget(m_lblClock, 0, Qt::AlignCenter);
     topLayout->addWidget(m_lblDate, 1, Qt::AlignLeft);
     // 第二层
-    m_lblQuote = new QLabel("每  日  一  言", this);
-    m_lblQuote->setStyleSheet("color: #FFFFFF; font-family: 'Microsoft YaHei'; font-weight: bold; letter-spacing: 8px;");
+    m_lblQuote = new QLabel("愿你千帆阅尽，归来仍是少年", this);
+    m_lblQuote->setStyleSheet(ZTL::Home::Info::quoteStyle);
     m_lblQuote->setAlignment(Qt::AlignCenter);
     // 总组装
     mainLayout->addWidget(topWidget);
@@ -53,6 +53,10 @@ HomeInfoWidget::HomeInfoWidget(QWidget *parent) : QWidget(parent)
 
 HomeInfoWidget::~HomeInfoWidget()
 {}
+
+
+
+
 
 void HomeInfoWidget::onClockTick()
 {
@@ -96,14 +100,15 @@ void HomeInfoWidget::resizeEvent(QResizeEvent *event)
 
     int letterSpacing = static_cast<int>(12 * scale);
 
-    m_lblClock->setStyleSheet(QString("color: #FFFFFF; font-size: %1px; font-family: 'JetBrains Mono', 'Consolas'; font-weight: 300;").arg(clockSize));
+    m_lblClock->setStyleSheet(QString(ZTL::Home::Info::timeStyleResize).arg(clockSize));
 
-    m_lblTemp->setStyleSheet(QString("color: #FFFFFF; font-size: %1px; font-family: 'JetBrains Mono', 'Segoe UI'; font-weight: 500;").arg(tempSize));
-    m_lblWeather->setStyleSheet(QString("color: #FFFFFF; font-size: %1px; font-family: 'Microsoft YaHei';").arg(weatherSize));
+    m_lblTemp->setStyleSheet(QString(ZTL::Home::Info::tempStyleResize).arg(tempSize));
 
-    m_lblDate->setStyleSheet(QString("color: #FFFFFF; font-size: %1px; font-family: 'JetBrains Mono', 'Microsoft YaHei';").arg(dateSize));
+    m_lblWeather->setStyleSheet(QString(ZTL::Home::Info::weatherStyleResize).arg(weatherSize));
 
-    m_lblQuote->setStyleSheet(QString("color: #FFFFFF; font-size: %1px; font-family: 'Microsoft YaHei'; font-weight: 500; letter-spacing: %2px;").arg(quoteSize).arg(letterSpacing));
+    m_lblDate->setStyleSheet(QString(ZTL::Home::Info::dateStyleResize).arg(dateSize));
+
+    m_lblQuote->setStyleSheet(QString(ZTL::Home::Info::quoteStyleResize).arg(quoteSize).arg(letterSpacing));
 
     if (this->layout()) {
         int horizontalMargin = static_cast<int>(40 * scale);
