@@ -2,6 +2,7 @@
 #define SETTINGWIDGET_H
 
 #include "constants.h"
+#include "settingweatherpage.h"
 
 #include <QWidget>
 #include <QLabel>
@@ -26,7 +27,8 @@ private:
     // 栈
     QStackedWidget *m_pages;
     // 页面们
-
+    SettingWeatherPage *m_weatherPage;
+    QLabel *m_waitingPage;
 
 
 

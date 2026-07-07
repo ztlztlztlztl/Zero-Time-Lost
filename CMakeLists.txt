@@ -19,6 +19,7 @@ qt_add_executable(Zero-Time-Lost-tobedone
     settingwidget.h settingwidget.cpp
     configmanager.h configmanager.cpp
     datatype.h
+    settingweatherpage.h settingweatherpage.cpp
 
 )
 

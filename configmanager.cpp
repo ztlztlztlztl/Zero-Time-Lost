@@ -91,7 +91,7 @@ void ConfigManager::loadFromFile(){
     file.close();
     if (error.error != QJsonParseError::NoError) {
         qDebug() << "JSON 格式损坏：" << error.errorString();
-        m_homeWeather.currentCityCode = "110108";
+        m_homeWeather.currentCityIndex = 0;
         m_homeWeather.savedCities = {weatherCity{"北京海淀", "110108"}};
         return;
     }
@@ -100,7 +100,7 @@ void ConfigManager::loadFromFile(){
     QJsonObject homeObj = rootObj["home"].toObject();
     QJsonObject weatherObj = homeObj["weather"].toObject();
     // toString 默认值
-    m_homeWeather.currentCityCode = weatherObj.value("currentCityCode").toString("110108");
+    m_homeWeather.currentCityIndex = weatherObj.value("currentCityCode").toInt();
     m_homeWeather.savedCities.clear();
     QJsonArray cityArray = weatherObj.value("savedCities").toArray();
     for (int i = 0; i < cityArray.size(); ++i) {

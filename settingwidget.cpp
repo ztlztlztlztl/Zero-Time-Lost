@@ -25,13 +25,12 @@ SettingWidget::SettingWidget(QWidget *parent)
     }
     m_buttons->button(0)->setChecked(true);
 
-
     // 页面们
     m_pages = new QStackedWidget();
-    for (int i = 0;i < 2;i++){
-        QLabel *test = new QLabel(QString("page %1").arg(i), this);
-        m_pages->addWidget(test);
-    }
+    m_weatherPage = new SettingWeatherPage(m_pages);
+    m_pages->addWidget(m_weatherPage);
+    m_waitingPage = new QLabel("未完待续", m_pages);
+    m_pages->addWidget(m_waitingPage);
     m_pages->setCurrentIndex(0);
 
     // 连接们

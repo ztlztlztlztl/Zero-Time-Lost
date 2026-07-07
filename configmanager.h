@@ -16,12 +16,12 @@
 #include <QMap>
 
 struct HomeWeatherConfig{
-    QString currentCityCode;
+    int currentCityIndex;
     QList<weatherCity> savedCities;
 
     QJsonObject toJson(){
         QJsonObject homeWeatherObect;
-        homeWeatherObect["currentCityCode"] = currentCityCode;
+        homeWeatherObect["currentCityIndex"] = QString::number(currentCityIndex);
         QJsonArray cityArray;
         for (const auto& city : savedCities) {
             QJsonObject cityObj;
