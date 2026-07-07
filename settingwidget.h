@@ -2,7 +2,7 @@
 #define SETTINGWIDGET_H
 
 #include "constants.h"
-#include "settingweatherpage.h"
+#include "settinghomepage.h"
 
 #include <QWidget>
 #include <QLabel>
@@ -19,6 +19,8 @@ class SettingWidget : public QWidget
 public:
     explicit SettingWidget(QWidget *parent = nullptr);
 
+    void resetUI();
+
 signals:
 
 private:
@@ -27,7 +29,7 @@ private:
     // 栈
     QStackedWidget *m_pages;
     // 页面们
-    SettingWeatherPage *m_weatherPage;
+    SettingHomePage *m_homePage;
     QLabel *m_waitingPage;
 
 

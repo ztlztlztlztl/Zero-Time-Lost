@@ -27,8 +27,8 @@ SettingWidget::SettingWidget(QWidget *parent)
 
     // 页面们
     m_pages = new QStackedWidget();
-    m_weatherPage = new SettingWeatherPage(m_pages);
-    m_pages->addWidget(m_weatherPage);
+    m_homePage = new SettingHomePage(m_pages);
+    m_pages->addWidget(m_homePage);
     m_waitingPage = new QLabel("未完待续", m_pages);
     m_pages->addWidget(m_waitingPage);
     m_pages->setCurrentIndex(0);
@@ -42,4 +42,9 @@ SettingWidget::SettingWidget(QWidget *parent)
     generalLayout->addLayout(buttonsLayout);
     generalLayout->addWidget(m_pages);
 
+}
+
+void SettingWidget::resetUI(){
+    qDebug() << "开始刷新setting页的UI";
+    m_homePage->resetUI();
 }

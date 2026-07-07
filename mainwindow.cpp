@@ -32,6 +32,7 @@ MainWindow::MainWindow(QWidget *parent)
     });
     connect(settingShortcut, &QShortcut::activated, this, [=](){
         m_stackedWidget->setCurrentWidget(m_settingWidget);
+        m_settingWidget->resetUI();
     });
 
 
