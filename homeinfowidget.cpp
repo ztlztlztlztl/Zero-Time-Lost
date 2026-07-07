@@ -18,11 +18,14 @@ HomeInfoWidget::HomeInfoWidget(QWidget *parent) : QWidget(parent)
     QHBoxLayout *weatherLayout = new QHBoxLayout(weatherWidget);
     weatherLayout->setContentsMargins(0, 0, 0, 0);
     weatherLayout->setSpacing(8);
-    m_lblTemp = new QLabel("--", this);
-    m_lblWeather = new QLabel("正在加载...", this);
+    m_lblLocation = new QLabel(" 无 ", this);
+    m_lblTemp = new QLabel(" -- ", this);
+    m_lblWeather = new QLabel(" 正在加载... ", this);
+    m_lblLocation->setStyleSheet(ZTL::Home::Info::locationStyle);
     m_lblTemp->setStyleSheet(ZTL::Home::Info::tempStyle);
     m_lblWeather->setStyleSheet(ZTL::Home::Info::weatherStyle);
     // 居中右对齐
+    weatherLayout->addWidget(m_lblLocation, 0, Qt::AlignRight | Qt::AlignVCenter);
     weatherLayout->addWidget(m_lblTemp, 0, Qt::AlignRight | Qt::AlignVCenter);
     weatherLayout->addWidget(m_lblWeather, 0, Qt::AlignRight | Qt::AlignVCenter);
     // 时间
@@ -92,15 +95,18 @@ void HomeInfoWidget::resizeEvent(QResizeEvent *event)
 
     if (scale < 0.6) scale = 0.6;
     if (scale > 2.0) scale = 2.0;
-    int clockSize   = static_cast<int>(110 * scale);
-    int tempSize    = static_cast<int>(32 * scale);
+    int clockSize = static_cast<int>(110 * scale);
+    int locationSize = static_cast<int>(32 * scale);
+    int tempSize = static_cast<int>(32 * scale);
     int weatherSize = static_cast<int>(28 * scale);
-    int dateSize    = static_cast<int>(28 * scale);
-    int quoteSize   = static_cast<int>(24 * scale);
+    int dateSize = static_cast<int>(28 * scale);
+    int quoteSize = static_cast<int>(24 * scale);
 
     int letterSpacing = static_cast<int>(12 * scale);
 
     m_lblClock->setStyleSheet(QString(ZTL::Home::Info::timeStyleResize).arg(clockSize));
+
+    m_lblLocation->setStyleSheet(QString(ZTL::Home::Info::locationStyleResize).arg(locationSize));
 
     m_lblTemp->setStyleSheet(QString(ZTL::Home::Info::tempStyleResize).arg(tempSize));
 

@@ -29,6 +29,7 @@ private slots:
     // 刷新数字时间
     void onClockTick();
 private:
+    QLabel *m_lblLocation; // 左侧：位置
     QLabel *m_lblTemp; // 左侧：温度
     QLabel *m_lblWeather; // 左侧：天气状态
     QLabel *m_lblClock; // 中间：数字时钟

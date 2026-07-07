@@ -24,6 +24,8 @@ const double timeInterval = 0.050f; // 计时器间隔
 }
 
 namespace Info{
+const QString locationStyle = "color: #FFFFFF; font-family: 'JetBrains Mono', 'Segoe UI'; font-weight: bold;";
+const QString locationStyleResize = "color: #FFFFFF; font-size: %1px; font-family: 'JetBrains Mono', 'Segoe UI'; font-weight: 500;";
 const QString tempStyle = "color: #FFFFFF; font-family: 'JetBrains Mono', 'Segoe UI'; font-weight: bold;";
 const QString tempStyleResize = "color: #FFFFFF; font-size: %1px; font-family: 'JetBrains Mono', 'Segoe UI'; font-weight: 500;";
 const QString weatherStyle = "color: #FFFFFF; font-family: 'Microsoft YaHei';";

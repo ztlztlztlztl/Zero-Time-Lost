@@ -7,11 +7,6 @@
 struct weatherCity{
     QString name;
     QString code;
-
-
-
-
-
 };
 
 

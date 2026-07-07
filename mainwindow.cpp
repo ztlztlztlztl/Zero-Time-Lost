@@ -27,12 +27,20 @@ MainWindow::MainWindow(QWidget *parent)
     QShortcut *homeShortcut = new QShortcut(ZTL::Main::homeShortcut, this);
     QShortcut *settingShortcut = new QShortcut(ZTL::Main::settingShortcut, this);
 
-    connect(homeShortcut, &QShortcut::activated, this, [&](){
+    connect(homeShortcut, &QShortcut::activated, this, [=](){
         m_stackedWidget->setCurrentWidget(m_homeWidget);
     });
-    connect(settingShortcut, &QShortcut::activated, this, [&](){
+    connect(settingShortcut, &QShortcut::activated, this, [=](){
         m_stackedWidget->setCurrentWidget(m_settingWidget);
     });
+
+
+
+}
+
+void MainWindow::closeEvent(QCloseEvent *event){
+    qDebug() << "程序将要关闭";
+    ConfigManager::getInstance()->saveConfig();
 
 }
 
