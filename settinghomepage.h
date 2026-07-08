@@ -13,6 +13,7 @@
 #include <QPushButton>
 #include <QRegularExpressionValidator>
 #include <QTimer>
+#include <QButtonGroup>
 
 class SettingHomePage : public QWidget
 {
@@ -34,8 +35,13 @@ private:
     QLabel *m_lblLocationCity;
     // 收藏城市列表
     QLabel *m_lblCollectedTest;
+    QPushButton *m_upBtn;
+    QPushButton *m_downBtn;
+    QPushButton *m_selectBtn;
+    QPushButton *m_deleteBtn;
     QScrollArea *m_collectedScroll;
     QVBoxLayout *m_contentLayout;
+    int m_clickedIndex;
     // 添加城市
     QLabel *m_lblAddTest;
     QLineEdit *m_addCityInput;

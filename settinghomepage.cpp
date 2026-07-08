@@ -21,14 +21,30 @@ SettingHomePage::SettingHomePage(QWidget *parent)
     QHBoxLayout *collectedLayout = new QHBoxLayout();
     m_lblCollectedTest = new QLabel("收藏的城市：");
     collectedLayout->addWidget(m_lblCollectedTest);
+    QVBoxLayout *rightLayout = new QVBoxLayout();
+    // 四个按钮
+    QHBoxLayout *btnsLayout = new QHBoxLayout();
+    m_upBtn = new QPushButton("up", this);
+    m_downBtn = new QPushButton("down", this);
+    m_selectBtn = new QPushButton("select", this);
+    m_deleteBtn = new QPushButton("delete", this);
+    btnsLayout->addWidget(m_upBtn);
+    btnsLayout->addWidget(m_downBtn);
+    btnsLayout->addWidget(m_selectBtn);
+    btnsLayout->addWidget(m_deleteBtn);
+    rightLayout->addLayout(btnsLayout);
+    // 滚动区
     m_collectedScroll = new QScrollArea(this); // 创建一个滚动区域
     m_collectedScroll->setWidgetResizable(true);
     QWidget *collectedContent = new QWidget(); // 创建内容载体
     m_contentLayout = new QVBoxLayout(collectedContent);
-    m_contentLayout->setAlignment(Qt::AlignTop);// 组装
+    m_contentLayout->setAlignment(Qt::AlignTop);
+    // 组装
     m_collectedScroll->setWidget(collectedContent);
-    collectedLayout->addWidget(m_collectedScroll);
+    rightLayout->addWidget(m_collectedScroll);
+    collectedLayout->addLayout(rightLayout);
     mainLayout->addLayout(collectedLayout);
+    m_clickedIndex = -1;
     // 添加城市
     QHBoxLayout *addLayout = new QHBoxLayout();
     m_lblAddTest = new QLabel("添加新城市：", this);
@@ -50,6 +66,21 @@ SettingHomePage::SettingHomePage(QWidget *parent)
     resetUI();
 
     // 链接
+    connect(m_upBtn, &QPushButton::clicked, this, [=](){
+        if (m_clickedIndex == 0 || m_clickedIndex == -1){
+            qDebug() << "无法上行";
+            return;
+        }
+        int rawIndex = m_clickedIndex;
+        int tarIndex = m_clickedIndex - 1;
+        m_clickedIndex -= 1;
+        auto tmp = m_locationConfig.savedCities[rawIndex];
+        m_locationConfig.savedCities[rawIndex] = m_locationConfig.savedCities[tarIndex];
+        m_locationConfig.savedCities[tarIndex] = tmp;
+        if (m_locationConfig.currentCityIndex == rawIndex) m_locationConfig.currentCityIndex = tarIndex;
+        else if (m_locationConfig.currentCityIndex == tarIndex) m_locationConfig.currentCityIndex = rawIndex;
+        ConfigManager::getInstance()->setHomeweather(m_locationConfig);
+    });
     connect(m_addSubmit, &QPushButton::clicked, this, [=](){
         qDebug() << "submit被点击";
         addCity();
@@ -66,6 +97,8 @@ SettingHomePage::SettingHomePage(QWidget *parent)
 
 void SettingHomePage::resetUI(){
     qDebug() << "刷新home页的UI";
+    if (m_locationConfig.savedCities.isEmpty()) return;
+    // 对齐当前城市
     m_lblLocationCity->setText(m_locationConfig.savedCities[m_locationConfig.currentCityIndex].name);
     // 刷新城市列表
     if (m_contentLayout) {
@@ -77,28 +110,33 @@ void SettingHomePage::resetUI(){
             delete item;
         }
     }
-    for (int i = 0;i < m_locationConfig.savedCities.length(); i++) {
-        weatherCity &city = m_locationConfig.savedCities[i];
-        QHBoxLayout *cityLayout = new QHBoxLayout();
-        QLabel *cityName = new QLabel(city.name);
-        cityName->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-        QLabel *cityCode = new QLabel(city.code);
-        cityCode->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        QPushButton *upBtn = new QPushButton("up");
-        upBtn->setProperty("rowIndex", i);
-        QPushButton *downBtn = new QPushButton("down");
-        QPushButton *selectBtn = new QPushButton("select");
-        QPushButton *deleteBtn = new QPushButton("delete");
-        cityLayout->addWidget(cityName);
-        cityLayout->addWidget(cityCode);
-        cityLayout->addWidget(upBtn);
-        cityLayout->addWidget(downBtn);
-        cityLayout->addWidget(selectBtn);
-        cityLayout->addWidget(deleteBtn);
-        m_contentLayout->addLayout(cityLayout);
+    // 删除旧按钮组
+    if (QButtonGroup *oldGroup = this->findChild<QButtonGroup*>("cityGroup")) {
+        delete oldGroup;
     }
+    QButtonGroup *cityBtnGroup = new QButtonGroup(this);
+    cityBtnGroup->setObjectName("cityGroup");
+    cityBtnGroup->setExclusive(true);
+    for (int i = 0; i < m_locationConfig.savedCities.length(); i++) {
+        const weatherCity &city = m_locationConfig.savedCities[i];
+        QString text = QString("%1(%2)").arg(city.name).arg(city.code);
+        QPushButton *cityBtn = new QPushButton(text);
+        cityBtn->setCheckable(true);
+        if (m_clickedIndex == -1 && i == m_locationConfig.currentCityIndex) {
+            cityBtn->setChecked(true);
+            m_clickedIndex = i;
+        }
+        else if(i == m_clickedIndex){
+            cityBtn->setChecked(true);
+        }
+        m_contentLayout->addWidget(cityBtn);
+        cityBtnGroup->addButton(cityBtn, i);
+    }
+    connect(cityBtnGroup, &QButtonGroup::idClicked, this, [=](int id){
+        qDebug() << "用户切换了当前城市，索引为：" << id;
+        m_clickedIndex = id;
+    });
 }
-
 bool SettingHomePage::addCity(){
     QString iname = m_addCityInput->text().trimmed();
     QString icode = m_addCodeInput->text().trimmed();
