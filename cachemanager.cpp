@@ -56,6 +56,7 @@ void CacheManager::checkAndCreateDirectories(){
     }
 
     // 检查文件是否存在
+
     QStringList jsons = {"/weather.json"};
     for (int i = 0; i < jsons.length(); i++) {
         QString filePath = cacheDirPath + jsons[i];

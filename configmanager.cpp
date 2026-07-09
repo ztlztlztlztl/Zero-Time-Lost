@@ -93,14 +93,17 @@ void ConfigManager::loadFromFile(){
         qDebug() << "JSON 格式损坏：" << error.errorString();
         m_homeWeather.currentCityIndex = 0;
         m_homeWeather.savedCities = {weatherCity{"北京海淀", "110108"}};
+        m_homeQuote.currentThemeIndex = 0;
+        m_homeQuote.savedThemes = {"少年"};
         return;
     }
 
     QJsonObject rootObj = doc.object();
     QJsonObject homeObj = rootObj["home"].toObject();
+    // weather部分
     QJsonObject weatherObj = homeObj["weather"].toObject();
     // toString 默认值
-    m_homeWeather.currentCityIndex = weatherObj.value("currentCityIndex").toInt();
+    m_homeWeather.currentCityIndex = weatherObj.value("currentCityIndex").toInt(0);
     m_homeWeather.savedCities.clear();
     QJsonArray cityArray = weatherObj.value("savedCities").toArray();
     for (int i = 0; i < cityArray.size(); ++i) {
@@ -109,6 +112,15 @@ void ConfigManager::loadFromFile(){
         item.name = cityObj.value("name").toString("未知城市");
         item.code = cityObj.value("code").toString("000000");
         m_homeWeather.savedCities.append(item);
+    }
+    // quote部分
+    QJsonObject quoteObj = homeObj["quote"].toObject();
+    m_homeQuote.currentThemeIndex = quoteObj.value("currentThemeIndex").toInt(0);
+    m_homeQuote.savedThemes.clear();
+    QJsonArray themeArray = quoteObj.value("savedThemes").toArray();
+    for (int i = 0; i < themeArray.size(); ++i) {
+        QString theme = themeArray[i].toString("少年");
+        m_homeQuote.savedThemes.append(theme);
     }
 }
 
@@ -120,6 +132,7 @@ void ConfigManager::saveToFile(){
     // home{}
     QJsonObject homeObj;
     homeObj["weather"] = m_homeWeather.toJson(); // weather
+    homeObj["quote"] = m_homeQuote.toJson(); // quote
     settingObj["home"] = homeObj;
     // 打包保存
     QJsonDocument doc(settingObj);
@@ -133,6 +146,7 @@ void ConfigManager::saveToFile(){
     }
 }
 
+// weather
 const HomeWeatherConfig& ConfigManager::getHomeweather() const {
     return m_homeWeather;
 }
@@ -143,7 +157,15 @@ void ConfigManager::setHomeweather(const HomeWeatherConfig& newconfig){
     emit homeWeatherChanged();
 }
 
-
+// quote
+const HomeQuoteConfig& ConfigManager::getHomeQuote() const{
+    return m_homeQuote;
+}
+void ConfigManager::setHomeQuote(const HomeQuoteConfig& newconfig){
+    m_homeQuote = newconfig;
+    saveToFile();
+    emit homeQuoteChanged();
+}
 
 
 

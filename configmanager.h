@@ -34,6 +34,22 @@ struct HomeWeatherConfig{
     }
 };
 
+struct HomeQuoteConfig{
+    int currentThemeIndex;
+    QList<QString> savedThemes;
+
+    QJsonObject toJson(){
+        QJsonObject homeQuoteObect;
+        homeQuoteObect["currentThemeIndex"] = currentThemeIndex;
+        QJsonArray ThemeArray;
+        for (const QString& theme : savedThemes) {
+            ThemeArray.append(theme);
+        }
+        homeQuoteObect["savedThemes"] = ThemeArray;
+        return homeQuoteObect;
+    }
+};
+
 
 
 class ConfigManager : public QObject
@@ -49,9 +65,14 @@ public:
     // weather
     const HomeWeatherConfig& getHomeweather() const;
     void setHomeweather(const HomeWeatherConfig& newconfig);
+    // quote
+    const HomeQuoteConfig& getHomeQuote() const;
+    void setHomeQuote(const HomeQuoteConfig& newconfig);
+
 
 signals:
     void homeWeatherChanged();
+    void homeQuoteChanged();
 
 private slots:
 
@@ -72,6 +93,8 @@ private:
 
     // 配置储存
     HomeWeatherConfig m_homeWeather;
+    HomeQuoteConfig m_homeQuote;
+
 
 
 
