@@ -6,9 +6,12 @@ parser = argparse.ArgumentParser(description="这是一个用于同步城市天�
 parser.add_argument("--code", required=True, type=int, help="6位城市编码")
 parser.add_argument("--key", required=True, help="高德api key")
 
+proxy_handler = urllib.request.ProxyHandler({})
+opener = urllib.request.build_opener(proxy_handler)
+
 args = parser.parse_args()
 url = f"https://restapi.amap.com/v3/weather/weatherInfo?city={args.code}&key={args.key}&extensions=base"
 
-with urllib.request.urlopen(url) as response:
+with opener.open(url) as response:
     res = response.read().decode('utf-8')
     print(res, flush=True)

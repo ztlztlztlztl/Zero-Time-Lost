@@ -28,6 +28,7 @@ signals:
 
 private:
     // ui们
+    QScrollArea *m_mainScroll;
     // 标题
     QLabel *m_lblTitle;
     // 当前城市
@@ -39,7 +40,6 @@ private:
     QPushButton *m_downBtn;
     QPushButton *m_selectBtn;
     QPushButton *m_deleteBtn;
-    QScrollArea *m_collectedScroll;
     QVBoxLayout *m_contentLayout;
     int m_clickedIndex;
     // 添加城市

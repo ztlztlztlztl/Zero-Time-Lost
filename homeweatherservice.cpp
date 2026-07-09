@@ -1,10 +1,10 @@
 #include "homeweatherservice.h"
 
-homeWeatherService::homeWeatherService(QObject *parent)
+HomeWeatherService::HomeWeatherService(QObject *parent)
     : QObject{parent}
 {
     m_timer = new QTimer(this);
-    connect(m_timer, &QTimer::timeout, this, &homeWeatherService::updateWeather);
+    connect(m_timer, &QTimer::timeout, this, &HomeWeatherService::updateWeather);
     m_timer->start(ZTL::Home::Service::timeInterval);
 
     connect(ConfigManager::getInstance(), &ConfigManager::homeWeatherChanged, this, [=](){
@@ -14,7 +14,7 @@ homeWeatherService::homeWeatherService(QObject *parent)
 }
 
 
-void homeWeatherService::updateWeather(){
+void HomeWeatherService::updateWeather(){
     int index = ConfigManager::getInstance()->getHomeweather().currentCityIndex;
     if (index == -1){
         emit updateWeatherRequest("无", "-273.0", "--");
@@ -24,15 +24,18 @@ void homeWeatherService::updateWeather(){
     CityWeatherInfo info = CacheManager::getInstance()->getCityWeatherInfo(code);
     qint64 currentSec = QDateTime::currentSecsSinceEpoch();
     if (currentSec - info.timestamp > 1195) {
+        qDebug() << "需更新";
         if (!useWeatherAPI(code)){
             emit updateWeatherRequest("无", "-273.0", "--");
             return;
         }
     }
-    info = CacheManager::getInstance()->getCityWeatherInfo(code);
-    emit updateWeatherRequest(
-        ConfigManager::getInstance()->getHomeweather().savedCities[index].name
-        , info.temperature, info.weather);
+    else{
+        qDebug() << "不需更新";
+        QString name = ConfigManager::getInstance()->getHomeweather().savedCities[
+        ConfigManager::getInstance()->getHomeweather().currentCityIndex].name;
+        emit updateWeatherRequest(name, info.temperature, info.weather);
+    }
     return;
 
 
@@ -43,7 +46,7 @@ void homeWeatherService::updateWeather(){
 
 
 
-bool homeWeatherService::useWeatherAPI(QString code){
+bool HomeWeatherService::useWeatherAPI(QString code){
     // 准备访问条件
     QDir scriptdir("./scripts");
     if (!scriptdir.exists()) {
@@ -80,7 +83,12 @@ bool homeWeatherService::useWeatherAPI(QString code){
             qWarning() << "返回状态为错误";
             return;
         }
-        QJsonObject rawObj = jsonObj["lives"].toArray()[0].toObject();
+        QJsonArray livesArray = jsonObj["lives"].toArray();
+        if (livesArray.isEmpty()) {
+            qWarning() << "高德API未返回天气数据！";
+            return;
+        }
+        QJsonObject rawObj = livesArray[0].toObject();
         CityWeatherInfo info;
         info.cityCode = code;
         info.weather = rawObj["weather"].toString();

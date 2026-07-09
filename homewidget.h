@@ -25,7 +25,7 @@ private:
     HomeBackgroundShader *m_background; // 背景
     HomeInfoWidget *m_infoWidget; // 信息板
 
-    homeWeatherService *m_weatherService;// 天气服务器
+    HomeWeatherService *m_weatherService;// 天气服务器
 };
 
 #endif // HOMEWIDGET_H

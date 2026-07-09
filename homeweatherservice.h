@@ -13,11 +13,11 @@
 #include <QString>
 #include <QTimer>
 
-class homeWeatherService : public QObject
+class HomeWeatherService : public QObject
 {
     Q_OBJECT
 public:
-    explicit homeWeatherService(QObject *parent = nullptr);
+    explicit HomeWeatherService(QObject *parent = nullptr);
     void updateWeather();
 
 signals:

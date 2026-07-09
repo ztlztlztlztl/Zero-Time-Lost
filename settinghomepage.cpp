@@ -6,17 +6,23 @@ SettingHomePage::SettingHomePage(QWidget *parent)
     // 信息初始化
     m_locationConfig = ConfigManager::getInstance()->getHomeweather();
     // ui初始化
+    // 滚动区
+    QVBoxLayout *generalLayout = new QVBoxLayout(this);
+    generalLayout->setContentsMargins(0, 0, 0, 0);
+    m_mainScroll = new QScrollArea(this);
+    generalLayout->addWidget(m_mainScroll);
+    QWidget *scrollContent = new QWidget();
+    QVBoxLayout *contentLayout = new QVBoxLayout(scrollContent);
     // 标题
-    QVBoxLayout *mainLayout = new QVBoxLayout(this);
     m_lblTitle = new QLabel("首页", this);
-    mainLayout->addWidget(m_lblTitle);
+    contentLayout->addWidget(m_lblTitle);
     // 当前城市
     QHBoxLayout *currentCityLayout = new QHBoxLayout();
     m_lblLocationTest = new QLabel("当前城市：", this);
     m_lblLocationCity = new QLabel("--", this);
     currentCityLayout->addWidget(m_lblLocationTest);
     currentCityLayout->addWidget(m_lblLocationCity);
-    mainLayout->addLayout(currentCityLayout);
+    contentLayout->addLayout(currentCityLayout);
     // 收藏城市列表
     QHBoxLayout *collectedLayout = new QHBoxLayout();
     m_lblCollectedTest = new QLabel("收藏的城市：");
@@ -33,17 +39,14 @@ SettingHomePage::SettingHomePage(QWidget *parent)
     btnsLayout->addWidget(m_selectBtn);
     btnsLayout->addWidget(m_deleteBtn);
     rightLayout->addLayout(btnsLayout);
-    // 滚动区
-    m_collectedScroll = new QScrollArea(this); // 创建一个滚动区域
-    m_collectedScroll->setWidgetResizable(true);
+    // 列表区
     QWidget *collectedContent = new QWidget(); // 创建内容载体
     m_contentLayout = new QVBoxLayout(collectedContent);
     m_contentLayout->setAlignment(Qt::AlignTop);
     // 组装
-    m_collectedScroll->setWidget(collectedContent);
-    rightLayout->addWidget(m_collectedScroll);
+    rightLayout->addWidget(collectedContent);
     collectedLayout->addLayout(rightLayout);
-    mainLayout->addLayout(collectedLayout);
+    contentLayout->addLayout(collectedLayout);
     m_clickedIndex = -1;
     // 添加城市
     QHBoxLayout *addLayout = new QHBoxLayout();
@@ -60,7 +63,10 @@ SettingHomePage::SettingHomePage(QWidget *parent)
     addLayout->addWidget(m_addCityInput);
     addLayout->addWidget(m_addCodeInput);
     addLayout->addWidget(m_addSubmit);
-    mainLayout->addLayout(addLayout);
+    contentLayout->addLayout(addLayout);
+    // 收尾
+    m_mainScroll->setWidget(scrollContent);
+    m_mainScroll->setWidgetResizable(true);
 
     // 刷新UI
     resetUI();

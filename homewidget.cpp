@@ -27,9 +27,9 @@ HomeWidget::HomeWidget(QWidget *parent) : QWidget(parent)
     mainGrid->addWidget(uiLayerWidget, 0, 0);
     // 服务器们
     // m_weatherService
-    m_weatherService = new homeWeatherService(this);
+    m_weatherService = new HomeWeatherService(this);
 
-    connect(m_weatherService, &homeWeatherService::updateWeatherRequest, this,
+    connect(m_weatherService, &HomeWeatherService::updateWeatherRequest, this,
             [=](QString name, QString temp, QString account){
         m_infoWidget->updateWeather(name, temp, account);
     });
@@ -37,7 +37,9 @@ HomeWidget::HomeWidget(QWidget *parent) : QWidget(parent)
     connect(CacheManager::getInstance(), &CacheManager::weatherCacheUpdated, this,
             [=](QString code){
                 auto info = CacheManager::getInstance()->getCityWeatherInfo(code);
-                m_infoWidget->updateWeather("", info.temperature, info.weather);
+                QString name = ConfigManager::getInstance()->getHomeweather().savedCities[
+                ConfigManager::getInstance()->getHomeweather().currentCityIndex].name;
+                m_infoWidget->updateWeather(name, info.temperature, info.weather);
             });
 
     m_weatherService->updateWeather();

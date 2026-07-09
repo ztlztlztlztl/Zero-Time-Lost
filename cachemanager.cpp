@@ -109,7 +109,7 @@ void CacheManager::loadFromFile(){
 }
 
 void CacheManager::saveToFile(){
-    qDebug() << "save 配置 to" << m_cacheDirPath;
+    qDebug() << "save 缓存 to" << m_cacheDirPath;
     // weather部分
     QJsonArray weatherArray;
     for (const CityWeatherInfo &info : m_weatherCaches) {
