@@ -1,6 +1,7 @@
 #ifndef SETTINGHOMEPAGE_H
 #define SETTINGHOMEPAGE_H
 
+#include "constants.h"
 #include "datatype.h"
 #include "configmanager.h"
 
@@ -14,6 +15,7 @@
 #include <QRegularExpressionValidator>
 #include <QTimer>
 #include <QButtonGroup>
+#include <QComboBox>
 
 class SettingHomePage : public QWidget
 {
@@ -65,7 +67,7 @@ private:
     int m_clickedThemeIndex;
     // 添加主题
     QLabel *m_lblAddThemeTest;
-    QLineEdit *m_addThemeInput;
+    QComboBox *m_addThemeComboBox;
     QPushButton *m_addThemeSubmit;
     // 信息们
     HomeWeatherConfig m_locationConfig;

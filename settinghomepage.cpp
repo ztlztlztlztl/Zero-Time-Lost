@@ -108,11 +108,13 @@ SettingHomePage::SettingHomePage(QWidget *parent)
     // 添加主题
     QHBoxLayout *addThemeLayout = new QHBoxLayout();
     m_lblAddThemeTest = new QLabel("添加新主题：", this);
-    m_addThemeInput = new QLineEdit(this);
-    m_addThemeInput->setPlaceholderText("如：少年");
+    m_addThemeComboBox = new QComboBox(this);
+    m_addThemeComboBox->addItems(ZTL::Setting::homepage::tags);
+    m_addThemeComboBox->setPlaceholderText("选择要添加的主题");
+    m_addThemeComboBox->setCurrentIndex(-1);
     m_addThemeSubmit = new QPushButton("提交", this);
     addThemeLayout->addWidget(m_lblAddThemeTest);
-    addThemeLayout->addWidget(m_addThemeInput);
+    addThemeLayout->addWidget(m_addThemeComboBox);
     addThemeLayout->addWidget(m_addThemeSubmit);
     contentLayout->addLayout(addThemeLayout);
     // 收尾
@@ -369,8 +371,8 @@ bool SettingHomePage::addCity(){
 }
 
 bool SettingHomePage::addTheme(){
-    QString theme = m_addThemeInput->text().trimmed();
-    if (theme.isEmpty()){
+    QString theme = m_addThemeComboBox->currentText();
+    if (m_addThemeComboBox->currentIndex() == -1){
         return false;
     }
     for (QString _theme : m_themeConfig.savedThemes) {
@@ -378,7 +380,7 @@ bool SettingHomePage::addTheme(){
     }
     m_themeConfig.savedThemes.append(theme);
     ConfigManager::getInstance()->setHomeQuote(m_themeConfig);
-    m_addThemeInput->clear();
+    m_addThemeComboBox->setCurrentIndex(-1);
     return true;
 }
 

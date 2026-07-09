@@ -56,8 +56,8 @@ void CacheManager::checkAndCreateDirectories(){
     }
 
     // 检查文件是否存在
-
-    QStringList jsons = {"/weather.json"};
+    QStringList jsons = {"/weather.json", "/quote.json"};
+    QList<QString> inits = {"[]", "{}"};
     for (int i = 0; i < jsons.length(); i++) {
         QString filePath = cacheDirPath + jsons[i];
         QFile file(filePath);
@@ -65,7 +65,7 @@ void CacheManager::checkAndCreateDirectories(){
             qDebug() << "检测到配置文件不存在，正在尝试创建：" << filePath;
             if (file.open(QIODevice::WriteOnly)) {
                 qDebug() << "配置文件创建成功！" << jsons[i];
-                file.write("[]");
+                file.write(inits[i].toUtf8());
                 file.close();
             } else {
                 qWarning() << "警告：配置文件创建失败！" << jsons[i];
@@ -80,15 +80,15 @@ void CacheManager::loadFromFile(){
     qDebug() << "load 缓存 from" << m_cacheDirPath;
 
     // weather部分
-    QFile file(m_cacheDirPath + "/weather.json");
-    if (!file.open(QIODevice::ReadOnly)) {
+    QFile fileWeather(m_cacheDirPath + "/weather.json");
+    if (!fileWeather.open(QIODevice::ReadOnly)) {
         qDebug() << "无法打开文件进行读取！";
         return;
     }
     // 防文件损坏
     QJsonParseError error;
-    QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &error);
-    file.close();
+    QJsonDocument doc = QJsonDocument::fromJson(fileWeather.readAll(), &error);
+    fileWeather.close();
     if (error.error != QJsonParseError::NoError) {
         qDebug() << "JSON 格式损坏：" << error.errorString();
         // 信息留空
@@ -107,6 +107,23 @@ void CacheManager::loadFromFile(){
         item.temperature = cityObj.value("temperature").toString("-273.0");
         m_weatherCaches[item.cityCode] = item;
     }
+    // quote 部分
+    QFile fileQuote(m_cacheDirPath + "/quote.json");
+    if (!fileQuote.open(QIODevice::ReadOnly)) {
+        qDebug() << "无法打开文件进行读取！";
+        return;
+    }
+    QJsonDocument docQuote = QJsonDocument::fromJson(fileQuote.readAll(), &error);
+    fileQuote.close();
+    if (error.error != QJsonParseError::NoError) {
+        qDebug() << "JSON 格式损坏：" << error.errorString();
+        // 信息留空
+        return;
+    }
+    QJsonObject quoteObject = docQuote.object();
+    quoteObject = quoteObject["quote"].toObject();
+    m_quoteCache.content = quoteObject["content"].toString("愿你千帆阅尽，归来仍是少年");
+    m_quoteCache.timestamp = quoteObject["timestamp"].toVariant().toLongLong(0);
 }
 
 void CacheManager::saveToFile(){
@@ -118,14 +135,27 @@ void CacheManager::saveToFile(){
     }
     // 打包保存
     QJsonDocument doc(weatherArray);
-    QFile file(m_cacheDirPath + "/weather.json");
-    if (file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+    QFile fileWeather(m_cacheDirPath + "/weather.json");
+    if (fileWeather.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
         // 只读与清空
-        file.write(doc.toJson()); // tojson()自带换行
-        file.close();
+        fileWeather.write(doc.toJson()); // tojson()自带换行
+        fileWeather.close();
     } else {
         qDebug() << "保存失败！";
     }
+    // quote 部分
+    QJsonObject quoteObject;
+    quoteObject["quote"] = m_quoteCache.toJson();
+    QJsonDocument docquote(quoteObject);
+    QFile fileQuote(m_cacheDirPath + "/quote.json");
+    if (fileQuote.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        // 只读与清空
+        fileQuote.write(docquote.toJson()); // tojson()自带换行
+        fileQuote.close();
+    } else {
+        qDebug() << "保存失败！";
+    }
+
 }
 
 CityWeatherInfo CacheManager::getCityWeatherInfo(QString code) const {
@@ -138,7 +168,15 @@ void CacheManager::updateWeatherCache(const CityWeatherInfo& newWeatherCache){
     emit weatherCacheUpdated(newWeatherCache.cityCode);
 }
 
+QuoteInfo CacheManager::getQuoteInfo() const {
+    return m_quoteCache;
+}
 
+void CacheManager::updateQuoteCache(const QuoteInfo& newQuoteCache){
+    m_quoteCache = newQuoteCache;
+    saveToFile();
+    emit quoteCacheUpdated(newQuoteCache.content);
+}
 
 
 

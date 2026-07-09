@@ -22,6 +22,7 @@ qt_add_executable(Zero-Time-Lost-tobedone
     settinghomepage.h settinghomepage.cpp
     homeweatherservice.h homeweatherservice.cpp
     cachemanager.h cachemanager.cpp
+    homequoteservice.h homequoteservice.cpp
 
 )
 

@@ -26,8 +26,8 @@ HomeWidget::HomeWidget(QWidget *parent) : QWidget(parent)
     // 把上层加入第 0 行 0 列！
     mainGrid->addWidget(uiLayerWidget, 0, 0);
     // 服务器们
-    // m_weatherService
-    m_weatherService = new HomeWeatherService(this);
+    m_weatherService = new HomeWeatherService(this); // m_weatherService
+    m_quoteService = new HomeQuoteService(this); // m_quoteService
 
     connect(m_weatherService, &HomeWeatherService::updateWeatherRequest, this,
             [=](QString name, QString temp, QString account){
@@ -42,7 +42,18 @@ HomeWidget::HomeWidget(QWidget *parent) : QWidget(parent)
                 m_infoWidget->updateWeather(name, info.temperature, info.weather);
             });
 
+    connect(m_quoteService, &HomeQuoteService::updateQuoteRequest, this,
+            [=](QString content){
+                m_infoWidget->updateQuote(content);
+            });
+
+    connect(CacheManager::getInstance(), &CacheManager::quoteCacheUpdated, this,
+            [=](QString content){
+                m_infoWidget->updateQuote(content);
+            });
+
     m_weatherService->updateWeather();
+    m_quoteService->updateQuote();
 }
 
 HomeWidget::~HomeWidget()
