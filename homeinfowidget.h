@@ -19,7 +19,7 @@ public:
     explicit HomeInfoWidget(QWidget *parent = nullptr);
     ~HomeInfoWidget();
     // 天气信息更新函数
-    void updateWeather(const QString &temp, const QString &status);
+    void updateWeather(QString name, QString temp, QString account);
     // 每日一言更新函数
     void updateQuote(const QString &quote);
 protected:

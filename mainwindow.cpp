@@ -7,6 +7,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     // 启动 ConfigManager
     ConfigManager::getInstance()->initialize();
+    CacheManager::getInstance()->initialize();
     ui->setupUi(this);
     // 栈
     m_stackedWidget = new QStackedWidget(ui->centralwidget);
@@ -20,7 +21,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_stackedWidget->addWidget(m_settingWidget);
 
     this->setCentralWidget(m_stackedWidget);
-    m_stackedWidget->setCurrentIndex(1);
+    m_stackedWidget->setCurrentIndex(0);
 
 
     // 换页处理
@@ -34,6 +35,8 @@ MainWindow::MainWindow(QWidget *parent)
         m_stackedWidget->setCurrentWidget(m_settingWidget);
         m_settingWidget->resetUI();
     });
+
+    // 链接
 
 
 

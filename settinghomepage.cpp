@@ -66,6 +66,7 @@ SettingHomePage::SettingHomePage(QWidget *parent)
     resetUI();
 
     // 链接
+    // up
     connect(m_upBtn, &QPushButton::clicked, this, [=](){
         if (m_clickedIndex == 0 || m_clickedIndex == -1){
             qDebug() << "无法上行";
@@ -79,6 +80,51 @@ SettingHomePage::SettingHomePage(QWidget *parent)
         m_locationConfig.savedCities[tarIndex] = tmp;
         if (m_locationConfig.currentCityIndex == rawIndex) m_locationConfig.currentCityIndex = tarIndex;
         else if (m_locationConfig.currentCityIndex == tarIndex) m_locationConfig.currentCityIndex = rawIndex;
+        ConfigManager::getInstance()->setHomeweather(m_locationConfig);
+    });
+    // down
+    connect(m_downBtn, &QPushButton::clicked, this, [=](){
+        if (m_clickedIndex == m_locationConfig.savedCities.length() - 1 || m_clickedIndex == -1){
+            qDebug() << "无法下行";
+            return;
+        }
+        int rawIndex = m_clickedIndex;
+        int tarIndex = m_clickedIndex + 1;
+        m_clickedIndex += 1;
+        auto tmp = m_locationConfig.savedCities[rawIndex];
+        m_locationConfig.savedCities[rawIndex] = m_locationConfig.savedCities[tarIndex];
+        m_locationConfig.savedCities[tarIndex] = tmp;
+        if (m_locationConfig.currentCityIndex == rawIndex) m_locationConfig.currentCityIndex = tarIndex;
+        else if (m_locationConfig.currentCityIndex == tarIndex) m_locationConfig.currentCityIndex = rawIndex;
+        ConfigManager::getInstance()->setHomeweather(m_locationConfig);
+    });
+    // select
+    connect(m_selectBtn, &QPushButton::clicked, this, [=](){
+        if (m_clickedIndex == -1){
+            qDebug() << "无法选择";
+            return;
+        }
+        else if(m_clickedIndex == m_locationConfig.currentCityIndex){
+            qDebug() << "无需改变";
+            return;
+        }
+        m_locationConfig.currentCityIndex = m_clickedIndex;
+        ConfigManager::getInstance()->setHomeweather(m_locationConfig);
+    });
+    // select
+    connect(m_deleteBtn, &QPushButton::clicked, this, [=](){
+        if (m_clickedIndex == -1){
+            qDebug() << "无法删除";
+            return;
+        }
+        if (m_clickedIndex < m_locationConfig.currentCityIndex){
+            m_locationConfig.currentCityIndex -= 1;
+        }
+        else if(m_clickedIndex == m_locationConfig.currentCityIndex){
+            m_locationConfig.currentCityIndex = -1;
+        }
+        m_locationConfig.savedCities.remove(m_clickedIndex);
+        m_clickedIndex = -1;
         ConfigManager::getInstance()->setHomeweather(m_locationConfig);
     });
     connect(m_addSubmit, &QPushButton::clicked, this, [=](){
@@ -99,7 +145,12 @@ void SettingHomePage::resetUI(){
     qDebug() << "刷新home页的UI";
     if (m_locationConfig.savedCities.isEmpty()) return;
     // 对齐当前城市
-    m_lblLocationCity->setText(m_locationConfig.savedCities[m_locationConfig.currentCityIndex].name);
+    if (m_locationConfig.currentCityIndex != -1){
+        m_lblLocationCity->setText(m_locationConfig.savedCities[m_locationConfig.currentCityIndex].name);
+    }
+    else{
+        m_lblLocationCity->setText("无");
+    }
     // 刷新城市列表
     if (m_contentLayout) {
         while (m_contentLayout->count() > 0) {

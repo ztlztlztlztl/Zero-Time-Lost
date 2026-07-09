@@ -41,6 +41,19 @@ const QString quoteStyleResize = "color: #FFFFFF; font-size: %1px; font-family: 
 
 }
 
+namespace Service{
+
+const QString gaodeKey = "8b5465dc2621b97ccbcbef47ad0dec13";
+
+const int timeInterval = 1200000;
+
+
+
+}
+
+
+
+
 }
 
 namespace Setting{

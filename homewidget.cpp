@@ -25,6 +25,22 @@ HomeWidget::HomeWidget(QWidget *parent) : QWidget(parent)
     uiVerticalLayout->addSpacerItem(vSpacer);
     // 把上层加入第 0 行 0 列！
     mainGrid->addWidget(uiLayerWidget, 0, 0);
+    // 服务器们
+    // m_weatherService
+    m_weatherService = new homeWeatherService(this);
+
+    connect(m_weatherService, &homeWeatherService::updateWeatherRequest, this,
+            [=](QString name, QString temp, QString account){
+        m_infoWidget->updateWeather(name, temp, account);
+    });
+
+    connect(CacheManager::getInstance(), &CacheManager::weatherCacheUpdated, this,
+            [=](QString code){
+                auto info = CacheManager::getInstance()->getCityWeatherInfo(code);
+                m_infoWidget->updateWeather("", info.temperature, info.weather);
+            });
+
+    m_weatherService->updateWeather();
 }
 
 HomeWidget::~HomeWidget()

@@ -75,10 +75,11 @@ void HomeInfoWidget::refreshDateTime()
     m_lblDate->setText(dateStr);
 }
 
-void HomeInfoWidget::updateWeather(const QString &temp, const QString &status)
+void HomeInfoWidget::updateWeather(QString name, QString temp, QString account)
 {
-    m_lblTemp->setText(temp);
-    m_lblWeather->setText(status);
+    if (!name.isEmpty()) m_lblLocation->setText(name);
+    m_lblTemp->setText(temp + "°C");
+    m_lblWeather->setText(account);
 }
 
 void HomeInfoWidget::updateQuote(const QString &quote)

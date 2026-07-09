@@ -100,7 +100,7 @@ void ConfigManager::loadFromFile(){
     QJsonObject homeObj = rootObj["home"].toObject();
     QJsonObject weatherObj = homeObj["weather"].toObject();
     // toString 默认值
-    m_homeWeather.currentCityIndex = weatherObj.value("currentCityCode").toInt();
+    m_homeWeather.currentCityIndex = weatherObj.value("currentCityIndex").toInt();
     m_homeWeather.savedCities.clear();
     QJsonArray cityArray = weatherObj.value("savedCities").toArray();
     for (int i = 0; i < cityArray.size(); ++i) {
@@ -142,5 +142,15 @@ void ConfigManager::setHomeweather(const HomeWeatherConfig& newconfig){
     saveToFile();
     emit homeWeatherChanged();
 }
+
+
+
+
+
+
+
+
+
+
 
 

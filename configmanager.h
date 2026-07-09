@@ -21,7 +21,7 @@ struct HomeWeatherConfig{
 
     QJsonObject toJson(){
         QJsonObject homeWeatherObect;
-        homeWeatherObect["currentCityIndex"] = QString::number(currentCityIndex);
+        homeWeatherObect["currentCityIndex"] = currentCityIndex;
         QJsonArray cityArray;
         for (const auto& city : savedCities) {
             QJsonObject cityObj;
