@@ -3,6 +3,7 @@
 SettingWidget::SettingWidget(QWidget *parent)
     : QWidget{parent}
 {
+    qDebug() << "[SettingWidget] 启动。";
     this->setAttribute(Qt::WA_StyledBackground, true);
     this->setObjectName("settingPage");
     this->setStyleSheet(ZTL::Setting::global::backgroundStyle);
@@ -45,6 +46,6 @@ SettingWidget::SettingWidget(QWidget *parent)
 }
 
 void SettingWidget::resetUI(){
-    qDebug() << "开始刷新setting页的UI";
+    qDebug() << "[SettingWidget] 刷新setting页。";
     m_homePage->resetUI();
 }

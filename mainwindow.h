@@ -11,6 +11,7 @@
 #include <QStackedWidget>
 #include <QKeyEvent>
 #include <QDebug>
+#include <QFile>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {

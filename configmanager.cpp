@@ -10,7 +10,7 @@ ConfigManager* ConfigManager::getInstance()
 ConfigManager::ConfigManager(QObject *parent)
     : QObject(nullptr) // 单例的父指针为 nullptr
 {
-    qDebug() << "ConfigManager 构造函数被调用";
+    qDebug() << "[ConfigManager] 构造函数被调用。";
 }
 
 
@@ -19,20 +19,21 @@ ConfigManager::ConfigManager(QObject *parent)
 
 ConfigManager::~ConfigManager()
 {
-    qDebug() << "ConfigManager 析构函数被调用";
+    qDebug() << "[ConfigManager] 析构函数被调用。";
 }
 
 void ConfigManager::initialize()
 {
-    qDebug() << "自检路径";
+    qInfo() << "[ConfigManager] 开始自检与建构。";
     checkAndCreateDirectories();
-    qDebug() << "读取配置";
+    qInfo() << "[ConfigManager] 自检完毕，读取配置。";
     loadFromFile();
+    qInfo() << "[ConfigManager] 配置读取完毕。";
 }
 
 
 void ConfigManager::saveConfig(){
-    qDebug() << "触发保存";
+    qDebug() << "[ConfigManager] 触发保存。";
     saveToFile();
 }
 
@@ -42,47 +43,49 @@ void ConfigManager::checkAndCreateDirectories(){
     m_configDirPath = configDirPath;
 
     // 检查文件夹是否存在
+    qInfo() << "[ConfigManager] 自检配置目录。";
     QDir dir(configDirPath);
     if (!dir.exists()) {
-        qDebug() << "检测到配置目录不存在，正在尝试创建：" << configDirPath;
+        qDebug() << "[ConfigManager] 配置目录不存在，尝试创建：" << configDirPath << "。";
         if (dir.mkpath(configDirPath)) {
-            qDebug() << "配置目录创建成功！";
+            qDebug() << "[ConfigManager] 配置目录创建成功。";
         } else {
-            qWarning() << "警告：配置目录创建失败！";
+            qWarning() << "[ConfigManager] 配置目录创建失败！";
             return;
         }
     }
     else{
-        qDebug() << "配置路径" << configDirPath << "已存在，无需重复创建。";
+        qDebug() << "[ConfigManager] 配置目录" << configDirPath << "已存在，自检完成。";
     }
 
     // 检查文件是否存在
+    qInfo() << "[ConfigManager] 自检配置文件。";
     QStringList jsons = {"/settings.json"};
     for (int i = 0; i < jsons.length(); i++) {
         QString filePath = configDirPath + jsons[i];
         QFile file(filePath);
         if (!file.exists()) {
-            qDebug() << "检测到配置文件不存在，正在尝试创建：" << filePath;
+            qDebug() << "[ConfigManager] 配置文件不存在，正在尝试创建：" << filePath;
             if (file.open(QIODevice::WriteOnly)) {
-                qDebug() << "配置文件创建成功！" << jsons[i];
+                qDebug() << "[ConfigManager] 配置文件创建成功。" << jsons[i];
                 file.write("{}"); // 写一个json的大括号
                 file.close();
             } else {
-                qWarning() << "警告：配置文件创建失败！" << jsons[i];
+                qWarning() << "[ConfigManager] 配置文件创建失败！" << jsons[i];
             }
         } else {
-            qDebug() << "配置文件" << jsons[i] << "已存在，无需重复创建。";
+            qDebug() << "[ConfigManager] 配置文件" << jsons[i] << "已存在，无需重复创建。";
         }
     }
 }
 
 void ConfigManager::loadFromFile(){
-    qDebug() << "load 配置 from" << m_configDirPath;
+    qDebug() << "[ConfigManager] 加载配置：" << m_configDirPath;
 
     // setting部分
     QFile file(m_configDirPath + "/settings.json");
     if (!file.open(QIODevice::ReadOnly)) {
-        qDebug() << "无法打开文件进行读取！";
+        qDebug() << "[ConfigManager] 无法打开文件进行读取：" << "./settings.json。";
         return;
     }
     // 防文件损坏
@@ -90,7 +93,7 @@ void ConfigManager::loadFromFile(){
     QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &error);
     file.close();
     if (error.error != QJsonParseError::NoError) {
-        qDebug() << "JSON 格式损坏：" << error.errorString();
+        qWarning() << "[ConfigManager] ./settings.json JSON 格式损坏：" << error.errorString();
         m_homeWeather.currentCityIndex = 0;
         m_homeWeather.savedCities = {weatherCity{"北京海淀", "110108"}};
         m_homeQuote.currentThemeIndex = 0;
@@ -125,7 +128,7 @@ void ConfigManager::loadFromFile(){
 }
 
 void ConfigManager::saveToFile(){
-    qDebug() << "save 配置 to" << m_configDirPath;
+    qDebug() << "[ConfigManager] 保存配置：" << m_configDirPath << "。";
     // setting部分
     // 总{}
     QJsonObject settingObj;
@@ -142,7 +145,7 @@ void ConfigManager::saveToFile(){
         file.write(doc.toJson()); // tojson()自带换行
         file.close();
     } else {
-        qDebug() << "保存失败！";
+        qWarning() << "[ConfigManager] 保存失败！";
     }
 }
 

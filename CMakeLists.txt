@@ -23,6 +23,7 @@ qt_add_executable(Zero-Time-Lost-tobedone
     homeweatherservice.h homeweatherservice.cpp
     cachemanager.h cachemanager.cpp
     homequoteservice.h homequoteservice.cpp
+    logger.h
 
 )
 

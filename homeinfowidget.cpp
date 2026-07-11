@@ -2,6 +2,7 @@
 
 HomeInfoWidget::HomeInfoWidget(QWidget *parent) : QWidget(parent)
 {
+    qInfo() << "[HomeInfoWidget] 启动。";
     // 总体垂直布局
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(40, 20, 40, 20);
@@ -44,6 +45,7 @@ HomeInfoWidget::HomeInfoWidget(QWidget *parent) : QWidget(parent)
     m_lblQuote = new QLabel("愿你千帆阅尽，归来仍是少年", this);
     m_lblQuote->setStyleSheet(ZTL::Home::Info::quoteStyle);
     m_lblQuote->setAlignment(Qt::AlignCenter);
+    m_lblQuote->setWordWrap(true);
     // 总组装
     mainLayout->addWidget(topWidget);
     mainLayout->addWidget(m_lblQuote);

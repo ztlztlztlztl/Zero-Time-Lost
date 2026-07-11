@@ -10,7 +10,7 @@ CacheManager* CacheManager::getInstance()
 CacheManager::CacheManager(QObject *parent)
     : QObject(nullptr) // 单例的父指针为 nullptr
 {
-    qDebug() << "CacheManager 构造函数被调用";
+    qDebug() << "[CacheManager] 构造函数被调用。";
 }
 
 
@@ -19,19 +19,20 @@ CacheManager::CacheManager(QObject *parent)
 
 CacheManager::~CacheManager()
 {
-    qDebug() << "CacheManager 析构函数被调用";
+    qDebug() << "[CacheManager] 析构函数被调用。";
 }
 
 void CacheManager::initialize()
 {
-    qDebug() << "自检路径";
+    qInfo() << "[CacheManager] 开始自检与构建。";
     checkAndCreateDirectories();
-    qDebug() << "读取配置";
+    qInfo() << "[CacheManager] 自检完毕，读取缓存。";
     loadFromFile();
+    qInfo() << "[CacheManager] 缓存读取完毕。";
 }
 
 void CacheManager::saveCache(){
-    qDebug() << "触发保存";
+    qDebug() << "[CacheManager] 触发保存。";
     saveToFile();
 }
 
@@ -41,48 +42,50 @@ void CacheManager::checkAndCreateDirectories(){
     m_cacheDirPath = cacheDirPath;
 
     // 检查文件夹是否存在
+    qInfo() << "[CacheManager] 自检缓存目录。";
     QDir dir(cacheDirPath);
     if (!dir.exists()) {
-        qDebug() << "检测到配置目录不存在，正在尝试创建：" << cacheDirPath;
+        qDebug() << "[CacheManager] 缓存目录不存在，尝试创建：" << cacheDirPath;
         if (dir.mkpath(cacheDirPath)) {
-            qDebug() << "配置目录创建成功！";
+            qDebug() << "[CacheManager] 缓存目录创建成功。";
         } else {
-            qWarning() << "警告：配置目录创建失败！";
+            qWarning() << "[CacheManager] 缓存目录创建失败！";
             return;
         }
     }
     else{
-        qDebug() << "配置路径" << cacheDirPath << "已存在，无需重复创建。";
+        qDebug() << "[CacheManager] 缓存目录" << cacheDirPath << "已存在，无需重复创建。";
     }
 
     // 检查文件是否存在
+    qInfo() << "[CacheManager] 自检缓存文件。";
     QStringList jsons = {"/weather.json", "/quote.json"};
     QList<QString> inits = {"[]", "{}"};
     for (int i = 0; i < jsons.length(); i++) {
         QString filePath = cacheDirPath + jsons[i];
         QFile file(filePath);
         if (!file.exists()) {
-            qDebug() << "检测到配置文件不存在，正在尝试创建：" << filePath;
+            qDebug() << "[CacheManager] 缓存文件文件不存在，尝试创建：" << jsons[i];
             if (file.open(QIODevice::WriteOnly)) {
-                qDebug() << "配置文件创建成功！" << jsons[i];
+                qDebug() << "[CacheManager] 缓存文件创建成功！" << jsons[i];
                 file.write(inits[i].toUtf8());
                 file.close();
             } else {
-                qWarning() << "警告：配置文件创建失败！" << jsons[i];
+                qWarning() << "[CacheManager] 缓存文件创建失败！" << jsons[i];
             }
         } else {
-            qDebug() << "配置文件" << jsons[i] << "已存在，无需重复创建。";
+            qDebug() << "[CacheManager] 缓存文件" << jsons[i] << "已存在，无需重复创建。";
         }
     }
 }
 
 void CacheManager::loadFromFile(){
-    qDebug() << "load 缓存 from" << m_cacheDirPath;
+    qDebug() << "[CacheManager] 加载缓存：" << m_cacheDirPath;
 
     // weather部分
     QFile fileWeather(m_cacheDirPath + "/weather.json");
     if (!fileWeather.open(QIODevice::ReadOnly)) {
-        qDebug() << "无法打开文件进行读取！";
+        qWarning() << "[CacheManager] 无法打开文件进行读取：/weather.json";
         return;
     }
     // 防文件损坏
@@ -90,7 +93,7 @@ void CacheManager::loadFromFile(){
     QJsonDocument doc = QJsonDocument::fromJson(fileWeather.readAll(), &error);
     fileWeather.close();
     if (error.error != QJsonParseError::NoError) {
-        qDebug() << "JSON 格式损坏：" << error.errorString();
+        qWarning() << "[CacheManager] JSON 格式损坏：" << error.errorString();
         // 信息留空
         return;
     }
@@ -110,13 +113,13 @@ void CacheManager::loadFromFile(){
     // quote 部分
     QFile fileQuote(m_cacheDirPath + "/quote.json");
     if (!fileQuote.open(QIODevice::ReadOnly)) {
-        qDebug() << "无法打开文件进行读取！";
+        qWarning() << "[CacheManager] 无法打开文件进行读取：/quote.json";
         return;
     }
     QJsonDocument docQuote = QJsonDocument::fromJson(fileQuote.readAll(), &error);
     fileQuote.close();
     if (error.error != QJsonParseError::NoError) {
-        qDebug() << "JSON 格式损坏：" << error.errorString();
+        qWarning() << "[CacheManager] JSON 格式损坏：" << error.errorString();
         // 信息留空
         return;
     }
@@ -127,7 +130,7 @@ void CacheManager::loadFromFile(){
 }
 
 void CacheManager::saveToFile(){
-    qDebug() << "save 缓存 to" << m_cacheDirPath;
+    qDebug() << "[CacheManager] 保存缓存：" << m_cacheDirPath;
     // weather部分
     QJsonArray weatherArray;
     for (const CityWeatherInfo &info : m_weatherCaches) {
@@ -141,7 +144,7 @@ void CacheManager::saveToFile(){
         fileWeather.write(doc.toJson()); // tojson()自带换行
         fileWeather.close();
     } else {
-        qDebug() << "保存失败！";
+        qWarning() << "[CacheManager] /weather.json 保存失败！";
     }
     // quote 部分
     QJsonObject quoteObject;
@@ -153,7 +156,7 @@ void CacheManager::saveToFile(){
         fileQuote.write(docquote.toJson()); // tojson()自带换行
         fileQuote.close();
     } else {
-        qDebug() << "保存失败！";
+        qWarning() << "[CacheManager] /quote.json 保存失败！";
     }
 
 }

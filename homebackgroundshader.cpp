@@ -45,7 +45,8 @@ static const char* fragmentShaderSource = R"glsl(
 HomeBackgroundShader::HomeBackgroundShader(QWidget *parent)
     : QOpenGLWidget(parent)
 {
-     // 让鼠标点击穿透背景
+    qInfo() << "[HomeBackgroundShader] 启动。";
+    // 让鼠标点击穿透背景
     setAttribute(Qt::WA_TransparentForMouseEvents, true);
     // 启动计时器
     m_timer = new QTimer(this);
@@ -114,7 +115,7 @@ void HomeBackgroundShader::hideEvent(QHideEvent *event){
 
     if (m_timer && m_timer->isActive()) {
         m_timer->stop();
-        qDebug() << "背景暂停";
+        qDebug() << "[HomeBackgroundShader] 背景暂停。";
     }
 }
 
@@ -123,7 +124,7 @@ void HomeBackgroundShader::showEvent(QShowEvent *event){
 
     if (m_timer && !m_timer->isActive()) {
         m_timer->start(ZTL::Home::Background::timeInterval);
-        qDebug() << "背景继续";
+        qDebug() << "[HomeBackgroundShader] 背景继续。";
     }
 }
 

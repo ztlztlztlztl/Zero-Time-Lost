@@ -5,9 +5,27 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
-    // 启动 ConfigManager
+    // 开机自检
+    qInfo() << "[main] 开机自检与构建。";
+    // 启动 Manager
     ConfigManager::getInstance()->initialize();
     CacheManager::getInstance()->initialize();
+    // 脚本文件夹
+    qInfo() << "[main] 自检脚本。";
+    QFile fileScripts("./scripts");
+    if (!fileScripts.exists()) {
+        qWarning() << "[main] 脚本文件夹不存在！";
+    } else {
+        QList<QString> scripts = {"getWeather.py", "getQuote.py"};
+        for (const QString &filename:scripts){
+            QFile fileThis("./scripts/" + filename);
+            if (!fileThis.exists()) {
+                qWarning() << "[main] 脚本文件不存在：" << filename;
+            }
+        }
+    }
+    qInfo() << "[main] 脚本自检完毕。";
+    qInfo() << "[main] 启动UI。";
     ui->setupUi(this);
     // 栈
     m_stackedWidget = new QStackedWidget(ui->centralwidget);
@@ -21,7 +39,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_stackedWidget->addWidget(m_settingWidget);
 
     this->setCentralWidget(m_stackedWidget);
-    m_stackedWidget->setCurrentIndex(1);
+    m_stackedWidget->setCurrentIndex(0);
 
 
     // 换页处理
@@ -43,7 +61,7 @@ MainWindow::MainWindow(QWidget *parent)
 }
 
 void MainWindow::closeEvent(QCloseEvent *event){
-    qDebug() << "程序将要关闭";
+    qDebug() << "[main] 程序将要关闭。";
     ConfigManager::getInstance()->saveConfig();
 
 }

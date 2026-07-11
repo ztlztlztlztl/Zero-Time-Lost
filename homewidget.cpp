@@ -2,6 +2,7 @@
 
 HomeWidget::HomeWidget(QWidget *parent) : QWidget(parent)
 {
+    qInfo() << "[HomeWidget] 启动。";
     // 创建网格布局
     QGridLayout *mainGrid = new QGridLayout(this);
     mainGrid->setContentsMargins(0, 0, 0, 0);
@@ -23,7 +24,6 @@ HomeWidget::HomeWidget(QWidget *parent) : QWidget(parent)
     // 在信息组件下方加入一个弹簧
     QSpacerItem *vSpacer = new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding);
     uiVerticalLayout->addSpacerItem(vSpacer);
-    // 把上层加入第 0 行 0 列！
     mainGrid->addWidget(uiLayerWidget, 0, 0);
     // 服务器们
     m_weatherService = new HomeWeatherService(this); // m_weatherService
@@ -52,6 +52,7 @@ HomeWidget::HomeWidget(QWidget *parent) : QWidget(parent)
                 m_infoWidget->updateQuote(content);
             });
 
+    qInfo() << "[HomeWidget] 开机更新信息。";
     m_weatherService->updateWeather();
     m_quoteService->updateQuote();
 }

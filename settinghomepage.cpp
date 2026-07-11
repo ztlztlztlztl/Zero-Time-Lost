@@ -3,6 +3,7 @@
 SettingHomePage::SettingHomePage(QWidget *parent)
     : QWidget{parent}
 {
+    qInfo() << "[SettingHomePage] 启动。";
     // 信息初始化
     m_locationConfig = ConfigManager::getInstance()->getHomeweather();
     m_themeConfig = ConfigManager::getInstance()->getHomeQuote();
@@ -128,7 +129,7 @@ SettingHomePage::SettingHomePage(QWidget *parent)
     // up
     connect(m_upLocationBtn, &QPushButton::clicked, this, [=](){
         if (m_clickedLocationIndex == 0 || m_clickedLocationIndex == -1){
-            qDebug() << "无法上行";
+            qDebug() << "[SettingHomePage] 当前选定城市无法上行。";
             return;
         }
         int rawIndex = m_clickedLocationIndex;
@@ -143,7 +144,7 @@ SettingHomePage::SettingHomePage(QWidget *parent)
     });
     connect(m_upThemeBtn, &QPushButton::clicked, this, [=](){
         if (m_clickedThemeIndex == 0 || m_clickedThemeIndex == -1){
-            qDebug() << "无法上行";
+            qDebug() << "[SettingHomePage] 当前选定主题无法上行。";
             return;
         }
         int rawIndex = m_clickedThemeIndex;
@@ -159,7 +160,7 @@ SettingHomePage::SettingHomePage(QWidget *parent)
     // down
     connect(m_downLocationBtn, &QPushButton::clicked, this, [=](){
         if (m_clickedLocationIndex == m_locationConfig.savedCities.length() - 1 || m_clickedLocationIndex == -1){
-            qDebug() << "无法下行";
+            qDebug() << "[SettingHomePage] 当前选定城市无法下行。";
             return;
         }
         int rawIndex = m_clickedLocationIndex;
@@ -174,7 +175,7 @@ SettingHomePage::SettingHomePage(QWidget *parent)
     });
     connect(m_downThemeBtn, &QPushButton::clicked, this, [=](){
         if (m_clickedThemeIndex == m_themeConfig.savedThemes.length() - 1 || m_clickedThemeIndex == -1){
-            qDebug() << "无法下行";
+            qDebug() << "[SettingHomePage] 当前选定主题无法下行。";
             return;
         }
         int rawIndex = m_clickedThemeIndex;
@@ -190,11 +191,11 @@ SettingHomePage::SettingHomePage(QWidget *parent)
     // select
     connect(m_selectLocationBtn, &QPushButton::clicked, this, [=](){
         if (m_clickedLocationIndex == -1){
-            qDebug() << "无法选择";
+            qDebug() << "[SettingHomePage] 当前选定城市无法选择作为配置。";
             return;
         }
         else if(m_clickedLocationIndex == m_locationConfig.currentCityIndex){
-            qDebug() << "无需改变";
+            qDebug() << "[SettingHomePage] 相同，无需改变当前城市配置。";
             return;
         }
         m_locationConfig.currentCityIndex = m_clickedLocationIndex;
@@ -202,11 +203,11 @@ SettingHomePage::SettingHomePage(QWidget *parent)
     });
     connect(m_selectThemeBtn, &QPushButton::clicked, this, [=](){
         if (m_clickedThemeIndex == -1){
-            qDebug() << "无法选择";
+            qDebug() << "[SettingHomePage] 当前选定主题无法选择作为配置。";
             return;
         }
         else if(m_clickedThemeIndex == m_themeConfig.currentThemeIndex){
-            qDebug() << "无需改变";
+            qDebug() << "[SettingHomePage] 相同，无需改变当前主题配置。";
             return;
         }
         m_themeConfig.currentThemeIndex = m_clickedThemeIndex;
@@ -215,7 +216,7 @@ SettingHomePage::SettingHomePage(QWidget *parent)
     // delete
     connect(m_deleteLocationBtn, &QPushButton::clicked, this, [=](){
         if (m_clickedLocationIndex == -1){
-            qDebug() << "无法删除";
+            qDebug() << "[SettingHomePage] 未选择，不可执行删除";
             return;
         }
         if (m_clickedLocationIndex < m_locationConfig.currentCityIndex){
@@ -230,7 +231,7 @@ SettingHomePage::SettingHomePage(QWidget *parent)
     });
     connect(m_deleteThemeBtn, &QPushButton::clicked, this, [=](){
         if (m_clickedThemeIndex == -1){
-            qDebug() << "无法删除";
+            qDebug() << "[SettingHomePage] 未选择，不可执行删除";
             return;
         }
         if (m_clickedThemeIndex < m_themeConfig.currentThemeIndex){
@@ -244,29 +245,29 @@ SettingHomePage::SettingHomePage(QWidget *parent)
         ConfigManager::getInstance()->setHomeQuote(m_themeConfig);
     });
     connect(m_addLocationSubmit, &QPushButton::clicked, this, [=](){
-        qDebug() << "location submit被点击";
+        qDebug() << "[SettingHomePage] location submit被点击";
         addCity();
     });
     connect(m_addThemeSubmit, &QPushButton::clicked, this, [=](){
-        qDebug() << "theme submit被点击";
+        qDebug() << "[SettingHomePage] theme submit被点击";
         addTheme();
     });
     connect(this, &SettingHomePage::weatherSaveRequest, this, [=](){
-        qDebug() << "保存weather配置";
+        qDebug() << "[SettingHomePage] 保存weather配置";
         ConfigManager::getInstance()->setHomeweather(m_locationConfig);
     });
     connect(ConfigManager::getInstance(), &ConfigManager::homeWeatherChanged, this, [=](){
-        qDebug() << "weather配置改变";
+        qDebug() << "[SettingHomePage] weather配置改变，需要刷新。";
         resetUI();
     });
     connect(ConfigManager::getInstance(), &ConfigManager::homeQuoteChanged, this, [=](){
-        qDebug() << "quote配置改变";
+        qDebug() << "[SettingHomePage] quote配置改变，需要刷新。";
         resetUI();
     });
 }
 
 void SettingHomePage::resetUI(){
-    qDebug() << "刷新home页的UI";
+    qInfo() << "[SettingHomePage] 刷新setting页的home页的UI。";
     if (m_locationConfig.savedCities.isEmpty() && m_themeConfig.savedThemes.isEmpty()) return;
     // 城市部分
     // 对齐当前城市
@@ -309,7 +310,7 @@ void SettingHomePage::resetUI(){
         cityBtnGroup->addButton(cityBtn, i);
     }
     connect(cityBtnGroup, &QButtonGroup::idClicked, this, [=](int id){
-        qDebug() << "用户切换了当前点击的城市，索引为：" << id;
+        qDebug() << "[SettingHomePage] 切换了当前点击的城市，索引为：" << id;
         m_clickedLocationIndex = id;
     });
     // 每日一言部分
@@ -349,7 +350,7 @@ void SettingHomePage::resetUI(){
         themeBtnGroup->addButton(themeBtn, i);
     }
     connect(themeBtnGroup, &QButtonGroup::idClicked, this, [=](int id){
-        qDebug() << "用户切换了当前点击的主题，索引为：" << id;
+        qDebug() << "[SettingHomePage] 切换了当前点击的主题，索引为：" << id;
         m_clickedThemeIndex = id;
     });
 }
