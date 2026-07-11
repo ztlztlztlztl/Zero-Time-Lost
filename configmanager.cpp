@@ -13,10 +13,6 @@ ConfigManager::ConfigManager(QObject *parent)
     qDebug() << "[ConfigManager] 构造函数被调用。";
 }
 
-
-
-
-
 ConfigManager::~ConfigManager()
 {
     qDebug() << "[ConfigManager] 析构函数被调用。";
@@ -24,129 +20,39 @@ ConfigManager::~ConfigManager()
 
 void ConfigManager::initialize()
 {
-    qInfo() << "[ConfigManager] 开始自检与建构。";
-    checkAndCreateDirectories();
-    qInfo() << "[ConfigManager] 自检完毕，读取配置。";
+    qInfo() << "[ConfigManager] 开始自检与读取。";
+    m_homeSettingEngine = new HelpJsonIOEngine("./config", "settings.json", 1000, this);
     loadFromFile();
     qInfo() << "[ConfigManager] 配置读取完毕。";
 }
 
-
-void ConfigManager::saveConfig(){
-    qDebug() << "[ConfigManager] 触发保存。";
-    saveToFile();
-}
-
-void ConfigManager::checkAndCreateDirectories(){
-    QString exeDirPath = QCoreApplication::applicationDirPath();
-    QString configDirPath = exeDirPath + "/config";
-    m_configDirPath = configDirPath;
-
-    // 检查文件夹是否存在
-    qInfo() << "[ConfigManager] 自检配置目录。";
-    QDir dir(configDirPath);
-    if (!dir.exists()) {
-        qDebug() << "[ConfigManager] 配置目录不存在，尝试创建：" << configDirPath << "。";
-        if (dir.mkpath(configDirPath)) {
-            qDebug() << "[ConfigManager] 配置目录创建成功。";
-        } else {
-            qWarning() << "[ConfigManager] 配置目录创建失败！";
-            return;
-        }
-    }
-    else{
-        qDebug() << "[ConfigManager] 配置目录" << configDirPath << "已存在，自检完成。";
-    }
-
-    // 检查文件是否存在
-    qInfo() << "[ConfigManager] 自检配置文件。";
-    QStringList jsons = {"/settings.json"};
-    for (int i = 0; i < jsons.length(); i++) {
-        QString filePath = configDirPath + jsons[i];
-        QFile file(filePath);
-        if (!file.exists()) {
-            qDebug() << "[ConfigManager] 配置文件不存在，正在尝试创建：" << filePath;
-            if (file.open(QIODevice::WriteOnly)) {
-                qDebug() << "[ConfigManager] 配置文件创建成功。" << jsons[i];
-                file.write("{}"); // 写一个json的大括号
-                file.close();
-            } else {
-                qWarning() << "[ConfigManager] 配置文件创建失败！" << jsons[i];
-            }
-        } else {
-            qDebug() << "[ConfigManager] 配置文件" << jsons[i] << "已存在，无需重复创建。";
-        }
-    }
-}
-
 void ConfigManager::loadFromFile(){
-    qDebug() << "[ConfigManager] 加载配置：" << m_configDirPath;
-
+    qDebug() << "[ConfigManager] 加载配置：./config";
     // setting部分
-    QFile file(m_configDirPath + "/settings.json");
-    if (!file.open(QIODevice::ReadOnly)) {
-        qDebug() << "[ConfigManager] 无法打开文件进行读取：" << "./settings.json。";
+    QJsonObject settingObj = m_homeSettingEngine->read();
+    if (settingObj.isEmpty()) {
+        qWarning() << "[ConfigManager] ./settings.json JSON 格式损坏或空。";
+        m_homeWeather = HomeWeatherConfig();
+        m_homeQuote = HomeQuoteConfig();
         return;
     }
-    // 防文件损坏
-    QJsonParseError error;
-    QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &error);
-    file.close();
-    if (error.error != QJsonParseError::NoError) {
-        qWarning() << "[ConfigManager] ./settings.json JSON 格式损坏：" << error.errorString();
-        m_homeWeather.currentCityIndex = 0;
-        m_homeWeather.savedCities = {weatherCity{"北京海淀", "110108"}};
-        m_homeQuote.currentThemeIndex = 0;
-        m_homeQuote.savedThemes = {"少年"};
-        return;
-    }
-
-    QJsonObject rootObj = doc.object();
-    QJsonObject homeObj = rootObj["home"].toObject();
-    // weather部分
+    QJsonObject homeObj = settingObj["home"].toObject();
     QJsonObject weatherObj = homeObj["weather"].toObject();
-    // toString 默认值
-    m_homeWeather.currentCityIndex = weatherObj.value("currentCityIndex").toInt(0);
-    m_homeWeather.savedCities.clear();
-    QJsonArray cityArray = weatherObj.value("savedCities").toArray();
-    for (int i = 0; i < cityArray.size(); ++i) {
-        QJsonObject cityObj = cityArray[i].toObject();
-        weatherCity item;
-        item.name = cityObj.value("name").toString("未知城市");
-        item.code = cityObj.value("code").toString("000000");
-        m_homeWeather.savedCities.append(item);
-    }
-    // quote部分
+    m_homeWeather = HomeWeatherConfig(weatherObj);
     QJsonObject quoteObj = homeObj["quote"].toObject();
-    m_homeQuote.currentThemeIndex = quoteObj.value("currentThemeIndex").toInt(0);
-    m_homeQuote.savedThemes.clear();
-    QJsonArray themeArray = quoteObj.value("savedThemes").toArray();
-    for (int i = 0; i < themeArray.size(); ++i) {
-        QString theme = themeArray[i].toString("少年");
-        m_homeQuote.savedThemes.append(theme);
-    }
+    m_homeQuote = HomeQuoteConfig(quoteObj);
 }
 
-void ConfigManager::saveToFile(){
-    qDebug() << "[ConfigManager] 保存配置：" << m_configDirPath << "。";
-    // setting部分
-    // 总{}
+void ConfigManager::saveSetting(){
+    qDebug() << "[ConfigManager] 保存 Setting 配置。";
     QJsonObject settingObj;
-    // home{}
+    // home
     QJsonObject homeObj;
     homeObj["weather"] = m_homeWeather.toJson(); // weather
     homeObj["quote"] = m_homeQuote.toJson(); // quote
     settingObj["home"] = homeObj;
     // 打包保存
-    QJsonDocument doc(settingObj);
-    QFile file(m_configDirPath + "/settings.json");
-    if (file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        // 只读与清空
-        file.write(doc.toJson()); // tojson()自带换行
-        file.close();
-    } else {
-        qWarning() << "[ConfigManager] 保存失败！";
-    }
+    m_homeSettingEngine->lazyWrite(settingObj);
 }
 
 // weather
@@ -156,7 +62,7 @@ const HomeWeatherConfig& ConfigManager::getHomeweather() const {
 
 void ConfigManager::setHomeweather(const HomeWeatherConfig& newconfig){
     m_homeWeather = newconfig;
-    saveToFile();
+    saveSetting();
     emit homeWeatherChanged();
 }
 
@@ -166,7 +72,7 @@ const HomeQuoteConfig& ConfigManager::getHomeQuote() const{
 }
 void ConfigManager::setHomeQuote(const HomeQuoteConfig& newconfig){
     m_homeQuote = newconfig;
-    saveToFile();
+    saveSetting();
     emit homeQuoteChanged();
 }
 

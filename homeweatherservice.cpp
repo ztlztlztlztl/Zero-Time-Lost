@@ -33,7 +33,7 @@ void HomeWeatherService::updateWeather(){
         }
     }
     else{
-        qInfo() << "[HomeWeatherService] 天气信息不需更新";
+        qInfo() << "[HomeWeatherService] 天气信息不需更新。";
         QString name = ConfigManager::getInstance()->getHomeweather().savedCities[
         ConfigManager::getInstance()->getHomeweather().currentCityIndex].name;
         emit updateWeatherRequest(name, info.temperature, info.weather);

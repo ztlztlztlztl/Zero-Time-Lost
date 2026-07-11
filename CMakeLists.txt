@@ -24,6 +24,7 @@ qt_add_executable(Zero-Time-Lost-tobedone
     cachemanager.h cachemanager.cpp
     homequoteservice.h homequoteservice.cpp
     logger.h
+    helpjsonioengine.h helpjsonioengine.cpp
 
 )
 

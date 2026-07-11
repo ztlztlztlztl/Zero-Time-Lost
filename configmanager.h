@@ -2,15 +2,13 @@
 #define CONFIGMANAGER_H
 
 #include "datatype.h"
+#include "helpjsonioengine.h"
 
 #include <QObject>
 #include <QString>
 #include <QVariant>
 #include <QList>
 #include <QDebug>
-#include <QDir>
-#include <QStandardPaths>
-#include <QCoreApplication>
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QMap>
@@ -18,6 +16,22 @@
 struct HomeWeatherConfig{
     int currentCityIndex;
     QList<weatherCity> savedCities;
+
+    HomeWeatherConfig(){
+        currentCityIndex = 0;
+        savedCities = {{"北京海淀", "110108"}};
+    }
+
+    HomeWeatherConfig(const QJsonObject &homeWeatherObect){
+        currentCityIndex = homeWeatherObect["currentCityIndex"].toInt(0);
+        QJsonArray cityArray = homeWeatherObect["savedCities"].toArray();
+        for (const auto& city : cityArray) {
+            QJsonObject _city = city.toObject();
+            weatherCity __city =
+                {_city["name"].toString("北京海淀"), _city["code"].toString("110108")};
+            savedCities.append(__city);
+        }
+    }
 
     QJsonObject toJson(){
         QJsonObject homeWeatherObect;
@@ -37,6 +51,20 @@ struct HomeWeatherConfig{
 struct HomeQuoteConfig{
     int currentThemeIndex;
     QList<QString> savedThemes;
+
+    HomeQuoteConfig(){
+        currentThemeIndex = 0;
+        savedThemes = {"无"};
+    }
+
+    HomeQuoteConfig(const QJsonObject &homeWeatherObect){
+        currentThemeIndex = homeWeatherObect["currentThemeIndex"].toInt(0);
+        QJsonArray themeArray = homeWeatherObect["savedThemes"].toArray();
+        for (const auto& theme : themeArray) {
+            QString _theme = theme.toString();
+            savedThemes.append(_theme);
+        }
+    }
 
     QJsonObject toJson(){
         QJsonObject homeQuoteObect;
@@ -59,8 +87,6 @@ public:
     // 单例模式
     static ConfigManager* getInstance();
     void initialize();
-    // 保存函数
-    void saveConfig();
     // 获取信息
     // weather
     const HomeWeatherConfig& getHomeweather() const;
@@ -86,14 +112,18 @@ private:
     ConfigManager& operator=(const ConfigManager&) = delete;
 
     // 文件 I/O 与自愈层
-    QString m_configDirPath;
-    void checkAndCreateDirectories(); // 检查 config 文件夹
     void loadFromFile();
-    void saveToFile();
+
+    void saveSetting();
+
+
 
     // 配置储存
     HomeWeatherConfig m_homeWeather;
     HomeQuoteConfig m_homeQuote;
+
+    // 对应的IO引擎
+    HelpJsonIOEngine *m_homeSettingEngine;
 
 
 

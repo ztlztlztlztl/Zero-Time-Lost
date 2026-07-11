@@ -70,7 +70,6 @@ bool HomeQuoteService::useQuoteAPI(){
     connect(process, &QProcess::readyReadStandardOutput, this, [=]() {
         QByteArray output = process->readAllStandardOutput();
         QString outputStr = QString::fromLocal8Bit(output).trimmed();
-        qDebug() << outputStr;
         QuoteInfo info;
         info.content = outputStr;
         info.timestamp = QDateTime::currentSecsSinceEpoch();

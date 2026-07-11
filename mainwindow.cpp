@@ -62,7 +62,6 @@ MainWindow::MainWindow(QWidget *parent)
 
 void MainWindow::closeEvent(QCloseEvent *event){
     qDebug() << "[main] 程序将要关闭。";
-    ConfigManager::getInstance()->saveConfig();
 
 }
 
