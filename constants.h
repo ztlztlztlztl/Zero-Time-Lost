@@ -110,6 +110,445 @@ const QList<QString> tags = {"无", "emo", "上午", "下午", "人生", "会议
                              "爱情", "独处", "现实", "理想", "相思", "真理",
                              "禅意", "离别", "编码", "自由", "轻松", "释然", };
 
+const QString scrollBarStyle = R"qss(
+            QScrollBar:vertical {
+                border: none;
+                background-color: #101216;
+                width: 8px;
+                margin: 0px 0px 0px 0px;
+            }
+
+            QScrollBar::handle:vertical {
+                background-color: #7F847F;
+                min-height: 20px;
+                border-radius: 4px;
+            }
+
+            QScrollBar::handle:vertical:hover,
+            QScrollBar::handle:vertical:pressed {
+                background-color: #EEEEEE;
+            }
+
+        )qss";
+
+const QString backgroundStyle = R"qss(
+            QWidget#homeBackground {
+                background-color: #101216;
+            }
+        )qss";
+
+const QString firstTitleStyle = R"qss(
+            font: bold 24px "Microsoft YaHei";
+            padding: 3px 3px 10px 3px;
+            background-color: #101216;
+            border-bottom: 2px solid #333;
+        )qss";
+
+const QString secondTitleStyle = R"qss(
+            font: bold 20px "Microsoft YaHei";
+            padding: 3px 3px 10px 3px;
+            background-color: #101216;
+        )qss";
+
+const QString thirdTitleStyle = R"qss(
+            font: bold 16px "Microsoft YaHei";
+            margin: 3px 3px 15px 3px;
+            padding: 3px 3px 6px 3px;
+            background-color: #101216;
+            border-top: transparent;
+            border-bottom: transparent;
+            border-left: 3px solid #EEEEEE;
+            border-right: transparent;
+        )qss";
+
+
+const QString simpleContentStyle = R"qss(
+            font: 16px "Microsoft YaHei";
+            margin: 3px 3px 15px 3px;
+            padding: 3px 3px 6px 3px;
+            background-color: #101216;
+        )qss";
+
+const QString firstInFourButtonStyle = R"qss(
+            QPushButton {
+                font: 16px "Microsoft YaHei";
+                margin: 8px 2px 3px 20px;
+                padding: 0px 0px 0px 0px;
+                background-color: #101216;
+                border-top: transparent;
+                border-bottom: transparent;
+                border-left: 1px solid #EE7755;
+                border-right: transparent;
+            }
+
+            QPushButton:hover {
+                color: #EE7755;
+                font: bold 16px "Microsoft YaHei";
+                margin: 8px 2px 3px 20px;
+                padding: 0px 0px 0px 0px;
+                background-color: #101216;
+                border-top: transparent;
+                border-bottom: transparent;
+                border-left: 3px solid #EE7755;
+                border-right: transparent;
+            }
+
+            QPushButton:pressed {
+                color: #EE7755;
+                font: bold 16px "Microsoft YaHei";
+                margin: 8px 2px 3px 20px;
+                padding: 2px 0px 0px 2px;
+                background-color: #101216;
+                border-top: transparent;
+                border-bottom: transparent;
+                border-left: 3px solid #EE7755;
+                border-right: transparent;
+            }
+
+        )qss";
+
+const QString secondInFourButtonStyle = R"qss(
+            QPushButton {
+                font: 16px "Microsoft YaHei";
+                margin: 8px 11px 3px 11px;
+                padding: 0px 0px 0px 0px;
+                background-color: #101216;
+                border-top: transparent;
+                border-bottom: transparent;
+                border-left: 1px solid #66EE55;
+                border-right: transparent;
+            }
+
+            QPushButton:hover {
+                color: #66EE55;
+                font: bold 16px "Microsoft YaHei";
+                margin: 8px 11px 3px 11px;
+                padding: 0px 0px 0px 0px;
+                background-color: #101216;
+                border-top: transparent;
+                border-bottom: transparent;
+                border-left: 3px solid #66EE55;
+                border-right: transparent;
+            }
+
+            QPushButton:pressed {
+                color: #66EE55;
+                font: bold 16px "Microsoft YaHei";
+                margin: 8px 11px 3px 11px;
+                padding: 2px 0px 0px 2px;
+                background-color: #101216;
+                border-top: transparent;
+                border-bottom: transparent;
+                border-left: 3px solid #66EE55;
+                border-right: transparent;
+            }
+
+        )qss";
+
+
+const QString thirdInFourButtonStyle = R"qss(
+            QPushButton {
+                font: 16px "Microsoft YaHei";
+                margin: 8px 11px 3px 11px;
+                padding: 0px 0px 0px 0px;
+                background-color: #101216;
+                border-top: transparent;
+                border-bottom: transparent;
+                border-left: 1px solid #3377EE;
+                border-right: transparent;
+            }
+
+            QPushButton:hover {
+                color: #3377EE;
+                font: bold 16px "Microsoft YaHei";
+                margin: 8px 11px 3px 11px;
+                padding: 0px 0px 0px 0px;
+                background-color: #101216;
+                border-top: transparent;
+                border-bottom: transparent;
+                border-left: 3px solid #3377EE;
+                border-right: transparent;
+            }
+
+            QPushButton:pressed {
+                color: #3377EE;
+                font: bold 16px "Microsoft YaHei";
+                margin: 8px 11px 3px 11px;
+                padding: 2px 0px 0px 2px;
+                background-color: #101216;
+                border-top: transparent;
+                border-bottom: transparent;
+                border-left: 3px solid #3377EE;
+                border-right: transparent;
+            }
+
+        )qss";
+
+
+const QString forthInFourButtonStyle = R"qss(
+            QPushButton {
+                font: 16px "Microsoft YaHei";
+                margin: 8px 20px 3px 2px;
+                padding: 0px 0px 0px 0px;
+                background-color: #101216;
+                border-top: transparent;
+                border-bottom: transparent;
+                border-left: 1px solid #FF6666;
+                border-right: transparent;
+            }
+
+            QPushButton:hover {
+                color: #FF6666;
+                font: bold 16px "Microsoft YaHei";
+                margin: 8px 20px 3px 2px;
+                padding: 0px 0px 0px 0px;
+                background-color: #101216;
+                border-top: transparent;
+                border-bottom: transparent;
+                border-left: 3px solid #FF6666;
+                border-right: transparent;
+            }
+
+            QPushButton:pressed {
+                color: #FF6666;
+                font: bold 16px "Microsoft YaHei";
+                margin: 8px 20px 3px 2px;
+                padding: 2px 0px 0px 2px;
+                background-color: #101216;
+                border-top: transparent;
+                border-bottom: transparent;
+                border-left: 3px solid #FF6666;
+                border-right: transparent;
+            }
+
+        )qss";
+
+const QString cityInputStyle = R"qss(
+            QLineEdit {
+                background-color: #1A1D24;
+                font: 14px "Microsoft YaHei";
+                color: #FFFFFF;
+                border-radius: 4px;
+                padding: 2px 8px;
+                border-top: transparent;
+                border-bottom: 1px solid #AAAAAA;
+                border-left: transparent;
+                border-right: transparent;
+                selection-background-color: #005555;
+                selection-color: #FFFFFF;
+            }
+
+            QLineEdit:hover {
+                border-top: transparent;
+                border-bottom: 1px solid #005555;
+                border-left: transparent;
+                border-right: transparent;
+            }
+
+            QLineEdit:focus {
+                border-top: transparent;
+                border-bottom: 1px solid #005555;
+                border-left: transparent;
+                border-right: transparent;
+                background-color: #131519;
+            }
+
+            QLineEdit:placeholder {
+                color: #005555;
+                font: 14px "Microsoft YaHei" italic;
+            }
+
+        )qss";
+
+const QString codeInputStyle = R"qss(
+            QLineEdit {
+                background-color: #1A1D24;
+                font: 14px "Microsoft YaHei";
+                color: #FFFFFF;
+                border-radius: 4px;
+                padding: 2px 8px;
+                border-top: transparent;
+                border-bottom: 1px solid #AAAAAA;
+                border-left: transparent;
+                border-right: transparent;
+                selection-background-color: #005555;
+                selection-color: #FFFFFF;
+            }
+
+            QLineEdit:hover {
+                border-top: transparent;
+                border-bottom: 1px solid #005555;
+                border-left: transparent;
+                border-right: transparent;
+            }
+
+            QLineEdit:focus {
+                border-top: transparent;
+                border-bottom: 1px solid #005555;
+                border-left: transparent;
+                border-right: transparent;
+                background-color: #131519;
+            }
+
+            QLineEdit:placeholder {
+                color: #005555;
+                font: 14px "Microsoft YaHei" italic;
+            }
+
+        )qss";
+
+const QString citySubmitStyle = R"qss(
+            QPushButton {
+                font: 14px "Microsoft YaHei";
+                margin: 0px 0px 0px 0px;
+                padding: 0px 0px 0px 0px;
+                background-color: #101216;
+                border-top: transparent;
+                border-bottom: transparent;
+                border-left: 1px solid #005555;
+                border-right: transparent;
+            }
+
+            QPushButton:hover {
+                font: bold 14px "Microsoft YaHei";
+                margin: 0px 0px 0px 0px;
+                padding: 0px 0px 0px 0px;
+                background-color: #101216;
+                border-top: transparent;
+                border-bottom: transparent;
+                border-left: 3px solid #005555;
+                border-right: transparent;
+            }
+
+            QPushButton:pressed {
+                font: bold 14px "Microsoft YaHei";
+                margin: 0px 0px 0px 0px;
+                padding: 2px 0px 0px 2px;
+                background-color: #101216;
+                border-top: transparent;
+                border-bottom: transparent;
+                border-left: 3px solid #005555;
+                border-right: transparent;
+            }
+
+        )qss";
+
+const QString themeComboStyle = R"qss(
+            QComboBox {
+                font: 14px "Microsoft YaHei";
+                background-color: #1A1D24;
+                color: #FFFFFF;
+                border-top: transparent;
+                border-bottom: 1px solid #AAAAAA;
+                border-left: transparent;
+                border-right: transparent;
+                border-radius: 4px;
+                padding: 2px 8px;
+            }
+
+            QComboBox:hover {
+                border-top: transparent;
+                border-bottom: 1px solid #992244;
+                border-left: transparent;
+                border-right: transparent;
+            }
+
+            QComboBox:on {
+                border-top: transparent;
+                border-bottom: 1px solid #992244;
+                border-left: transparent;
+                border-right: transparent;
+            }
+
+            QComboBox:placeholder {
+                color: #992244;
+                font: 14px "Microsoft YaHei" italic;
+            }
+        )qss";
+
+const QString themeSubmitStyle = R"qss(
+            QPushButton {
+                font: 14px "Microsoft YaHei";
+                margin: 0px 0px 0px 0px;
+                padding: 0px 0px 0px 0px;
+                background-color: #101216;
+                border-top: transparent;
+                border-bottom: transparent;
+                border-left: 1px solid #992244;
+                border-right: transparent;
+            }
+
+            QPushButton:hover {
+                font: bold 14px "Microsoft YaHei";
+                margin: 0px 0px 0px 0px;
+                padding: 0px 0px 0px 0px;
+                background-color: #101216;
+                border-top: transparent;
+                border-bottom: transparent;
+                border-left: 3px solid #992244;
+                border-right: transparent;
+            }
+
+            QPushButton:pressed {
+                font: bold 14px "Microsoft YaHei";
+                margin: 0px 0px 0px 0px;
+                padding: 2px 0px 0px 2px;
+                background-color: #101216;
+                border-top: transparent;
+                border-bottom: transparent;
+                border-left: 3px solid #992244;
+                border-right: transparent;
+            }
+
+        )qss";
+
+const QString listButtonStyle = R"qss(
+                QPushButton {
+                    font: 14px "Microsoft YaHei";
+                    margin: 3px 11px 3px 11px;
+                    padding: 0px 0px 0px 0px;
+                    background-color: #101216;
+                    border-top: transparent;
+                    border-bottom: transparent;
+                    border-left: 3px solid #333333;
+                    border-right: 1px solid #333333;
+                }
+
+                QPushButton:hover {
+                    color: #6688EC;
+                    font: bold 14px "Microsoft YaHei";
+                    margin: 3px 11px 3px 11px;
+                    padding: 0px 0px 0px 0px;
+                    background-color: #101216;
+                    border-top: transparent;
+                    border-bottom: transparent;
+                    border-left: 3px solid #6688EC;
+                    border-right: 1px solid #6688EC;
+                }
+
+                QPushButton:pressed {
+                    color: #3377EE;
+                    font: bold 14px "Microsoft YaHei";
+                    margin: 3px 11px 3px 11px;
+                    padding: 2px 0px 0px 2px;
+                    background-color: #101216;
+                    border-left: 3px solid #3377EE;
+                    border-right: 1px solid #3377EE;
+                }
+
+                QPushButton:checked {
+                    color: #3377EE;
+                    font: bold 14px "Microsoft YaHei";
+                    margin: 3px 11px 3px 11px;
+                    padding: 0px 0px 0px 0px;
+                    background-color: #101216;
+                    border-left: 3px solid #3377EE;
+                    border-right: 1px solid #3377EE;
+                }
+            )qss";
+
+
+
 }
 
 

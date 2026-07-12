@@ -12,26 +12,39 @@ SettingHomePage::SettingHomePage(QWidget *parent)
     QVBoxLayout *generalLayout = new QVBoxLayout(this);
     generalLayout->setContentsMargins(0, 0, 0, 0);
     m_mainScroll = new QScrollArea(this);
+    m_mainScroll->setStyleSheet(ZTL::Setting::homepage::scrollBarStyle);
     generalLayout->addWidget(m_mainScroll);
     QWidget *scrollContent = new QWidget();
+    scrollContent->setObjectName("homeBackground");
+    scrollContent->setStyleSheet(ZTL::Setting::homepage::backgroundStyle);
     QVBoxLayout *contentLayout = new QVBoxLayout(scrollContent);
     // 标题
-    m_lblTitle = new QLabel("首页", this);
+    m_lblTitle = new QLabel("--首页--", this);
+    m_lblTitle->setStyleSheet(ZTL::Setting::homepage::firstTitleStyle);
     contentLayout->addWidget(m_lblTitle);
     // 天气部分
     // 标题
-    m_lblWeatherTitle = new QLabel("天气", this);
+    m_lblWeatherTitle = new QLabel("-天气-", this);
+    m_lblWeatherTitle->setStyleSheet(ZTL::Setting::homepage::secondTitleStyle);
     contentLayout->addWidget(m_lblWeatherTitle);
     // 当前城市
     QHBoxLayout *currentCityLayout = new QHBoxLayout();
-    m_lblLocationTest = new QLabel("当前城市：", this);
+    m_lblLocationTest = new QLabel("当前城市", this);
+    m_lblLocationTest->setMaximumWidth(110);
+    m_lblLocationTest->setMinimumWidth(110);
+    m_lblLocationTest->setStyleSheet(ZTL::Setting::homepage::thirdTitleStyle);
     m_lblLocationCity = new QLabel("--", this);
-    currentCityLayout->addWidget(m_lblLocationTest);
-    currentCityLayout->addWidget(m_lblLocationCity);
+    m_lblLocationCity->setStyleSheet(ZTL::Setting::homepage::simpleContentStyle);
+    currentCityLayout->addWidget(m_lblLocationTest, 0);
+    currentCityLayout->addWidget(m_lblLocationCity, 1);
     contentLayout->addLayout(currentCityLayout);
     // 收藏城市列表
     QHBoxLayout *collectedCityLayout = new QHBoxLayout();
-    m_lblCollectedLocationTest = new QLabel("收藏的城市：");
+    m_lblCollectedLocationTest = new QLabel("收藏的城市");
+    m_lblCollectedLocationTest->setAlignment(Qt::AlignTop);
+    m_lblCollectedLocationTest->setMaximumWidth(110);
+    m_lblCollectedLocationTest->setMinimumWidth(110);
+    m_lblCollectedLocationTest->setStyleSheet(ZTL::Setting::homepage::thirdTitleStyle);
     collectedCityLayout->addWidget(m_lblCollectedLocationTest);
     QVBoxLayout *rightCityLayout = new QVBoxLayout();
     // 四个按钮
@@ -44,6 +57,10 @@ SettingHomePage::SettingHomePage(QWidget *parent)
     btnsCityLayout->addWidget(m_downLocationBtn);
     btnsCityLayout->addWidget(m_selectLocationBtn);
     btnsCityLayout->addWidget(m_deleteLocationBtn);
+    m_upLocationBtn->setStyleSheet(ZTL::Setting::homepage::firstInFourButtonStyle);
+    m_downLocationBtn->setStyleSheet(ZTL::Setting::homepage::secondInFourButtonStyle);
+    m_selectLocationBtn->setStyleSheet(ZTL::Setting::homepage::thirdInFourButtonStyle);
+    m_deleteLocationBtn->setStyleSheet(ZTL::Setting::homepage::forthInFourButtonStyle);
     rightCityLayout->addLayout(btnsCityLayout);
     // 列表区
     QWidget *collectedCityContent = new QWidget(); // 创建内容载体
@@ -57,14 +74,22 @@ SettingHomePage::SettingHomePage(QWidget *parent)
     // 添加城市
     QHBoxLayout *addCityLayout = new QHBoxLayout();
     m_lblAddLocationTest = new QLabel("添加新城市：", this);
+    m_lblAddLocationTest->setStyleSheet(ZTL::Setting::homepage::thirdTitleStyle);
     m_addCityInput = new QLineEdit(this);
     m_addCityInput->setPlaceholderText("城市名");
+    m_addCityInput->setFixedHeight(32);
+    m_addCityInput->setStyleSheet(ZTL::Setting::homepage::cityInputStyle);
     m_addCodeInput = new QLineEdit(this);
     m_addCodeInput->setPlaceholderText("城市编码");
+    m_addCodeInput->setFixedHeight(32);
+    m_addCodeInput->setStyleSheet(ZTL::Setting::homepage::codeInputStyle);
     QRegularExpression re("\\d{6}$");
     QRegularExpressionValidator *validator = new QRegularExpressionValidator(re, this);
     m_addCodeInput->setValidator(validator);
     m_addLocationSubmit = new QPushButton("提交", this);
+    m_addLocationSubmit->setFixedWidth(100);
+    m_addLocationSubmit->setFixedHeight(36);
+    m_addLocationSubmit->setStyleSheet(ZTL::Setting::homepage::citySubmitStyle);
     addCityLayout->addWidget(m_lblAddLocationTest);
     addCityLayout->addWidget(m_addCityInput);
     addCityLayout->addWidget(m_addCodeInput);
@@ -72,18 +97,27 @@ SettingHomePage::SettingHomePage(QWidget *parent)
     contentLayout->addLayout(addCityLayout);
     // 每日一言部分
     // 标题
-    m_lblQuoteTitle = new QLabel("每日一言", this);
+    m_lblQuoteTitle = new QLabel("-每日一言-", this);
+    m_lblQuoteTitle->setStyleSheet(ZTL::Setting::homepage::secondTitleStyle);
     contentLayout->addWidget(m_lblQuoteTitle);
     // 当前主题
     QHBoxLayout *currentThemeLayout = new QHBoxLayout();
     m_lblThemeTest = new QLabel("当前主题：", this);
+    m_lblThemeTest->setMaximumWidth(110);
+    m_lblThemeTest->setMinimumWidth(110);
+    m_lblThemeTest->setStyleSheet(ZTL::Setting::homepage::thirdTitleStyle);
     m_lblThemeContent = new QLabel("--", this);
-    currentThemeLayout->addWidget(m_lblThemeTest);
-    currentThemeLayout->addWidget(m_lblThemeContent);
+    m_lblThemeContent->setStyleSheet(ZTL::Setting::homepage::simpleContentStyle);
+    currentThemeLayout->addWidget(m_lblThemeTest, 0);
+    currentThemeLayout->addWidget(m_lblThemeContent, 1);
     contentLayout->addLayout(currentThemeLayout);
     // 收藏主题列表
     QHBoxLayout *collectedThemeLayout = new QHBoxLayout();
     m_lblCollectedThemeTest = new QLabel("收藏的主题：");
+    m_lblCollectedThemeTest->setAlignment(Qt::AlignTop);
+    m_lblCollectedThemeTest->setMaximumWidth(110);
+    m_lblCollectedThemeTest->setMinimumWidth(110);
+    m_lblCollectedThemeTest->setStyleSheet(ZTL::Setting::homepage::thirdTitleStyle);
     collectedThemeLayout->addWidget(m_lblCollectedThemeTest);
     QVBoxLayout *rightThemeLayout = new QVBoxLayout();
     // 四个按钮
@@ -96,6 +130,10 @@ SettingHomePage::SettingHomePage(QWidget *parent)
     btnsThemeLayout->addWidget(m_downThemeBtn);
     btnsThemeLayout->addWidget(m_selectThemeBtn);
     btnsThemeLayout->addWidget(m_deleteThemeBtn);
+    m_upThemeBtn->setStyleSheet(ZTL::Setting::homepage::firstInFourButtonStyle);
+    m_downThemeBtn->setStyleSheet(ZTL::Setting::homepage::secondInFourButtonStyle);
+    m_selectThemeBtn->setStyleSheet(ZTL::Setting::homepage::thirdInFourButtonStyle);
+    m_deleteThemeBtn->setStyleSheet(ZTL::Setting::homepage::forthInFourButtonStyle);
     rightThemeLayout->addLayout(btnsThemeLayout);
     // 列表区
     QWidget *collectedThemeContent = new QWidget(); // 创建内容载体
@@ -109,11 +147,20 @@ SettingHomePage::SettingHomePage(QWidget *parent)
     // 添加主题
     QHBoxLayout *addThemeLayout = new QHBoxLayout();
     m_lblAddThemeTest = new QLabel("添加新主题：", this);
+    m_lblAddThemeTest->setMaximumWidth(110);
+    m_lblAddThemeTest->setMinimumWidth(110);
+    m_lblAddThemeTest->setStyleSheet(ZTL::Setting::homepage::thirdTitleStyle);
     m_addThemeComboBox = new QComboBox(this);
     m_addThemeComboBox->addItems(ZTL::Setting::homepage::tags);
     m_addThemeComboBox->setPlaceholderText("选择要添加的主题");
+    m_addThemeComboBox->setView(new QListView(this));
+    m_addThemeComboBox->setFixedHeight(32);
+    m_addThemeComboBox->setStyleSheet(ZTL::Setting::homepage::themeComboStyle);
     m_addThemeComboBox->setCurrentIndex(-1);
     m_addThemeSubmit = new QPushButton("提交", this);
+    m_addThemeSubmit->setFixedWidth(100);
+    m_addThemeSubmit->setFixedHeight(36);
+    m_addThemeSubmit->setStyleSheet(ZTL::Setting::homepage::themeSubmitStyle);
     addThemeLayout->addWidget(m_lblAddThemeTest);
     addThemeLayout->addWidget(m_addThemeComboBox);
     addThemeLayout->addWidget(m_addThemeSubmit);
@@ -298,6 +345,7 @@ void SettingHomePage::resetUI(){
         const weatherCity &city = m_locationConfig.savedCities[i];
         QString text = QString("%1(%2)").arg(city.name).arg(city.code);
         QPushButton *cityBtn = new QPushButton(text);
+        cityBtn->setStyleSheet(ZTL::Setting::homepage::listButtonStyle);
         cityBtn->setCheckable(true);
         if (m_clickedLocationIndex == -1 && i == m_locationConfig.currentCityIndex) {
             cityBtn->setChecked(true);
@@ -338,6 +386,7 @@ void SettingHomePage::resetUI(){
     for (int i = 0; i < m_themeConfig.savedThemes.length(); i++) {
         QString theme = m_themeConfig.savedThemes[i];
         QPushButton *themeBtn = new QPushButton(theme);
+        themeBtn->setStyleSheet(ZTL::Setting::homepage::listButtonStyle);
         themeBtn->setCheckable(true);
         if (m_clickedThemeIndex == -1 && i == m_themeConfig.currentThemeIndex) {
             themeBtn->setChecked(true);

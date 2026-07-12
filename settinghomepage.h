@@ -16,6 +16,7 @@
 #include <QTimer>
 #include <QButtonGroup>
 #include <QComboBox>
+#include <QListView>
 
 class SettingHomePage : public QWidget
 {

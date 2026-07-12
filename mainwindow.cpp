@@ -39,7 +39,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_stackedWidget->addWidget(m_settingWidget);
 
     this->setCentralWidget(m_stackedWidget);
-    m_stackedWidget->setCurrentIndex(0);
+    m_stackedWidget->setCurrentIndex(1);
 
 
     // 换页处理
