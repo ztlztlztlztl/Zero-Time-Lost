@@ -13,8 +13,8 @@ SettingWidget::SettingWidget(QWidget *parent)
     // 按钮们
     QVBoxLayout *buttonsLayout = new QVBoxLayout();
     m_buttons = new QButtonGroup(this);
-    QStringList names = {"首页", "待补充"};
-    for (int i = 0; i < 2;i++){
+    QStringList names = {"首页", "邮件", "待补充"};
+    for (int i = 0; i < 3;i++){
         QPushButton *btn = new QPushButton(names[i]);
         btn->setCheckable(true);
         btn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
@@ -24,19 +24,22 @@ SettingWidget::SettingWidget(QWidget *parent)
         buttonsLayout->addWidget(btn);
         m_buttons->addButton(btn, i);
     }
-    m_buttons->button(0)->setChecked(true);
+    m_buttons->button(1)->setChecked(true);
 
     // 页面们
     m_pages = new QStackedWidget();
     m_homePage = new SettingHomePage(m_pages);
     m_pages->addWidget(m_homePage);
+    m_mailPage = new SettingMailPage(m_pages);
+    m_pages->addWidget(m_mailPage);
     m_waitingPage = new QLabel("未完待续", m_pages);
     m_pages->addWidget(m_waitingPage);
-    m_pages->setCurrentIndex(0);
+    m_pages->setCurrentIndex(1);
 
     // 连接们
     connect(m_buttons, &QButtonGroup::idClicked, this, [=](int id) {
         m_pages->setCurrentIndex(id);
+        qDebug() << "[SettingWidget] 切换到了" << names[id] << "页";
     });
 
     // 组装

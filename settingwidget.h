@@ -3,6 +3,7 @@
 
 #include "constants.h"
 #include "settinghomepage.h"
+#include "settingmailpage.h"
 
 #include <QWidget>
 #include <QLabel>
@@ -30,6 +31,7 @@ private:
     QStackedWidget *m_pages;
     // 页面们
     SettingHomePage *m_homePage;
+    SettingMailPage *m_mailPage;
     QLabel *m_waitingPage;
 
 

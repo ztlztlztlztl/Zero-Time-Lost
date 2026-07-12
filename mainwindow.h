@@ -4,6 +4,7 @@
 #include "homewidget.h"
 #include "settingwidget.h"
 #include "configmanager.h"
+#include "mailwidget.h"
 
 #include <QMainWindow>
 #include <QVBoxLayout>
@@ -39,6 +40,7 @@ private:
     // 页面们
     HomeWidget *m_homeWidget;
     SettingWidget *m_settingWidget;
+    MailWidget *m_mailWidget;
 
 
 

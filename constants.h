@@ -5,6 +5,7 @@
 #include <QList>
 #include <QPoint>
 #include <QShortcut>
+#include <QPair>
 
 namespace ZTL{
 
@@ -12,6 +13,7 @@ namespace Main{
 
 const QKeySequence homeShortcut =  QKeySequence(Qt::ALT | Qt::Key_H);
 const QKeySequence settingShortcut =  QKeySequence(Qt::ALT | Qt::Key_S);
+const QKeySequence mailShortcut =  QKeySequence(Qt::ALT | Qt::Key_M);
 
 }
 
@@ -551,7 +553,38 @@ const QString listButtonStyle = R"qss(
 
 }
 
+namespace mailpage{
 
+const QList<QPair<QString, int>> intervals = {
+    {"从不",  -1},
+    {"5m",    5},
+    {"10m",  10},
+    {"30m",  30},
+    {"1h",   60},
+    {"2h",  120},
+    {"6h",  360},
+};
+
+const QList<QPair<QString, int>> initNumbers = {
+    {"5",    10},
+    {"20",   20},
+    {"50",   50},
+    {"100", 100},
+    {"500", 500},
+};
+
+const QList<QPair<QString, int>> pollNumbers = {
+    {"1",    1},
+    {"3",    3},
+    {"5",    5},
+    {"10",  10},
+    {"20",  20},
+};
+
+
+
+
+}
 
 
 }
