@@ -566,7 +566,7 @@ const QList<QPair<QString, int>> intervals = {
 };
 
 const QList<QPair<QString, int>> initNumbers = {
-    {"5",    10},
+    {"5",     5},
     {"20",   20},
     {"50",   50},
     {"100", 100},

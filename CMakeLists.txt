@@ -27,6 +27,7 @@ qt_add_executable(Zero-Time-Lost-tobedone
     helpjsonioengine.h helpjsonioengine.cpp
     mailwidget.h mailwidget.cpp
     settingmailpage.h settingmailpage.cpp
+    settingmailaccountswidget.h settingmailaccountswidget.cpp
 
 )
 

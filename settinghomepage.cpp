@@ -304,12 +304,11 @@ SettingHomePage::SettingHomePage(QWidget *parent)
         ConfigManager::getInstance()->setHomeweather(m_locationConfig);
     });
     connect(ConfigManager::getInstance(), &ConfigManager::homeWeatherChanged, this, [=](){
-        qDebug() << "[SettingHomePage] weather配置改变，需要刷新。";
+        qDebug() << "[SettingHomePage] weather配置改变。";
         resetUI();
     });
     connect(ConfigManager::getInstance(), &ConfigManager::homeQuoteChanged, this, [=](){
-        qDebug() << "[SettingHomePage] quote配置改变，需要刷新。";
-        resetUI();
+        qDebug() << "[SettingHomePage] quote配置改变。";
     });
 }
 

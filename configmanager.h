@@ -79,6 +79,38 @@ struct HomeQuoteConfig{
 };
 
 
+struct MailBasicalConfig{
+    int pollingInterval;
+    int initialNumber;
+    int earlierNumber;
+    int storageLimit;
+
+    MailBasicalConfig(){
+        pollingInterval = 5;
+        initialNumber = 10;
+        earlierNumber = 1;
+        storageLimit = 100;
+    }
+
+    MailBasicalConfig(const QJsonObject &mailBasicalObect){
+        pollingInterval = mailBasicalObect["pollingInterval"].toInt(5);
+        initialNumber = mailBasicalObect["initialNumber"].toInt(10);
+        earlierNumber = mailBasicalObect["earlierNumber"].toInt(1);
+        storageLimit = mailBasicalObect["storageLimit"].toInt(100);
+    }
+
+    QJsonObject toJson(){
+        QJsonObject mailBasicalObect;
+        mailBasicalObect["pollingInterval"] = pollingInterval;
+        mailBasicalObect["initialNumber"] = initialNumber;
+        mailBasicalObect["earlierNumber"] = earlierNumber;
+        mailBasicalObect["storageLimit"] = storageLimit;
+        return mailBasicalObect;
+    }
+
+};
+
+
 
 class ConfigManager : public QObject
 {
@@ -94,11 +126,15 @@ public:
     // quote
     const HomeQuoteConfig& getHomeQuote() const;
     void setHomeQuote(const HomeQuoteConfig& newconfig);
+    // mail
+    const MailBasicalConfig& getMailBasical() const;
+    void setMailBasical(const MailBasicalConfig& newconfig);
 
 
 signals:
     void homeWeatherChanged();
     void homeQuoteChanged();
+    void mailBasicalChanged();
 
 private slots:
 
@@ -121,9 +157,10 @@ private:
     // 配置储存
     HomeWeatherConfig m_homeWeather;
     HomeQuoteConfig m_homeQuote;
+    MailBasicalConfig m_mailBasical;
 
     // 对应的IO引擎
-    HelpJsonIOEngine *m_homeSettingEngine;
+    HelpJsonIOEngine *m_settingEngine;
 
 
 

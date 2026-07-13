@@ -2,6 +2,8 @@
 #define SETTINGMAILPAGE_H
 
 #include "constants.h"
+#include "configmanager.h"
+#include "settingmailaccountswidget.h"
 
 #include <QWidget>
 #include <QLabel>
@@ -13,12 +15,14 @@
 #include <QPushButton>
 #include <QListWidget>
 #include <QStackedWidget>
+#include <QRegularExpressionValidator>
 
 class SettingMailPage : public QWidget
 {
     Q_OBJECT
 public:
     explicit SettingMailPage(QWidget *parent = nullptr);
+    void resetUI();
 
 signals:
 
@@ -48,6 +52,11 @@ private:
     QListWidget *m_accountsListWidget; // 展示邮箱的列表
     QLabel *m_lblAddAccountsTest;
     QStackedWidget *m_addAccountStack; // 添加邮箱的部分
+    QPushButton *m_addAccountWaiting;
+    SettingMailAccountsWidget *m_addAccountDo;
+
+    // 数据
+    MailBasicalConfig m_mailBasicalConfig;
 
 
 };

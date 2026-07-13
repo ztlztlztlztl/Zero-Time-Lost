@@ -4,6 +4,8 @@ SettingMailPage::SettingMailPage(QWidget *parent)
     : QWidget{parent}
 {
     qInfo() << "[SettingMailPage] 启动。";
+    // 数据
+    m_mailBasicalConfig = ConfigManager::getInstance()->getMailBasical();
     // ui初始化
     // 滚动区
     QVBoxLayout *generalLayout = new QVBoxLayout(this);
@@ -25,6 +27,10 @@ SettingMailPage::SettingMailPage(QWidget *parent)
     for (const auto &item : ZTL::Setting::mailpage::intervals){
         m_pollingIntervalCombo->addItem(item.first, item.second);
     }
+    int piIndex = m_pollingIntervalCombo->findData(m_mailBasicalConfig.pollingInterval);
+    if (piIndex != -1) {
+        m_pollingIntervalCombo->setCurrentIndex(piIndex);
+    }
     pollingIntervalLyt->addWidget(m_lblPollingIntervalTest);
     pollingIntervalLyt->addWidget(m_pollingIntervalCombo);
     contentLayout->addLayout(pollingIntervalLyt);
@@ -35,15 +41,23 @@ SettingMailPage::SettingMailPage(QWidget *parent)
     for (const auto &item : ZTL::Setting::mailpage::initNumbers){
         m_initialNumberCombo->addItem(item.first, item.second);
     }
+    int inIndex = m_initialNumberCombo->findData(m_mailBasicalConfig.initialNumber);
+    if (inIndex != -1) {
+        m_initialNumberCombo->setCurrentIndex(inIndex);
+    }
     initialNumberLyt->addWidget(m_lblInitialNumberTest);
     initialNumberLyt->addWidget(m_initialNumberCombo);
     contentLayout->addLayout(initialNumberLyt);
     // 每次轮询邮件数
     QHBoxLayout *earlierNumberLyt = new QHBoxLayout();
-    m_lblEarlierNumberTest = new QLabel("每次轮询邮件数", this);
+    m_lblEarlierNumberTest = new QLabel("每次更新邮件数", this);
     m_earlierNumberCombo = new QComboBox(this);
     for (const auto &item : ZTL::Setting::mailpage::pollNumbers){
         m_earlierNumberCombo->addItem(item.first, item.second);
+    }
+    int enIndex = m_earlierNumberCombo->findData(m_mailBasicalConfig.earlierNumber);
+    if (enIndex != -1) {
+        m_earlierNumberCombo->setCurrentIndex(enIndex);
     }
     earlierNumberLyt->addWidget(m_lblEarlierNumberTest);
     earlierNumberLyt->addWidget(m_earlierNumberCombo);
@@ -52,9 +66,12 @@ SettingMailPage::SettingMailPage(QWidget *parent)
     QHBoxLayout *storageLimitLyt = new QHBoxLayout();
     m_lblStorageLimitTest = new QLabel("本地邮件储存上限", this);
     QVBoxLayout *storageInfoLyt = new QVBoxLayout();
-    m_storageLimitDisplay = new QLabel("--", this);
+    m_storageLimitDisplay = new QLabel(QString::number(m_mailBasicalConfig.storageLimit), this);
     QHBoxLayout *storageModifyLyt = new QHBoxLayout();
     m_storageLimitInput = new QLineEdit(this);
+    QRegularExpression re("^[1-9]\\d*$");
+    QRegularExpressionValidator *validator = new QRegularExpressionValidator(re, this);
+    m_storageLimitInput->setValidator(validator);
     m_storageSubmitBtn = new QPushButton("提交", this);
     storageModifyLyt->addWidget(m_storageLimitInput);
     storageModifyLyt->addWidget(m_storageSubmitBtn);
@@ -75,8 +92,11 @@ SettingMailPage::SettingMailPage(QWidget *parent)
     // 添加邮箱
     m_lblAddAccountsTest = new QLabel("添加邮箱", this);
     m_addAccountStack = new QStackedWidget(this);
-    QLabel *test = new QLabel("addAccountStack 在这里", this);
-    m_addAccountStack->addWidget(test);
+    m_addAccountWaiting = new QPushButton("点击添加新邮箱", this);
+    m_addAccountDo = new SettingMailAccountsWidget(this);
+    m_addAccountStack->addWidget(m_addAccountWaiting);
+    m_addAccountStack->addWidget(m_addAccountDo);
+    m_addAccountStack->setCurrentIndex(0);
     contentLayout->addWidget(m_lblAddAccountsTest);
     contentLayout->addWidget(m_addAccountStack);
 
@@ -87,4 +107,86 @@ SettingMailPage::SettingMailPage(QWidget *parent)
     // 收尾
     m_mainScroll->setWidget(scrollContent);
     m_mainScroll->setWidgetResizable(true);
+
+
+
+    // 连接
+    connect(m_pollingIntervalCombo, &QComboBox::currentIndexChanged, this, [=](int index){
+        if (index < 0) return;
+        int interval = m_pollingIntervalCombo->itemData(index).toInt();
+        qDebug() << "[SettingMailPage] 轮询间隔改为：" << interval;
+        m_mailBasicalConfig.pollingInterval = interval;
+        ConfigManager::getInstance()->setMailBasical(m_mailBasicalConfig);
+    });
+    connect(m_initialNumberCombo, &QComboBox::currentIndexChanged, this, [=](int index){
+        if (index < 0) return;
+        int data = m_initialNumberCombo->itemData(index).toInt();
+        qDebug() << "[SettingMailPage] 启动邮件数改为：" << data;
+        m_mailBasicalConfig.initialNumber = data;
+        ConfigManager::getInstance()->setMailBasical(m_mailBasicalConfig);
+    });
+    connect(m_earlierNumberCombo, &QComboBox::currentIndexChanged, this, [=](int index){
+        if (index < 0) return;
+        int data = m_earlierNumberCombo->itemData(index).toInt();
+        qDebug() << "[SettingMailPage] 刷新邮件数改为：" << data;
+        m_mailBasicalConfig.earlierNumber = data;
+        ConfigManager::getInstance()->setMailBasical(m_mailBasicalConfig);
+    });
+    connect(m_storageSubmitBtn, &QPushButton::clicked, this, [=](){
+        if (m_storageLimitInput->text().isEmpty()) return;
+        int data = m_storageLimitInput->text().toInt();
+        qDebug() << "[SettingMailPage] 储存上限改为：" << data;
+        m_mailBasicalConfig.storageLimit = data;
+        m_storageLimitDisplay->setText(QString::number(m_mailBasicalConfig.storageLimit));
+        ConfigManager::getInstance()->setMailBasical(m_mailBasicalConfig);
+        m_storageLimitInput->clear();
+    });
+    connect(m_addAccountWaiting, &QPushButton::clicked, this, [=](){
+        m_addAccountStack->setCurrentIndex(1);
+    });
+    connect(m_addAccountDo, &SettingMailAccountsWidget::cancel, this, [=](){
+        m_addAccountStack->setCurrentIndex(0);
+    });
+
 }
+
+void SettingMailPage::resetUI(){
+    qInfo() << "[SettingMailPage] 刷新setting页的mail页的UI。";
+
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
