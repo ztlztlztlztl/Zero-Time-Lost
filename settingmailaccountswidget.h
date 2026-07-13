@@ -1,6 +1,12 @@
 #ifndef SETTINGMAILACCOUNTSWIDGET_H
 #define SETTINGMAILACCOUNTSWIDGET_H
 
+
+
+#include "mailaccountmanager.h"
+#include "constants.h"
+
+
 #include <QWidget>
 #include <QLabel>
 #include <QHBoxLayout>
@@ -8,6 +14,8 @@
 #include <QComboBox>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QRegularExpressionValidator>
+#include <QProcess>
 
 class SettingMailAccountsWidget : public QWidget
 {
@@ -35,6 +43,8 @@ private:
     QPushButton *m_saveBtn;
     QPushButton *m_linkBtn;
     QPushButton *m_cancelBtn;
+
+    void ckeckLinkable();
 
 
 

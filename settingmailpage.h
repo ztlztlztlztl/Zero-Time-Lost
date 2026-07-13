@@ -49,7 +49,7 @@ private:
     // 邮箱账号展示
     QLabel *m_lblAccountsTitle;
     QLabel *m_lblSavedAccountsTest;
-    QListWidget *m_accountsListWidget; // 展示邮箱的列表
+    QWidget *m_accountsWidget; // 展示邮箱的列表
     QLabel *m_lblAddAccountsTest;
     QStackedWidget *m_addAccountStack; // 添加邮箱的部分
     QPushButton *m_addAccountWaiting;
@@ -57,6 +57,7 @@ private:
 
     // 数据
     MailBasicalConfig m_mailBasicalConfig;
+    QList<MailAccount> m_mailAccounts;
 
 
 };

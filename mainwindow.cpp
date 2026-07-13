@@ -10,13 +10,14 @@ MainWindow::MainWindow(QWidget *parent)
     // 启动 Manager
     ConfigManager::getInstance()->initialize();
     CacheManager::getInstance()->initialize();
+    MailAccountManager::getInstance()->initialize();
     // 脚本文件夹
     qInfo() << "[main] 自检脚本。";
     QFile fileScripts("./scripts");
     if (!fileScripts.exists()) {
         qWarning() << "[main] 脚本文件夹不存在！";
     } else {
-        QList<QString> scripts = {"getWeather.py", "getQuote.py"};
+        QList<QString> scripts = {"getWeather.py", "getQuote.py", "checkMail.py"};
         for (const QString &filename:scripts){
             QFile fileThis("./scripts/" + filename);
             if (!fileThis.exists()) {

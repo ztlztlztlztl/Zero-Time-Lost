@@ -28,6 +28,7 @@ qt_add_executable(Zero-Time-Lost-tobedone
     mailwidget.h mailwidget.cpp
     settingmailpage.h settingmailpage.cpp
     settingmailaccountswidget.h settingmailaccountswidget.cpp
+    mailaccountmanager.h mailaccountmanager.cpp
 
 )
 

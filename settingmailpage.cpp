@@ -6,6 +6,7 @@ SettingMailPage::SettingMailPage(QWidget *parent)
     qInfo() << "[SettingMailPage] 启动。";
     // 数据
     m_mailBasicalConfig = ConfigManager::getInstance()->getMailBasical();
+    m_mailAccounts = MailAccountManager::getInstance()->getMailAccounts();
     // ui初始化
     // 滚动区
     QVBoxLayout *generalLayout = new QVBoxLayout(this);
@@ -85,10 +86,9 @@ SettingMailPage::SettingMailPage(QWidget *parent)
     contentLayout->addWidget(m_lblAccountsTitle);
     // 现有邮箱
     m_lblSavedAccountsTest = new QLabel("现有邮箱", this);
-    m_accountsListWidget = new QListWidget(this);
-    m_accountsListWidget->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    m_accountsWidget = new QWidget(this);
     contentLayout->addWidget(m_lblSavedAccountsTest);
-    contentLayout->addWidget(m_accountsListWidget);
+    contentLayout->addWidget(m_accountsWidget);
     // 添加邮箱
     m_lblAddAccountsTest = new QLabel("添加邮箱", this);
     m_addAccountStack = new QStackedWidget(this);
@@ -108,6 +108,7 @@ SettingMailPage::SettingMailPage(QWidget *parent)
     m_mainScroll->setWidget(scrollContent);
     m_mainScroll->setWidgetResizable(true);
 
+    resetUI();
 
 
     // 连接
@@ -147,12 +148,36 @@ SettingMailPage::SettingMailPage(QWidget *parent)
     connect(m_addAccountDo, &SettingMailAccountsWidget::cancel, this, [=](){
         m_addAccountStack->setCurrentIndex(0);
     });
+    connect(MailAccountManager::getInstance(),
+            &MailAccountManager::mailAccountChanged, this, [=](){
+                resetUI();
+            });
 
 }
 
 void SettingMailPage::resetUI(){
     qInfo() << "[SettingMailPage] 刷新setting页的mail页的UI。";
+    m_mailAccounts = MailAccountManager::getInstance()->getMailAccounts();
+    delete m_accountsWidget->layout();
+    QVBoxLayout *newLayout = new QVBoxLayout(m_accountsWidget);
 
+    if(m_mailAccounts.isEmpty()){
+        QLabel *holder = new QLabel("尚未添加邮箱");
+        newLayout->addWidget(holder);
+    }
+    else{
+        for (MailAccount acc:m_mailAccounts){
+            QWidget *widget = new QWidget();
+            QHBoxLayout *layout = new QHBoxLayout(widget);
+            QLabel *label = new QLabel(QString("<b>%1</b><br><small style='color:gray;'>%2</small>").arg(acc.name, acc.address));
+            layout->addWidget(label);
+            QPushButton *delBtn = new QPushButton("删除");
+            QPushButton *editBtn = new QPushButton("修改");
+            layout->addWidget(editBtn);
+            layout->addWidget(delBtn);
+            newLayout->addWidget(widget);
+        }
+    }
 
 
 

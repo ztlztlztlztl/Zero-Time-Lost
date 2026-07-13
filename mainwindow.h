@@ -5,6 +5,7 @@
 #include "settingwidget.h"
 #include "configmanager.h"
 #include "mailwidget.h"
+#include "mailaccountmanager.h"
 
 #include <QMainWindow>
 #include <QVBoxLayout>

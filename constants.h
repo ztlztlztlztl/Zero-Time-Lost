@@ -581,7 +581,8 @@ const QList<QPair<QString, int>> pollNumbers = {
     {"20",  20},
 };
 
-
+const QList<QString> mailTypes = {"QQ邮箱", "163邮箱", "其他/企业邮箱"};
+const QList<QString> mailServers = {"imap.qq.com", "imap.163.com", ""};
 
 
 }
