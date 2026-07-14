@@ -87,18 +87,19 @@ SettingMailPage::SettingMailPage(QWidget *parent)
     // 现有邮箱
     m_lblSavedAccountsTest = new QLabel("现有邮箱", this);
     m_accountsWidget = new QWidget(this);
+    m_accountWidgetLyt = new QVBoxLayout(m_accountsWidget);
     contentLayout->addWidget(m_lblSavedAccountsTest);
     contentLayout->addWidget(m_accountsWidget);
     // 添加邮箱
-    m_lblAddAccountsTest = new QLabel("添加邮箱", this);
-    m_addAccountStack = new QStackedWidget(this);
-    m_addAccountWaiting = new QPushButton("点击添加新邮箱", this);
-    m_addAccountDo = new SettingMailAccountsWidget(this);
-    m_addAccountStack->addWidget(m_addAccountWaiting);
-    m_addAccountStack->addWidget(m_addAccountDo);
-    m_addAccountStack->setCurrentIndex(0);
-    contentLayout->addWidget(m_lblAddAccountsTest);
-    contentLayout->addWidget(m_addAccountStack);
+    m_lblMakeAccountsTest = new QLabel("处理邮箱", this);
+    m_makeAccountStack = new QStackedWidget(this);
+    m_makeAccountWaiting = new QPushButton("点击添加新邮箱", this);
+    m_makeAccountDo = new SettingMailAccountsWidget(this);
+    m_makeAccountStack->addWidget(m_makeAccountWaiting);
+    m_makeAccountStack->addWidget(m_makeAccountDo);
+    m_makeAccountStack->setCurrentIndex(0);
+    contentLayout->addWidget(m_lblMakeAccountsTest);
+    contentLayout->addWidget(m_makeAccountStack);
 
 
 
@@ -142,11 +143,11 @@ SettingMailPage::SettingMailPage(QWidget *parent)
         ConfigManager::getInstance()->setMailBasical(m_mailBasicalConfig);
         m_storageLimitInput->clear();
     });
-    connect(m_addAccountWaiting, &QPushButton::clicked, this, [=](){
-        m_addAccountStack->setCurrentIndex(1);
+    connect(m_makeAccountWaiting, &QPushButton::clicked, this, [=](){
+        m_makeAccountStack->setCurrentIndex(1);
     });
-    connect(m_addAccountDo, &SettingMailAccountsWidget::cancel, this, [=](){
-        m_addAccountStack->setCurrentIndex(0);
+    connect(m_makeAccountDo, &SettingMailAccountsWidget::cancel, this, [=](){
+        m_makeAccountStack->setCurrentIndex(0);
     });
     connect(MailAccountManager::getInstance(),
             &MailAccountManager::mailAccountChanged, this, [=](){
@@ -157,13 +158,20 @@ SettingMailPage::SettingMailPage(QWidget *parent)
 
 void SettingMailPage::resetUI(){
     qInfo() << "[SettingMailPage] 刷新setting页的mail页的UI。";
+    if (m_accountWidgetLyt) {
+        while (m_accountWidgetLyt->count() > 0) {
+            QLayoutItem *item = m_accountWidgetLyt->takeAt(0);
+            if (QWidget *widget = item->widget()) {
+                widget->deleteLater();
+            }
+            delete item;
+        }
+    }
     m_mailAccounts = MailAccountManager::getInstance()->getMailAccounts();
-    delete m_accountsWidget->layout();
-    QVBoxLayout *newLayout = new QVBoxLayout(m_accountsWidget);
 
     if(m_mailAccounts.isEmpty()){
         QLabel *holder = new QLabel("尚未添加邮箱");
-        newLayout->addWidget(holder);
+        m_accountWidgetLyt->addWidget(holder);
     }
     else{
         for (MailAccount acc:m_mailAccounts){
@@ -175,7 +183,14 @@ void SettingMailPage::resetUI(){
             QPushButton *editBtn = new QPushButton("修改");
             layout->addWidget(editBtn);
             layout->addWidget(delBtn);
-            newLayout->addWidget(widget);
+            m_accountWidgetLyt->addWidget(widget);
+            connect(editBtn, &QPushButton::clicked, this, [=](){
+                m_makeAccountDo->setAccount(acc);
+                m_makeAccountStack->setCurrentIndex(1);
+            });
+            connect(delBtn, &QPushButton::clicked, this, [=](){
+                MailAccountManager::getInstance()->delMailAccount(acc.address);
+            });
         }
     }
 

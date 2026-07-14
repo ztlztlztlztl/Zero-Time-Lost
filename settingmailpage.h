@@ -24,6 +24,7 @@ public:
     explicit SettingMailPage(QWidget *parent = nullptr);
     void resetUI();
 
+
 signals:
 
 
@@ -50,10 +51,11 @@ private:
     QLabel *m_lblAccountsTitle;
     QLabel *m_lblSavedAccountsTest;
     QWidget *m_accountsWidget; // 展示邮箱的列表
-    QLabel *m_lblAddAccountsTest;
-    QStackedWidget *m_addAccountStack; // 添加邮箱的部分
-    QPushButton *m_addAccountWaiting;
-    SettingMailAccountsWidget *m_addAccountDo;
+    QVBoxLayout *m_accountWidgetLyt;
+    QLabel *m_lblMakeAccountsTest;
+    QStackedWidget *m_makeAccountStack; // 添加邮箱的部分
+    QPushButton *m_makeAccountWaiting;
+    SettingMailAccountsWidget *m_makeAccountDo;
 
     // 数据
     MailBasicalConfig m_mailBasicalConfig;

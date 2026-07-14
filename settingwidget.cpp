@@ -24,7 +24,8 @@ SettingWidget::SettingWidget(QWidget *parent)
         buttonsLayout->addWidget(btn);
         m_buttons->addButton(btn, i);
     }
-    m_buttons->button(1)->setChecked(true);
+    m_buttons->button(0)->setChecked(true);
+    buttonsLayout->addStretch();
 
     // 页面们
     m_pages = new QStackedWidget();
@@ -34,7 +35,7 @@ SettingWidget::SettingWidget(QWidget *parent)
     m_pages->addWidget(m_mailPage);
     m_waitingPage = new QLabel("未完待续", m_pages);
     m_pages->addWidget(m_waitingPage);
-    m_pages->setCurrentIndex(1);
+    m_pages->setCurrentIndex(0);
 
     // 连接们
     connect(m_buttons, &QButtonGroup::idClicked, this, [=](int id) {

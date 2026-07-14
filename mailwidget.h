@@ -1,6 +1,9 @@
 #ifndef MAILWIDGET_H
 #define MAILWIDGET_H
 
+#include "mailgetservice.h"
+#include "mailsimpledisplaywidget.h"
+
 #include <QWidget>
 #include <QLabel>
 #include <QSplitter>
@@ -18,11 +21,14 @@ signals:
 
 
 private:
+    // ui们
     QSplitter *m_splitter;
+    MailSimpleDisplayWidget *m_mailSimpleDisplay;
 
 
 
-
+    // 信息们
+    MailGetService *m_mailGetService;
 
 
 

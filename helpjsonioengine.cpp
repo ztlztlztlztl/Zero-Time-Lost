@@ -90,7 +90,7 @@ void HelpJsonIOEngine::ensureDirExists(){
         }
     }
     else{
-        qDebug() << "[ConfigManager] 目录" << m_folderPath << "已存在，自检完成。";
+        qDebug() << "[HelpJsonIOEngine] 目录" << m_folderPath << "已存在，自检完成。";
     }
     qDebug() << "[HelpJsonIOEngine] 检查文件：" << m_filePath;
     QFile file(m_filePath);

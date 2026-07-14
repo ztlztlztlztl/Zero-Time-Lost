@@ -22,6 +22,7 @@ class SettingMailAccountsWidget : public QWidget
     Q_OBJECT
 public:
     explicit SettingMailAccountsWidget(QWidget *parent = nullptr);
+    void setAccount(const MailAccount& iacc);
 
 signals:
     void cancel();

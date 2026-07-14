@@ -77,7 +77,17 @@ void MailAccountManager::setMailAccount(const MailAccount& newAccount){
     emit mailAccountChanged();
 }
 
-
+void MailAccountManager::delMailAccount(const QString& address){
+    if (!m_accountsIndex.contains(address)) return;
+    int tarIndex = m_accountsIndex[address];
+    m_mailAccounts.remove(tarIndex);
+    m_accountsIndex.clear();
+    for (int i = 0;i < m_mailAccounts.size();i++){
+        m_accountsIndex[m_mailAccounts[i].address] = i;
+    }
+    saveMailAccounts();
+    emit mailAccountChanged();
+}
 
 
 

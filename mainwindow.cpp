@@ -17,7 +17,8 @@ MainWindow::MainWindow(QWidget *parent)
     if (!fileScripts.exists()) {
         qWarning() << "[main] 脚本文件夹不存在！";
     } else {
-        QList<QString> scripts = {"getWeather.py", "getQuote.py", "checkMail.py"};
+        QList<QString> scripts = {"getWeather.py", "getQuote.py", "checkMail.py",
+                                  "getSimpleMail.py"};
         for (const QString &filename:scripts){
             QFile fileThis("./scripts/" + filename);
             if (!fileThis.exists()) {

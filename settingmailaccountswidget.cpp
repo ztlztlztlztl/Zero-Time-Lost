@@ -75,6 +75,7 @@ SettingMailAccountsWidget::SettingMailAccountsWidget(QWidget *parent)
         newAcc.server = server;
         newAcc.port = port;
         MailAccountManager::getInstance()->setMailAccount(newAcc);
+        m_cancelBtn->click();
     });
     connect(m_cancelBtn, &QPushButton::clicked, this, [=](){
         m_typeCombo->setCurrentIndex(-1);
@@ -105,10 +106,21 @@ SettingMailAccountsWidget::SettingMailAccountsWidget(QWidget *parent)
         m_saveBtn->setDisabled(true);
     });
     connect(m_typeCombo, &QComboBox::currentIndexChanged, this, [=](int index){
-        m_serverInput->setText(ZTL::Setting::mailpage::mailServers[index]);
+        m_serverInput->setText((index == -1)?"":ZTL::Setting::mailpage::mailServers[index]);
     });
 
 }
+
+void SettingMailAccountsWidget::setAccount(const MailAccount& iacc){
+    m_nameInput->setText(iacc.name);
+    m_addressInput->setText(iacc.address);
+    m_codeInput->setText(iacc.code);
+    m_serverInput->setText(iacc.server);
+    m_portInput->setText(iacc.port);
+    m_saveBtn->setDisabled(false);
+    m_saveBtn->setText("保存");
+}
+
 
 void SettingMailAccountsWidget::ckeckLinkable(){
     QString name = m_nameInput->text();

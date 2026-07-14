@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.19)
 project(Zero-Time-Lost-tobedone LANGUAGES CXX)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets OpenGLWidgets)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets OpenGLWidgets Concurrent Sql)
 
 qt_standard_project_setup()
 
@@ -29,6 +29,10 @@ qt_add_executable(Zero-Time-Lost-tobedone
     settingmailpage.h settingmailpage.cpp
     settingmailaccountswidget.h settingmailaccountswidget.cpp
     mailaccountmanager.h mailaccountmanager.cpp
+    mailgetservice.h mailgetservice.cpp
+    mailsimpledisplaywidget.h mailsimpledisplaywidget.cpp
+    mailmanager.h mailmanager.cpp
+    helpsqliteioengine.h helpsqliteioengine.cpp
 
 )
 
@@ -37,6 +41,8 @@ target_link_libraries(Zero-Time-Lost-tobedone
         Qt::Core
         Qt::Widgets
         Qt::OpenGLWidgets
+        Qt::Concurrent
+        Qt::Sql
 )
 
 install(TARGETS Zero-Time-Lost-tobedone
