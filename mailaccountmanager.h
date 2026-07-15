@@ -64,6 +64,7 @@ public:
 
     // 获取信息
     const QList<MailAccount>& getMailAccounts() const;
+    QString getAddressName(QString address) const;
     void setMailAccount(const MailAccount& newAccount);
     void delMailAccount(const QString& address);
 

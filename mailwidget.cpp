@@ -4,8 +4,9 @@ MailWidget::MailWidget(QWidget *parent)
     : QWidget{parent}
 {
     qInfo() << "[MailWidget] 启动。";
+    // service 创建
     m_mailGetService = new MailGetService(this);
-
+    // ui初始化
     QHBoxLayout *mainLayout = new QHBoxLayout(this);
     m_splitter = new QSplitter(Qt::Horizontal, this);
     m_mailSimpleDisplay = new MailSimpleDisplayWidget();
@@ -20,6 +21,14 @@ MailWidget::MailWidget(QWidget *parent)
 
     connect(m_mailSimpleDisplay, &MailSimpleDisplayWidget::refreshRequest, this, [=](){
         m_mailGetService->mailPolling();
+    });
+    connect(m_mailGetService, &MailGetService::newMailBrief, this, [=](const MailBrief& newMailBrief){
+        qDebug() << "[MailWidget] 添加新邮件简报。";
+        MailManager::getInstance()->addMail(newMailBrief);
+        m_mailSimpleDisplay->addNewMailBrief(newMailBrief);
+    });
+    connect(m_mailGetService, &MailGetService::pollingOver, this, [=](){
+        m_mailSimpleDisplay->enablePollingBtn();
     });
 
 

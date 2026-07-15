@@ -65,6 +65,11 @@ const QList<MailAccount>& MailAccountManager::getMailAccounts() const {
     return m_mailAccounts;
 }
 
+QString MailAccountManager::getAddressName(QString address) const{
+    int index = m_accountsIndex[address];
+    return m_mailAccounts[index].name;
+}
+
 void MailAccountManager::setMailAccount(const MailAccount& newAccount){
     if (m_accountsIndex.contains(newAccount.address)){
         m_mailAccounts[m_accountsIndex[newAccount.address]] = newAccount;

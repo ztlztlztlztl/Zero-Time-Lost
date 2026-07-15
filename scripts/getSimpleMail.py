@@ -1,6 +1,7 @@
 import imaplib
 import email
 from email.header import decode_header
+from email.utils import parsedate_to_datetime
 import argparse
 import json
 
@@ -45,7 +46,14 @@ try:
                     msg = email.message_from_bytes(response_part[1])
                     subject = decode_str(msg.get("Subject"))
                     sender = decode_str(msg.get("From"))
-                    date = str(msg.get("Date"))
+                    raw_date = msg.get("Date")
+                    timestamp = 0
+                    try:
+                        if raw_date:
+                            dt = parsedate_to_datetime(raw_date)
+                            timestamp = int(dt.timestamp())
+                    except Exception:
+                        pass
                     if "<" in sender and ">" in sender:
                         sender = sender.split("<")[0].strip() or sender
                     
@@ -53,7 +61,7 @@ try:
                         "id": last_mail_id.decode('utf-8'),
                         "subject": subject,
                         "from": sender,
-                        "date": date
+                        "date": timestamp
                     }
             print(json.dumps({"status": "SUCCESS", "data": result}, ensure_ascii=False), flush=True)
         else:

@@ -3,6 +3,7 @@
 
 #include "mailgetservice.h"
 #include "mailsimpledisplaywidget.h"
+#include "mailmanager.h"
 
 #include <QWidget>
 #include <QLabel>

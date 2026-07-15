@@ -63,11 +63,12 @@ bool HelpSQLiteIOEngine::createTable(const QString &sqlString)
 
 bool HelpSQLiteIOEngine::executeNonQuery(const QString &sqlString, const QVariantList &bindValues)
 {
+    ensureDirExists();
     if (!openDatabase()) {
         qWarning() << "[HelpSQLiteIOEngine] 数据库未连接。";
         return false;
     }
-    QSqlQuery query(QSqlDatabase::database(m_connectionName));
+    QSqlQuery query(m_db);
 
     // 预编译 SQL，防注入
     query.prepare(sqlString);
@@ -85,6 +86,7 @@ bool HelpSQLiteIOEngine::executeNonQuery(const QString &sqlString, const QVarian
 
 QSqlQuery HelpSQLiteIOEngine::executeQuery(const QString &sqlString, const QVariantList &bindValues)
 {
+    ensureDirExists();
     if (!openDatabase()) {
         qWarning() << "[HelpSQLiteIOEngine] 数据库未打开！";
         return QSqlQuery();

@@ -7,7 +7,7 @@ MailGetService::MailGetService(QObject *parent)
 
     m_watcher = new QFutureWatcher<bool>(this);
     connect(m_watcher, &QFutureWatcher<QString>::finished, this, [=]() {
-        bool re = m_watcher->result();
+        emit pollingOver();
     });
 }
 
@@ -73,7 +73,7 @@ bool MailGetService::useGetMail(const MailAccount& acc){
     else if(status == "SUCCESS"){
         qDebug() << "[MailGetService] 找到新邮件。";
         QJsonObject data = jsonObj.value("data").toObject();
-        qDebug() << "[MailGetService] 主题为 " << data["subject"].toString();
+        emit newMailBrief(MailBrief(data, acc.address));
         return true;
     }
     else{

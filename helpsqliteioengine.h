@@ -20,16 +20,12 @@ public:
     // 💡 析构：安全关闭数据库连接
     ~HelpSQLiteIOEngine();
 
-    // 💡 基础设施：自动建表接口（管家在初始化时调用）
     bool createTable(const QString &sqlString);
 
-    // 💡 泛用写入/修改接口：支持防注入的参数绑定（INSERT/UPDATE/DELETE）
     bool executeNonQuery(const QString &sqlString, const QVariantList &bindValues = QVariantList());
 
-    // 💡 泛用查询接口：返回查询结果集（SELECT）
     QSqlQuery executeQuery(const QString &sqlString, const QVariantList &bindValues = QVariantList());
 
-    // 💡 事务控制：用于大批量写入时的极限性能榨取
     bool beginTransaction();
     bool commitTransaction();
     bool rollbackTransaction();

@@ -3,6 +3,7 @@
 
 #include "configmanager.h"
 #include "mailaccountmanager.h"
+#include "datatype.h"
 
 
 
@@ -19,6 +20,8 @@ public:
     void mailPolling();
 
 signals:
+    void pollingOver();
+    void newMailBrief(const MailBrief& newMailbrief);
 
 private:
 
