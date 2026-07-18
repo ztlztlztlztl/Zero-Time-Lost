@@ -25,6 +25,8 @@ public:
     void lazyWrite(const QJsonObject &jsonObj);
     // 强写入接口
     void forceWrite();
+    // 结束接口
+    void endWrite(const QJsonObject &jsonObj);
 
 private slots:
     // 真 写入

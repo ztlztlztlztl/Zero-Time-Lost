@@ -4,13 +4,18 @@ from email.header import decode_header
 from email.utils import parsedate_to_datetime
 import argparse
 import json
+import sys
+import io
+
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 parser = argparse.ArgumentParser(description="这是一个用于拉取未读邮件的脚本")
 parser.add_argument("--address", required=True, type=str, help="邮箱地址")
 parser.add_argument("--code", required=True, type=str, help="IMAP授权码")
 parser.add_argument("--server", required=True, type=str, help="服务器地址")
 parser.add_argument("--port", required=True, type=str, help="端口号")
-parser.add_argument("--count", required=False, type=int, default=1, help="拉取邮件的数量，默认为1")
+parser.add_argument("--uid", required=True, type=int, help="邮件的 UID")
 
 args = parser.parse_args()
 

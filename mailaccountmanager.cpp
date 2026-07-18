@@ -20,7 +20,14 @@ MailAccountManager::MailAccountManager(QObject *parent)
 MailAccountManager::~MailAccountManager()
 {
     qDebug() << "[MailAccountManager] 析构函数被调用。";
-    saveMailAccounts();
+    qDebug() << "[MailAccountManager] 保存 Mail 账号。";
+    QJsonObject mailObj;
+    QJsonArray accountsArray;
+    for (const MailAccount& account: m_mailAccounts){
+        accountsArray.append(account.toJson());
+    }
+    mailObj["accounts"] = accountsArray;
+    m_mailEngine->endWrite(mailObj);
 }
 
 void MailAccountManager::initialize()
@@ -32,7 +39,6 @@ void MailAccountManager::initialize()
 
 void MailAccountManager::loadFromFile(){
     qDebug() << "[MailAccountManager] 加载账号：./config";
-    // setting部分
     QJsonObject mailObj = m_mailEngine->read();
     if (mailObj.isEmpty()) {
         qWarning() << "[MailAccountManager] ./settings.json JSON 格式损坏或空。";
@@ -94,7 +100,10 @@ void MailAccountManager::delMailAccount(const QString& address){
     emit mailAccountChanged();
 }
 
-
+MailAccount MailAccountManager::getMailAcc(QString address) const{
+    int index = m_accountsIndex[address];
+    return m_mailAccounts[index];
+}
 
 
 

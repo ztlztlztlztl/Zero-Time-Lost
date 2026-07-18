@@ -57,6 +57,12 @@ void HelpJsonIOEngine::forceWrite(){
     }
 }
 
+void HelpJsonIOEngine::endWrite(const QJsonObject &jsonObj){
+    m_cacheBuffer = jsonObj;
+    writeToDisk(m_cacheBuffer);
+}
+
+
 void HelpJsonIOEngine::onSaveTimerTimeout(){
     forceWrite();
 }

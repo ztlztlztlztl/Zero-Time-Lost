@@ -4,12 +4,14 @@
 #include "mailgetservice.h"
 #include "mailsimpledisplaywidget.h"
 #include "mailmanager.h"
+#include "mailbodyreader.h"
 
 #include <QWidget>
 #include <QLabel>
 #include <QSplitter>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
+#include <QStackedWidget>
 
 class MailWidget : public QWidget
 {
@@ -25,6 +27,9 @@ private:
     // ui们
     QSplitter *m_splitter;
     MailSimpleDisplayWidget *m_mailSimpleDisplay;
+    QStackedWidget *m_readingPart;
+    QLabel *m_lblReadingText;
+    MailBodyReader *m_mailBodyReader;
 
 
 

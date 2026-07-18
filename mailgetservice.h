@@ -18,14 +18,18 @@ class MailGetService : public QObject
 public:
     explicit MailGetService(QObject *parent = nullptr);
     void mailPolling();
+    void mailBody(const MailAccount& acc, const QString &uid);
 
 signals:
     void pollingOver();
     void newMailBrief(const MailBrief& newMailbrief);
+    void newMailBody(const QString &address, const QString &uid, const QString &body);
+    void getBodyOver(const QString &address, const QString &uid);
+
 
 private:
 
-
+    void useGetBody(const MailAccount& acc, const QString &uid);
     bool useGetMail(const MailAccount& acc);
     QFutureWatcher<bool> *m_watcher; // 线程观察器
 

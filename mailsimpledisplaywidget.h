@@ -5,6 +5,7 @@
 #include "configmanager.h"
 #include "mailmanager.h"
 #include "mailaccountmanager.h"
+#include "mailsimplecard.h"
 
 #include <QWidget>
 #include <QLabel>
@@ -18,11 +19,12 @@ class MailSimpleDisplayWidget : public QWidget
     Q_OBJECT
 public:
     explicit MailSimpleDisplayWidget(QWidget *parent = nullptr);
-    void addNewMailBrief(const MailBrief& newMailBrief);
+    void addMailBrief(int location, const MailBrief& newMailBrief);
     void enablePollingBtn();
 
 signals:
     void refreshRequest();
+    void readRequest(const MailAccount &mailAcc, const MailBrief &mailBrief);
 
 
 

@@ -29,6 +29,11 @@ public:
     QList<MailBrief> moreMailList(int startNumber, int number); // 加载本地更多邮件时获取邮件列表
     void checkMail(QString address, QString uid); // 标记某封邮件为已读
     void addMail(const MailBrief& newMail); // 向本地添加一封邮件
+    void deleteMail(const QString &address, const QString &uid); // 删除某封邮件
+    QString getMailBody(const QString &address, const QString &uid);
+    void updateMailBody(const QString &address, const QString &uid, const QString &body);
+
+    void clearUp();
 
 
 

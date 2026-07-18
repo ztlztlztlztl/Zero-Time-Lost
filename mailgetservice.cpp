@@ -25,6 +25,10 @@ void MailGetService::mailPolling(){
     m_watcher->setFuture(future);
 }
 
+void MailGetService::mailBody(const MailAccount& acc, const QString &uid){
+    useGetBody(acc, uid);
+}
+
 
 
 bool MailGetService::useGetMail(const MailAccount& acc){
@@ -53,7 +57,7 @@ bool MailGetService::useGetMail(const MailAccount& acc){
     process.start(program, arguments);
     process.waitForFinished(-1);
     QByteArray output = process.readAllStandardOutput();
-    QString outputStr = QString::fromLocal8Bit(output).trimmed();
+    QString outputStr = QString::fromUtf8(output).trimmed();
     if (outputStr.isEmpty()){
         qDebug() << "[MailGetService] 脚本返回为空。";
         return false;
@@ -82,6 +86,78 @@ bool MailGetService::useGetMail(const MailAccount& acc){
     }
 
 }
+
+
+void MailGetService::useGetBody(const MailAccount& acc, const QString &uid){
+    // 准备访问条件
+    QDir scriptdir("./scripts");
+    if (!scriptdir.exists()) {
+        qWarning() << "[MailGetService] script文件夹不存在。";
+        return;
+    }
+    QFile scriptfile("./scripts/getMailBody.py");
+    if (!scriptfile.exists()) {
+        qWarning() << "[MailGetService] getMailBody.py不存在。";
+        return;
+    }
+    qDebug() << "[MailGetService] getMailBody.py存在。";
+    // 启动进程
+    QProcess *process = new QProcess(this);
+    QString program = "python";
+    QStringList arguments;
+    arguments << "-u";
+    arguments << "./scripts/getMailBody.py";
+    arguments << "--address" << acc.address;
+    arguments << "--code" << acc.code;
+    arguments << "--server" << acc.server;
+    arguments << "--port" << acc.port;
+    arguments << "--uid" << uid;
+    connect(process, &QProcess::readyReadStandardOutput, this, [=]() {
+        QByteArray output = process->readAllStandardOutput();
+        QString outputStr = QString::fromUtf8(output).trimmed();
+        if (outputStr.isEmpty()){
+            qDebug() << "[MailGetService] 脚本返回为空。";
+            return;
+        }
+        QJsonParseError error;
+        QJsonDocument doc = QJsonDocument::fromJson(outputStr.toUtf8(), &error);
+        if (error.error != QJsonParseError::NoError) {
+            qWarning() << "[MailGetService] JSON 解析失败，错误原因：" << error.errorString();
+            return;
+        }
+        QJsonObject jsonObj = doc.object();
+        QString status = jsonObj.value("status").toString();
+        if (status == "error") {
+            qWarning() << "[MailGetService] 错误:" << jsonObj["message"].toString();
+            return;
+        }
+        else if(status == "success"){
+            qDebug() << "[MailGetService] 找到正文。";
+            QString body = jsonObj.value("body").toString();
+            emit newMailBody(acc.address, uid, body);
+            return;
+        }
+    });
+    connect(process, &QProcess::readyReadStandardError, this, [=]() {
+        qInfo() << "[MailGetService]] 正文脚本错误：" << QString::fromLocal8Bit(process->readAllStandardError()).trimmed();
+    });
+    connect(process, &QProcess::finished, process, [=](){
+        process->deleteLater();
+        emit getBodyOver(acc.address, uid);
+        qInfo() << "[MailGetService]] 正文脚本调用完毕。";
+    });
+    process->start(program, arguments);
+
+
+}
+
+
+
+
+
+
+
+
 
 
 

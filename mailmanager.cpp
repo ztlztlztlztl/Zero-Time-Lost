@@ -44,7 +44,7 @@ QList<MailBrief> MailManager::initMailList(int number){
     QString sql = R"(
                 SELECT owner_email, uid, sender, subject, timestamp, isRead
                 FROM mails
-                ORDER BY timestamp DESC
+                ORDER BY timestamp ASC
                 LIMIT ?
     )";
     QVariantList bindValues;
@@ -65,7 +65,7 @@ QList<MailBrief> MailManager::moreMailList(int startNumber, int number){
     QString sql = R"(
                 SELECT owner_email, uid, sender, subject, timestamp, isRead
                 FROM mails
-                ORDER BY timestamp DESC
+                ORDER BY timestamp ASC
                 LIMIT ?
                 OFFSET ?
     )";
@@ -112,7 +112,77 @@ void MailManager::addMail(const MailBrief& newMail){
     }
 }
 
+void MailManager::deleteMail(const QString &address, const QString &uid)
+{
+    QString sql = R"(
+        DELETE FROM mails
+        WHERE owner_email = ? AND uid = ?
+    )";
+    QVariantList params;
+    params << address << uid;
+    if (m_mailEngine->executeNonQuery(sql, params)) {
+        qInfo() << "[MailManager] 邮件本地删除成功。账号:" << address << "UID:" << uid;
+    } else {
+        qWarning() << "[MailManager] 邮件本地删除失败！账号:" << address << "UID:" << uid;
+    }
+}
 
+
+QString MailManager::getMailBody(const QString &address, const QString &uid)
+{
+    QString sql = R"(
+        SELECT body
+        FROM mails
+        WHERE owner_email = ? AND uid = ?
+    )";
+
+    QVariantList params;
+    params << address << uid;
+    QSqlQuery query = m_mailEngine->executeQuery(sql, params);
+    if (query.next()) {
+        return query.value("body").toString();
+    } else {
+        qWarning() << "[MailManager] 获取正文失败，账号:" << address << "UID:" << uid;
+        return QString();
+    }
+}
+
+void MailManager::updateMailBody(const QString &address, const QString &uid, const QString &body)
+{
+    QString sql = R"(
+        UPDATE mails
+        SET body = ?
+        WHERE owner_email = ? AND uid = ?
+    )";
+
+    QVariantList params;
+    params << body << address << uid;
+    if (m_mailEngine->executeNonQuery(sql, params)) {
+        qDebug() << "[MailManager] 邮件本地正文保存成功！账号:" << address << "UID:" << uid;
+    } else {
+        qWarning() << "[MailManager] 邮件本地正文保存失败！账号:" << address << "UID:" << uid;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void MailManager::clearUp(){
+    delete m_mailEngine;
+    m_mailEngine = nullptr;
+}
 
 
 

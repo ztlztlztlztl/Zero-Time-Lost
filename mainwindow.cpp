@@ -19,7 +19,7 @@ MainWindow::MainWindow(QWidget *parent)
         qWarning() << "[main] 脚本文件夹不存在！";
     } else {
         QList<QString> scripts = {"getWeather.py", "getQuote.py", "checkMail.py",
-                                  "getSimpleMail.py"};
+                                  "getSimpleMail.py", "getMailBody.py"};
         for (const QString &filename:scripts){
             QFile fileThis("./scripts/" + filename);
             if (!fileThis.exists()) {
@@ -44,7 +44,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_stackedWidget->addWidget(m_mailWidget);
 
     this->setCentralWidget(m_stackedWidget);
-    m_stackedWidget->setCurrentIndex(0);
+    m_stackedWidget->setCurrentIndex(2);
 
 
     // 换页处理
@@ -78,6 +78,7 @@ void MainWindow::closeEvent(QCloseEvent *event){
 MainWindow::~MainWindow()
 {
     delete ui;
+    MailManager::getInstance()->clearUp();
 }
 
 

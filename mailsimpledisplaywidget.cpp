@@ -30,7 +30,7 @@ MailSimpleDisplayWidget::MailSimpleDisplayWidget(QWidget *parent)
     int initNumber = ConfigManager::getInstance()->getMailBasical().initialNumber;
     QList<MailBrief> initList = MailManager::getInstance()->initMailList(initNumber);
     for (const MailBrief& mail: initList){
-        addNewMailBrief(mail);
+        addMailBrief(2, mail);
     }
 
     connect(m_forceRefreshBtn, &QPushButton::clicked, this, [=](){
@@ -43,20 +43,34 @@ MailSimpleDisplayWidget::MailSimpleDisplayWidget(QWidget *parent)
         int number = ConfigManager::getInstance()->getMailBasical().earlierNumber;
         QList<MailBrief> initList = MailManager::getInstance()->moreMailList(startNumber, initNumber);
         for (const MailBrief& mail: initList){
-            addNewMailBrief(mail);
+            addMailBrief(m_contentLyt->count() - 1, mail);
         }
     });
 }
 
-void MailSimpleDisplayWidget::addNewMailBrief(const MailBrief& newMailBrief){
+void MailSimpleDisplayWidget::addMailBrief(int location, const MailBrief& newMailBrief){
     QString name = MailAccountManager::getInstance()->getAddressName(newMailBrief.ownerEmail);
-    QString str = name + "|" + newMailBrief.sender + "|" + newMailBrief.uid;
-    QLabel *newMail = new QLabel(str);
-    m_contentLyt->insertWidget(2, newMail);
+    MailSimpleCard *newMail = new MailSimpleCard(newMailBrief, name, this);
+    m_contentLyt->insertWidget(location, newMail);
+    connect(newMail, &MailSimpleCard::readRequest, this, [=](){
+        qDebug() << "[MailSimpleDisplayWidget] 阅读" << name << " " << newMailBrief.subject;
+        MailAccount acc = MailAccountManager::getInstance()->getMailAcc(newMailBrief.ownerEmail);
+        emit readRequest(acc, newMailBrief);
+    });
+    connect(newMail, &MailSimpleCard::checkRequest, this, [=](){
+        qDebug() << "[MailSimpleDisplayWidget] 已读" << name << " " << newMailBrief.subject;
+        MailManager::getInstance()->checkMail(newMailBrief.ownerEmail, newMailBrief.uid);
+    });
+    connect(newMail, &MailSimpleCard::deleteRequest, this, [=](){
+        qDebug() << "[MailSimpleDisplayWidget] 删除" << name << " " << newMailBrief.subject;
+        MailManager::getInstance()->deleteMail(newMailBrief.ownerEmail, newMailBrief.uid);
+        newMail->deleteLater();
+    });
 }
 
 void MailSimpleDisplayWidget::enablePollingBtn(){
     m_forceRefreshBtn->setDisabled(false);
+    m_forceRefreshBtn->setText("拉取新邮件");
 }
 
 
