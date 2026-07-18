@@ -13,6 +13,7 @@
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QTimer>
 
 class MailSimpleDisplayWidget : public QWidget
 {
@@ -36,6 +37,8 @@ private:
     QLabel *m_generalTitle;
     QPushButton *m_forceRefreshBtn;
     QPushButton *m_localMailBtn;
+
+    QTimer *m_timer;
 
 
 

@@ -23,7 +23,7 @@ SettingMailPage::SettingMailPage(QWidget *parent)
     contentLayout->addWidget(m_lblBasicalConfigTitle);
     // 轮询间隔
     QHBoxLayout *pollingIntervalLyt = new QHBoxLayout();
-    m_lblPollingIntervalTest = new QLabel("轮询间隔(分钟)", this);
+    m_lblPollingIntervalTest = new QLabel("轮询间隔", this);
     m_pollingIntervalCombo = new QComboBox(this);
     for (const auto &item : ZTL::Setting::mailpage::intervals){
         m_pollingIntervalCombo->addItem(item.first, item.second);

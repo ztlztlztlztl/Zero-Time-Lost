@@ -11,6 +11,7 @@
 #include <QProcess>
 #include <QtConcurrent>
 #include <QFutureWatcher>
+#include <QTimer>
 
 class MailGetService : public QObject
 {
@@ -32,6 +33,7 @@ private:
     void useGetBody(const MailAccount& acc, const QString &uid);
     bool useGetMail(const MailAccount& acc);
     QFutureWatcher<bool> *m_watcher; // 线程观察器
+
 
 
 

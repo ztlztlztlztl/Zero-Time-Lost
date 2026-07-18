@@ -26,6 +26,19 @@ MailSimpleDisplayWidget::MailSimpleDisplayWidget(QWidget *parent)
     m_mailScrollArea->setWidget(scrollContent);
     m_mailScrollArea->setWidgetResizable(true);
 
+
+    m_timer = new QTimer(this);
+    connect(m_timer, &QTimer::timeout, this, [=](){
+        m_forceRefreshBtn->click();
+    });
+    m_timer->start(ConfigManager::getInstance()->getMailBasical().pollingInterval * 1000);
+
+    connect(ConfigManager::getInstance(), &ConfigManager::mailBasicalChanged, this, [=](){
+        m_timer->stop();
+        m_timer->start(ConfigManager::getInstance()->getMailBasical().pollingInterval * 1000);
+
+    });
+
     // 本地邮件初始化
     int initNumber = ConfigManager::getInstance()->getMailBasical().initialNumber;
     QList<MailBrief> initList = MailManager::getInstance()->initMailList(initNumber);
@@ -34,6 +47,7 @@ MailSimpleDisplayWidget::MailSimpleDisplayWidget(QWidget *parent)
     }
 
     connect(m_forceRefreshBtn, &QPushButton::clicked, this, [=](){
+        m_timer->start();
         emit refreshRequest();
         m_forceRefreshBtn->setDisabled(true);
         m_forceRefreshBtn->setText("轮询中。。。");

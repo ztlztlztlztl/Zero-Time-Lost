@@ -37,6 +37,9 @@ MailSimpleCard::MailSimpleCard(const MailBrief& mailBrief, QString name, QWidget
 
 void MailSimpleCard::mouseDoubleClickEvent(QMouseEvent *event) {
     if (event->button() == Qt::LeftButton) {
+        m_checkBtn->setText("checked");
+        m_checkBtn->setDisabled(true);
+        emit checkRequest();
         emit readRequest();
         event->accept();
     }

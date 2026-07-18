@@ -49,9 +49,11 @@ try:
     mail.login(args.address, args.code)
     mail.select("INBOX", readonly=True)
     
-    status, data = mail.uid('FETCH', str(args.uid), "(RFC822)")
+    status, data = mail.fetch(str(args.uid), "(RFC822)")
     if status == "OK" and data:
+        print(1)
         msg = email.message_from_bytes(data[0][1])
+        print(2)
         body = extract_body(msg)
         print(json.dumps({
             "status": "success",

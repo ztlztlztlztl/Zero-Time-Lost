@@ -9,6 +9,8 @@ MailGetService::MailGetService(QObject *parent)
     connect(m_watcher, &QFutureWatcher<QString>::finished, this, [=]() {
         emit pollingOver();
     });
+
+
 }
 
 
