@@ -16,6 +16,31 @@
 #include <QListWidget>
 #include <QStackedWidget>
 #include <QRegularExpressionValidator>
+#include <QWheelEvent>
+
+
+
+class NoWheelComboBox : public QComboBox {
+    Q_OBJECT
+public:
+    explicit NoWheelComboBox(QWidget *parent = nullptr) : QComboBox(parent) {}
+
+protected:
+    void wheelEvent(QWheelEvent *e) override {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+        e->ignore(); // Qt6 写法：直接忽略事件，交给父级（比如 ScrollArea）去正常滚动
+#else
+        // Qt5 写法：如果不希望影响父级滚动，直接不调用基类 QComboBox::wheelEvent(e); 即可
+        // 如果希望父级滚动，可以调用 e->ignore();
+#endif
+    }
+};
+
+
+
+
+
+
 
 class SettingMailPage : public QWidget
 {
@@ -38,11 +63,11 @@ private:
     // 基础配置部分
     QLabel *m_lblBasicalConfigTitle;
     QLabel *m_lblPollingIntervalTest; // 轮询间隔
-    QComboBox *m_pollingIntervalCombo;
+    NoWheelComboBox *m_pollingIntervalCombo;
     QLabel *m_lblInitialNumberTest; // 开机从本地抓取的邮件卡片数
-    QComboBox *m_initialNumberCombo;
+    NoWheelComboBox *m_initialNumberCombo;
     QLabel *m_lblEarlierNumberTest; // 每次查看更早新看到的的邮件卡片数
-    QComboBox *m_earlierNumberCombo;
+    NoWheelComboBox *m_earlierNumberCombo;
     QLabel *m_lblStorageLimitTest; // 本地储存邮件的上限
     QLabel *m_storageLimitDisplay;
     QLineEdit *m_storageLimitInput;

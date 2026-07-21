@@ -5,6 +5,7 @@
 #include "mailsimpledisplaywidget.h"
 #include "mailmanager.h"
 #include "mailbodyreader.h"
+#include "constants.h"
 
 #include <QWidget>
 #include <QLabel>

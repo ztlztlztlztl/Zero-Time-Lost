@@ -6,6 +6,7 @@
 #include "mailmanager.h"
 #include "mailaccountmanager.h"
 #include "mailsimplecard.h"
+#include "constants.h"
 
 #include <QWidget>
 #include <QLabel>
@@ -14,6 +15,13 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QTimer>
+#include <QScrollBar>
+
+
+
+
+
+
 
 class MailSimpleDisplayWidget : public QWidget
 {

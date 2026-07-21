@@ -14,17 +14,23 @@ SettingMailPage::SettingMailPage(QWidget *parent)
     m_mainScroll = new QScrollArea(this);
     generalLayout->addWidget(m_mainScroll);
     QWidget *scrollContent = new QWidget();
+    scrollContent->setObjectName("mailBackground");
+    scrollContent->setStyleSheet(ZTL::Setting::mailpage::backgroundStyle);
     QVBoxLayout *contentLayout = new QVBoxLayout(scrollContent);
     // 标题
     m_lblTitle = new QLabel("--邮箱--", this);
+    m_lblTitle->setStyleSheet(ZTL::Setting::mailpage::firstTitleStyle);
     contentLayout->addWidget(m_lblTitle);
     // 基础配置部分
     m_lblBasicalConfigTitle = new QLabel("-基础配置-", this);
+    m_lblBasicalConfigTitle->setStyleSheet(ZTL::Setting::mailpage::secondTitleStyle);
     contentLayout->addWidget(m_lblBasicalConfigTitle);
     // 轮询间隔
     QHBoxLayout *pollingIntervalLyt = new QHBoxLayout();
     m_lblPollingIntervalTest = new QLabel("轮询间隔", this);
-    m_pollingIntervalCombo = new QComboBox(this);
+    m_lblPollingIntervalTest->setFixedWidth(160);
+    m_lblPollingIntervalTest->setStyleSheet(ZTL::Setting::mailpage::thirdTitleStyle);
+    m_pollingIntervalCombo = new NoWheelComboBox(this);
     for (const auto &item : ZTL::Setting::mailpage::intervals){
         m_pollingIntervalCombo->addItem(item.first, item.second);
     }
@@ -32,13 +38,16 @@ SettingMailPage::SettingMailPage(QWidget *parent)
     if (piIndex != -1) {
         m_pollingIntervalCombo->setCurrentIndex(piIndex);
     }
+    m_pollingIntervalCombo->setStyleSheet(ZTL::Setting::mailpage::comboStyle);
     pollingIntervalLyt->addWidget(m_lblPollingIntervalTest);
     pollingIntervalLyt->addWidget(m_pollingIntervalCombo);
     contentLayout->addLayout(pollingIntervalLyt);
     // 开机读取邮件数
     QHBoxLayout *initialNumberLyt = new QHBoxLayout();
     m_lblInitialNumberTest = new QLabel("开机读取邮件数", this);
-    m_initialNumberCombo = new QComboBox(this);
+    m_lblInitialNumberTest->setFixedWidth(160);
+    m_lblInitialNumberTest->setStyleSheet(ZTL::Setting::mailpage::thirdTitleStyle);
+    m_initialNumberCombo = new NoWheelComboBox(this);
     for (const auto &item : ZTL::Setting::mailpage::initNumbers){
         m_initialNumberCombo->addItem(item.first, item.second);
     }
@@ -46,13 +55,16 @@ SettingMailPage::SettingMailPage(QWidget *parent)
     if (inIndex != -1) {
         m_initialNumberCombo->setCurrentIndex(inIndex);
     }
+    m_initialNumberCombo->setStyleSheet(ZTL::Setting::mailpage::comboStyle);
     initialNumberLyt->addWidget(m_lblInitialNumberTest);
     initialNumberLyt->addWidget(m_initialNumberCombo);
     contentLayout->addLayout(initialNumberLyt);
     // 每次轮询邮件数
     QHBoxLayout *earlierNumberLyt = new QHBoxLayout();
     m_lblEarlierNumberTest = new QLabel("每次更新邮件数", this);
-    m_earlierNumberCombo = new QComboBox(this);
+    m_lblEarlierNumberTest->setFixedWidth(160);
+    m_lblEarlierNumberTest->setStyleSheet(ZTL::Setting::mailpage::thirdTitleStyle);
+    m_earlierNumberCombo = new NoWheelComboBox(this);
     for (const auto &item : ZTL::Setting::mailpage::pollNumbers){
         m_earlierNumberCombo->addItem(item.first, item.second);
     }
@@ -60,20 +72,29 @@ SettingMailPage::SettingMailPage(QWidget *parent)
     if (enIndex != -1) {
         m_earlierNumberCombo->setCurrentIndex(enIndex);
     }
+    m_earlierNumberCombo->setStyleSheet(ZTL::Setting::mailpage::comboStyle);
     earlierNumberLyt->addWidget(m_lblEarlierNumberTest);
     earlierNumberLyt->addWidget(m_earlierNumberCombo);
     contentLayout->addLayout(earlierNumberLyt);
     // 本地邮件储存上限
     QHBoxLayout *storageLimitLyt = new QHBoxLayout();
     m_lblStorageLimitTest = new QLabel("本地邮件储存上限", this);
+    m_lblStorageLimitTest->setAlignment(Qt::AlignTop);
+    m_lblStorageLimitTest->setFixedWidth(160);
+    m_lblStorageLimitTest->setStyleSheet(ZTL::Setting::mailpage::thirdTitleStyle);
     QVBoxLayout *storageInfoLyt = new QVBoxLayout();
     m_storageLimitDisplay = new QLabel(QString::number(m_mailBasicalConfig.storageLimit), this);
+    m_storageLimitDisplay->setStyleSheet(ZTL::Setting::mailpage::limitDisplayStyle);
     QHBoxLayout *storageModifyLyt = new QHBoxLayout();
     m_storageLimitInput = new QLineEdit(this);
+    m_storageLimitInput->setStyleSheet(ZTL::Setting::mailpage::limitInputStyle);
     QRegularExpression re("^[1-9]\\d*$");
     QRegularExpressionValidator *validator = new QRegularExpressionValidator(re, this);
     m_storageLimitInput->setValidator(validator);
     m_storageSubmitBtn = new QPushButton("提交", this);
+    m_storageSubmitBtn->setFixedWidth(100);
+    m_storageSubmitBtn->setFixedHeight(26);
+    m_storageSubmitBtn->setStyleSheet(ZTL::Setting::mailpage::limitSubmitStyle);
     storageModifyLyt->addWidget(m_storageLimitInput);
     storageModifyLyt->addWidget(m_storageSubmitBtn);
     storageInfoLyt->addWidget(m_storageLimitDisplay);
@@ -83,17 +104,21 @@ SettingMailPage::SettingMailPage(QWidget *parent)
     contentLayout->addLayout(storageLimitLyt);
     // 邮箱账号展示部分
     m_lblAccountsTitle = new QLabel("-邮箱-", this);
+    m_lblAccountsTitle->setStyleSheet(ZTL::Setting::mailpage::secondTitleStyle);
     contentLayout->addWidget(m_lblAccountsTitle);
     // 现有邮箱
     m_lblSavedAccountsTest = new QLabel("现有邮箱", this);
+    m_lblSavedAccountsTest->setStyleSheet(ZTL::Setting::mailpage::thirdTitleStyle);
     m_accountsWidget = new QWidget(this);
     m_accountWidgetLyt = new QVBoxLayout(m_accountsWidget);
     contentLayout->addWidget(m_lblSavedAccountsTest);
     contentLayout->addWidget(m_accountsWidget);
     // 添加邮箱
     m_lblMakeAccountsTest = new QLabel("处理邮箱", this);
+    m_lblMakeAccountsTest->setStyleSheet(ZTL::Setting::mailpage::thirdTitleStyle);
     m_makeAccountStack = new QStackedWidget(this);
     m_makeAccountWaiting = new QPushButton("点击添加新邮箱", this);
+    m_makeAccountWaiting->setStyleSheet(ZTL::Setting::mailpage::waittingStyle);
     m_makeAccountDo = new SettingMailAccountsWidget(this);
     m_makeAccountStack->addWidget(m_makeAccountWaiting);
     m_makeAccountStack->addWidget(m_makeAccountDo);
@@ -176,11 +201,17 @@ void SettingMailPage::resetUI(){
     else{
         for (MailAccount acc:m_mailAccounts){
             QWidget *widget = new QWidget();
+            widget->setObjectName("mailAccBackground");
+            widget->setStyleSheet(ZTL::Setting::mailpage::AccBackgroundStyle);
             QHBoxLayout *layout = new QHBoxLayout(widget);
             QLabel *label = new QLabel(QString("<b>%1</b><br><small style='color:gray;'>%2</small>").arg(acc.name, acc.address));
             layout->addWidget(label);
             QPushButton *delBtn = new QPushButton("删除");
             QPushButton *editBtn = new QPushButton("修改");
+            delBtn->setStyleSheet(ZTL::Setting::mailpage::delBtnStyle);
+            editBtn->setStyleSheet(ZTL::Setting::mailpage::editBtnStyle);
+            delBtn->setFixedWidth(60);
+            editBtn->setFixedWidth(60);
             layout->addWidget(editBtn);
             layout->addWidget(delBtn);
             m_accountWidgetLyt->addWidget(widget);

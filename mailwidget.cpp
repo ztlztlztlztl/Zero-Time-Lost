@@ -4,14 +4,21 @@ MailWidget::MailWidget(QWidget *parent)
     : QWidget{parent}
 {
     qInfo() << "[MailWidget] 启动。";
+    this->setAttribute(Qt::WA_StyledBackground, true);
+    this->setObjectName("mailPage");
+    this->setStyleSheet(ZTL::Mail::general::backgroundStyle);
     // service 创建
     m_mailGetService = new MailGetService(this);
     // ui初始化
     QHBoxLayout *mainLayout = new QHBoxLayout(this);
     m_splitter = new QSplitter(Qt::Horizontal, this);
+    m_splitter->setStyleSheet(ZTL::Mail::general::SplitterStyle);
+    m_splitter->setHandleWidth(2);
     m_mailSimpleDisplay = new MailSimpleDisplayWidget();
     m_readingPart = new QStackedWidget();
-    m_lblReadingText = new QLabel("等待选择邮件阅读");
+    m_lblReadingText = new QLabel(">等待选择邮件阅读<");
+    m_lblReadingText->setAlignment(Qt::AlignCenter);
+    m_lblReadingText->setStyleSheet(ZTL::Mail::general::ReadingWaitStyle);
     m_mailBodyReader = new MailBodyReader(this);
     m_readingPart->addWidget(m_lblReadingText);
     m_readingPart->addWidget(m_mailBodyReader);
@@ -23,6 +30,19 @@ MailWidget::MailWidget(QWidget *parent)
 
 
 
+
+
+    connect(m_splitter, &QSplitter::splitterMoved, this, [=](int pos, int index) {
+        if (index == 1) {
+            if (pos < 250) {
+                int totalWidth = m_splitter->width();
+                m_splitter->setSizes(QList<int>() << 0 << totalWidth);
+            }
+        }
+    });
+
+
+
     connect(m_mailSimpleDisplay, &MailSimpleDisplayWidget::refreshRequest, this, [=](){
         m_mailGetService->mailPolling();
     });
@@ -31,8 +51,12 @@ MailWidget::MailWidget(QWidget *parent)
         MailManager::getInstance()->addMail(newMailBrief);
         m_mailSimpleDisplay->addMailBrief(2, newMailBrief);
     });
-    connect(m_mailGetService, &MailGetService::pollingOver, this, [=](){
+    connect(m_mailGetService, &MailGetService::pollingOver, this, [=](bool haveNew){
         m_mailSimpleDisplay->enablePollingBtn();
+        if (!haveNew){
+            m_lblReadingText->setText("当前未找到新邮件");
+            m_readingPart->setCurrentIndex(0);
+        }
     });
     connect(m_mailSimpleDisplay, &MailSimpleDisplayWidget::readRequest, this,
             [=](const MailAccount& acc, const MailBrief& brf){

@@ -44,7 +44,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_stackedWidget->addWidget(m_mailWidget);
 
     this->setCentralWidget(m_stackedWidget);
-    m_stackedWidget->setCurrentIndex(0);
+    m_stackedWidget->setCurrentIndex(2);
 
 
     // 换页处理

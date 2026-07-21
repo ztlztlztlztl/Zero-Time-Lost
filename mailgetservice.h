@@ -22,7 +22,7 @@ public:
     void mailBody(const MailAccount& acc, const QString &uid);
 
 signals:
-    void pollingOver();
+    void pollingOver(bool haveNew);
     void newMailBrief(const MailBrief& newMailbrief);
     void newMailBody(const QString &address, const QString &uid, const QString &body);
     void getBodyOver(const QString &address, const QString &uid);

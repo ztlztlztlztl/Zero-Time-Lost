@@ -2,6 +2,7 @@
 #define MAILBODYREADER_H
 
 #include "datatype.h"
+#include "constants.h"
 
 #include <QWidget>
 #include <QLabel>

@@ -5,12 +5,19 @@ MailSimpleCard::MailSimpleCard(const MailBrief& mailBrief, QString name, QWidget
 {
     QVBoxLayout *mainLyt = new QVBoxLayout(this);
     m_lblAccount = new QLabel(name);
-    m_lblSender = new QLabel(mailBrief.sender);
-    m_lblSubject = new QLabel(mailBrief.subject);
+    m_lblAccount->setStyleSheet(ZTL::Mail::list::LblAccountStyle);
+    m_lblSender = new QLabel(QString("·sender: %1").arg(mailBrief.sender));
+    m_lblSender->setStyleSheet(ZTL::Mail::list::LblInfoStyle);
+    m_lblSubject = new ElidedLabel();
+    m_lblSubject->setFullText(QString("·subject: %1").arg(mailBrief.subject));
+    m_lblSubject->setStyleSheet(ZTL::Mail::list::LblInfoStyle);
     QDateTime dateTime = QDateTime::fromSecsSinceEpoch(mailBrief.timestamp);
-    m_lblTime = new QLabel(dateTime.toString("yyyy-MM-dd hh:mm:ss"));
+    m_lblTime = new QLabel(QString("·time: %1").arg(dateTime.toString("yyyy-MM-dd hh:mm:ss")));
+    m_lblTime->setStyleSheet(ZTL::Mail::list::LblInfoStyle);
     m_checkBtn = new QPushButton("check");
+    m_checkBtn->setStyleSheet(ZTL::Mail::list::CheckBtnStyle);
     m_deleteBtn = new QPushButton("delete");
+    m_deleteBtn->setStyleSheet(ZTL::Mail::list::DeleteBtnStyle);
     QHBoxLayout *lastLineLyt = new QHBoxLayout();
     if (!mailBrief.isRead) lastLineLyt->addWidget(m_checkBtn);
     lastLineLyt->addWidget(m_deleteBtn);

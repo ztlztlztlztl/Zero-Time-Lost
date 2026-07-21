@@ -8,14 +8,20 @@ MailSimpleDisplayWidget::MailSimpleDisplayWidget(QWidget *parent)
     QVBoxLayout *generalLayout = new QVBoxLayout(this);
     generalLayout->setContentsMargins(0, 0, 0, 0);
     m_mailScrollArea = new QScrollArea(this);
+    m_mailScrollArea->setStyleSheet(ZTL::Mail::list::ListScrollBarStyle);
     generalLayout->addWidget(m_mailScrollArea);
     QWidget *scrollContent = new QWidget();
+    scrollContent->setStyleSheet(ZTL::Mail::list::BackgroundStyle);
     m_contentLyt = new QVBoxLayout(scrollContent);
-    m_generalTitle = new QLabel("邮件简报");
+    m_generalTitle = new QLabel(">邮件简报<");
+    m_generalTitle->setAlignment(Qt::AlignCenter);
+    m_generalTitle->setStyleSheet(ZTL::Mail::list::TitleStyle);
     m_contentLyt->addWidget(m_generalTitle);
     m_forceRefreshBtn = new QPushButton("拉取新邮件");
+    m_forceRefreshBtn->setStyleSheet(ZTL::Mail::list::PollingBtnStyle);
     m_contentLyt->addWidget(m_forceRefreshBtn);
     m_localMailBtn = new QPushButton("更多邮件");
+    m_localMailBtn->setStyleSheet(ZTL::Mail::list::LocalBtnStyle);
     m_contentLyt->addWidget(m_localMailBtn);
     m_contentLyt->addStretch();
 
@@ -50,7 +56,8 @@ MailSimpleDisplayWidget::MailSimpleDisplayWidget(QWidget *parent)
         m_timer->start();
         emit refreshRequest();
         m_forceRefreshBtn->setDisabled(true);
-        m_forceRefreshBtn->setText("轮询中。。。");
+        m_forceRefreshBtn->setText("轮询中");
+        m_mailScrollArea->verticalScrollBar()->setValue(m_mailScrollArea->verticalScrollBar()->minimum());
     });
     connect(m_localMailBtn, &QPushButton::clicked, this, [=](){
         int startNumber = m_contentLyt->count() - 3;

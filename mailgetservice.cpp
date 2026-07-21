@@ -6,8 +6,9 @@ MailGetService::MailGetService(QObject *parent)
     qInfo() << "[MailGetService] 启动。";
 
     m_watcher = new QFutureWatcher<bool>(this);
-    connect(m_watcher, &QFutureWatcher<QString>::finished, this, [=]() {
-        emit pollingOver();
+    connect(m_watcher, &QFutureWatcher<bool>::finished, this, [=]() {
+        bool isSuccess = m_watcher->result();
+        emit pollingOver(isSuccess);
     });
 
 
