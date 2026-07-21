@@ -7,6 +7,7 @@
 #include "mailwidget.h"
 #include "mailaccountmanager.h"
 #include "mailmanager.h"
+#include "deadlinewidget.h"
 
 #include <QMainWindow>
 #include <QVBoxLayout>
@@ -43,6 +44,7 @@ private:
     HomeWidget *m_homeWidget;
     SettingWidget *m_settingWidget;
     MailWidget *m_mailWidget;
+    DeadlineWidget *m_deadlineWidget;
 
 
 

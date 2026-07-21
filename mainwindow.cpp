@@ -36,22 +36,24 @@ MainWindow::MainWindow(QWidget *parent)
     m_homeWidget = new HomeWidget(m_stackedWidget);
     m_settingWidget = new SettingWidget(m_stackedWidget);
     m_mailWidget = new MailWidget(m_stackedWidget);
+    m_deadlineWidget = new DeadlineWidget(m_stackedWidget);
 
 
     // 组装
     m_stackedWidget->addWidget(m_homeWidget);
     m_stackedWidget->addWidget(m_settingWidget);
     m_stackedWidget->addWidget(m_mailWidget);
+    m_stackedWidget->addWidget(m_deadlineWidget);
 
     this->setCentralWidget(m_stackedWidget);
-    m_stackedWidget->setCurrentIndex(2);
+    m_stackedWidget->setCurrentIndex(0);
 
 
     // 换页处理
     QShortcut *homeShortcut = new QShortcut(ZTL::Main::homeShortcut, this);
     QShortcut *settingShortcut = new QShortcut(ZTL::Main::settingShortcut, this);
     QShortcut *mailShortcut = new QShortcut(ZTL::Main::mailShortcut, this);
-
+    QShortcut *deadlineShortcut = new QShortcut(ZTL::Main::deadlineShortcut, this);
 
     connect(homeShortcut, &QShortcut::activated, this, [=](){
         m_stackedWidget->setCurrentWidget(m_homeWidget);
@@ -62,6 +64,9 @@ MainWindow::MainWindow(QWidget *parent)
     });
     connect(mailShortcut, &QShortcut::activated, this, [=](){
         m_stackedWidget->setCurrentWidget(m_mailWidget);
+    });
+    connect(deadlineShortcut, &QShortcut::activated, this, [=](){
+        m_stackedWidget->setCurrentWidget(m_deadlineWidget);
     });
 
     // 链接

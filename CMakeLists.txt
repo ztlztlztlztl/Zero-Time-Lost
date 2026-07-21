@@ -35,6 +35,8 @@ qt_add_executable(Zero-Time-Lost-tobedone
     helpsqliteioengine.h helpsqliteioengine.cpp
     mailsimplecard.h mailsimplecard.cpp
     mailbodyreader.h mailbodyreader.cpp
+    deadlinewidget.h deadlinewidget.cpp
+    deadlinemanager.h deadlinemanager.cpp
 
 )
 

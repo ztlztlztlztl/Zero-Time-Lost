@@ -14,6 +14,7 @@ namespace Main{
 const QKeySequence homeShortcut =  QKeySequence(Qt::ALT | Qt::Key_H);
 const QKeySequence settingShortcut =  QKeySequence(Qt::ALT | Qt::Key_S);
 const QKeySequence mailShortcut =  QKeySequence(Qt::ALT | Qt::Key_M);
+const QKeySequence deadlineShortcut =  QKeySequence(Qt::ALT | Qt::Key_D);
 
 }
 
@@ -57,6 +58,7 @@ const int timeInterval = 1200000;
 
 
 }
+
 
 namespace Setting{
 
@@ -1075,8 +1077,8 @@ namespace general{
 
 const QString backgroundStyle = R"qss(
             #mailPage {
-            background-color: #101216;
-            };
+                background-color: #101216;
+            }
     )qss";
 
 const QString SplitterStyle = R"qss(

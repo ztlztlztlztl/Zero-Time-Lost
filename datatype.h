@@ -53,6 +53,69 @@ struct MailBrief {
     }
 };
 
+struct DeadlineEntity {
+    int id; // ID
+    QString title; // 标题
+    QString describe; // 详细备注
+    qint64 dueTimestamp; // 截止时间戳 (秒级),最小间隔为分
+    QList<QString> tags; // DDL的tag
+    bool isDone; // 是否已完成
+    bool isIgnore; // 是否置灰
+
+    DeadlineEntity() : id(0), dueTimestamp(0), isDone(false), isIgnore(false) {}
+
+    DeadlineEntity(const QSqlQuery &query) {
+        id = query.value("id").toInt();
+        title = query.value("title").toString();
+        describe = query.value("describe").toString();
+        dueTimestamp = query.value("due_timestamp").toLongLong();
+        tags = query.value("tags").toString().split("|", Qt::SkipEmptyParts);
+        isDone = query.value("is_done").toBool();
+        isIgnore = query.value("is_ignore").toBool();
+    }
+
+    QVariantList toInsertBindValues() const {
+        return QVariantList()
+        << title
+        << describe
+        << dueTimestamp
+        << tags.join("|")
+        << (isDone ? 1 : 0)
+        << (isIgnore ? 1 : 0);
+    }
+
+    QVariantList toUpdateBindValues() const {
+        QVariantList values = toInsertBindValues();
+        values << id;
+        return values;
+    }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
