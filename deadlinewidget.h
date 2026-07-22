@@ -10,19 +10,7 @@ class DeadlineWidget : public QWidget
 {
     Q_OBJECT
 public:
-    // 单例模式
-    static MailManager* getInstance();
-    void initialize();
-    // 获取信息
-    QList<MailBrief> initMailList(int number); // 启动程序时获取初始邮件列表
-    QList<MailBrief> moreMailList(int startNumber, int number); // 加载本地更多邮件时获取邮件列表
-    void checkMail(QString address, QString uid); // 标记某封邮件为已读
-    void addMail(const MailBrief& newMail); // 向本地添加一封邮件
-    void deleteMail(const QString &address, const QString &uid); // 删除某封邮件
-    QString getMailBody(const QString &address, const QString &uid);
-    void updateMailBody(const QString &address, const QString &uid, const QString &body);
-
-    void clearUp();
+    explicit DeadlineWidget(QWidget *parent = nullptr);
 
 
 
@@ -35,14 +23,10 @@ private slots:
 
 
 private:
-    explicit MailManager(QObject *parent = nullptr);
-    ~MailManager();
-    MailManager(const MailManager&) = delete;
-    MailManager& operator=(const MailManager&) = delete;
+    QLabel *test;
 
 
 
-    HelpSQLiteIOEngine *m_mailEngine;
 };
 
 #endif // DEADLINEWIDGET_H

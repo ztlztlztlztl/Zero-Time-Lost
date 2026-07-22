@@ -44,6 +44,8 @@ void ConfigManager::loadFromFile(){
     m_homeQuote = HomeQuoteConfig(quoteObj);
     QJsonObject mailObj = settingObj["mail"].toObject();
     m_mailBasical = MailBasicalConfig(mailObj);
+    QJsonObject deadlineObj = settingObj["deadline"].toObject();
+    m_deadlineBasical = DeadlineBasicalConfig(deadlineObj);
 
 }
 
@@ -54,8 +56,9 @@ void ConfigManager::saveSetting(){
     QJsonObject homeObj;
     homeObj["weather"] = m_homeWeather.toJson(); // weather
     homeObj["quote"] = m_homeQuote.toJson(); // quote
-    settingObj["home"] = homeObj;
+    settingObj["home"] = homeObj; // home
     settingObj["mail"] = m_mailBasical.toJson(); // mail
+    settingObj["deadline"] = m_deadlineBasical.toJson();
     // 打包保存
     m_settingEngine->lazyWrite(settingObj);
 }
@@ -93,6 +96,16 @@ void ConfigManager::setMailBasical(const MailBasicalConfig& newconfig){
     emit mailBasicalChanged();
 }
 
+// deadline
+const DeadlineBasicalConfig& ConfigManager::getDeadlineBasical() const{
+    return m_deadlineBasical;
+
+}
+void ConfigManager::setDeadlineBasical(const DeadlineBasicalConfig& newconfig){
+    m_deadlineBasical = newconfig;
+    saveSetting();
+    emit mailBasicalChanged();
+}
 
 
 

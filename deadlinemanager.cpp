@@ -205,3 +205,33 @@ bool DeadlineManager::clearLongLongAgo(qint64 saveDuration){
 }
 
 
+
+
+
+
+
+
+
+
+DeadlineManager::DeadlineManager(QObject *parent): QObject(parent){
+    qDebug() << "[DeadlineManager] 构造函数被调用。";
+}
+DeadlineManager::~DeadlineManager(){
+    qDebug() << "[DeadlineManager] 析构函数被调用。";
+
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

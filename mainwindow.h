@@ -8,6 +8,7 @@
 #include "mailaccountmanager.h"
 #include "mailmanager.h"
 #include "deadlinewidget.h"
+#include "deadlinemanager.h"
 
 #include <QMainWindow>
 #include <QVBoxLayout>

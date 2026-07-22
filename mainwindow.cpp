@@ -12,6 +12,7 @@ MainWindow::MainWindow(QWidget *parent)
     CacheManager::getInstance()->initialize();
     MailAccountManager::getInstance()->initialize();
     MailManager::getInstance()->initialize();
+    DeadlineManager::getInstance()->initialize();
     // 脚本文件夹
     qInfo() << "[main] 自检脚本。";
     QFile fileScripts("./scripts");

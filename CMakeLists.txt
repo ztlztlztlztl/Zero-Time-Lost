@@ -37,6 +37,7 @@ qt_add_executable(Zero-Time-Lost-tobedone
     mailbodyreader.h mailbodyreader.cpp
     deadlinewidget.h deadlinewidget.cpp
     deadlinemanager.h deadlinemanager.cpp
+    settingdeadlinepage.h settingdeadlinepage.cpp
 
 )
 

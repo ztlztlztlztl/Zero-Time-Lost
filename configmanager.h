@@ -111,6 +111,49 @@ struct MailBasicalConfig{
 };
 
 
+struct DeadlineBasicalConfig{
+    int initialPastNumber;
+    qint64 saveDuration; // 秒级
+    qint64 remindTime;
+    QList<QString> commonTags;
+
+
+    DeadlineBasicalConfig(){
+        initialPastNumber = 10;
+        saveDuration = 2592000;
+        remindTime = 172800;
+        commonTags = {};
+    }
+
+    DeadlineBasicalConfig(const QJsonObject &deadlineBasicalObect){
+        initialPastNumber = deadlineBasicalObect["initialPastNumber"].toInt(10);
+        saveDuration = deadlineBasicalObect["saveDuration"].toVariant().toLongLong();
+        if (saveDuration <= 0) saveDuration = 2592000;
+        remindTime = deadlineBasicalObect["remindTime"].toVariant().toLongLong();
+        if (remindTime <= 0) remindTime = 172800;
+        QJsonArray tagArray = deadlineBasicalObect["commonTags"].toArray();
+        for (const auto& tag : tagArray) {
+            QString _tag = tag.toString();
+            commonTags.append(_tag);
+        }
+    }
+
+    QJsonObject toJson(){
+        QJsonObject deadlineBasicalObect;
+        deadlineBasicalObect["initialPastNumber"] = initialPastNumber;
+        deadlineBasicalObect["saveDuration"] = QString::number(saveDuration);
+        deadlineBasicalObect["remindTime"] = QString::number(remindTime);
+        QJsonArray tagArray;
+        for (const QString& tag : commonTags) {
+            tagArray.append(tag);
+        }
+        deadlineBasicalObect["commonTags"] = tagArray;
+        return deadlineBasicalObect;
+    }
+
+};
+
+
 
 class ConfigManager : public QObject
 {
@@ -129,6 +172,9 @@ public:
     // mail
     const MailBasicalConfig& getMailBasical() const;
     void setMailBasical(const MailBasicalConfig& newconfig);
+    // deadline
+    const DeadlineBasicalConfig& getDeadlineBasical() const;
+    void setDeadlineBasical(const DeadlineBasicalConfig& Deadline);
 
 
 signals:
@@ -158,10 +204,10 @@ private:
     HomeWeatherConfig m_homeWeather;
     HomeQuoteConfig m_homeQuote;
     MailBasicalConfig m_mailBasical;
+    DeadlineBasicalConfig m_deadlineBasical;
 
     // 对应的IO引擎
     HelpJsonIOEngine *m_settingEngine;
-
 
 
 
