@@ -38,6 +38,8 @@ qt_add_executable(Zero-Time-Lost-tobedone
     deadlinewidget.h deadlinewidget.cpp
     deadlinemanager.h deadlinemanager.cpp
     settingdeadlinepage.h settingdeadlinepage.cpp
+    deadlineaddwidget.h deadlineaddwidget.cpp
+    flowlayout.cpp flowlayout.h
 
 )
 

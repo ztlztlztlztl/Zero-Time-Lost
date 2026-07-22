@@ -5,6 +5,8 @@
 #include <QLabel>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QSplitter>
+#include <QStackedWidget>
 
 class DeadlineWidget : public QWidget
 {
@@ -23,7 +25,8 @@ private slots:
 
 
 private:
-    QLabel *test;
+    QSplitter *m_splitter;
+    QStackedWidget *m_leftStack;
 
 
 

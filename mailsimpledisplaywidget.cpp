@@ -37,11 +37,11 @@ MailSimpleDisplayWidget::MailSimpleDisplayWidget(QWidget *parent)
     connect(m_timer, &QTimer::timeout, this, [=](){
         m_forceRefreshBtn->click();
     });
-    m_timer->start(ConfigManager::getInstance()->getMailBasical().pollingInterval * 1000);
+    m_timer->start(ConfigManager::getInstance()->getMailBasical().pollingInterval * 1000 * 60);
 
     connect(ConfigManager::getInstance(), &ConfigManager::mailBasicalChanged, this, [=](){
         m_timer->stop();
-        m_timer->start(ConfigManager::getInstance()->getMailBasical().pollingInterval * 1000);
+        m_timer->start(ConfigManager::getInstance()->getMailBasical().pollingInterval * 1000 * 60);
 
     });
 

@@ -13,6 +13,7 @@ MainWindow::MainWindow(QWidget *parent)
     MailAccountManager::getInstance()->initialize();
     MailManager::getInstance()->initialize();
     DeadlineManager::getInstance()->initialize();
+    DeadlineManager::getInstance()->clearLongLongAgo(ConfigManager::getInstance()->getDeadlineBasical().saveDuration);
     // 脚本文件夹
     qInfo() << "[main] 自检脚本。";
     QFile fileScripts("./scripts");
@@ -47,7 +48,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_stackedWidget->addWidget(m_deadlineWidget);
 
     this->setCentralWidget(m_stackedWidget);
-    m_stackedWidget->setCurrentIndex(0);
+    m_stackedWidget->setCurrentIndex(3);
 
 
     // 换页处理
