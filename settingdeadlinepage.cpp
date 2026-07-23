@@ -95,10 +95,10 @@ SettingDeadlinePage::SettingDeadlinePage(QWidget *parent)
     QHBoxLayout *addCityLayout = new QHBoxLayout();
     m_lblAddTagTest = new QLabel("添加新 tag：", this);
     m_AddTagInput = new QLineEdit(this);
-    QRegularExpression _re(R"(^(?:[\x{4e00}-\x{9fa5}_]{1,4}|[a-zA-Z_]{1,15})$)");
+    QRegularExpression _re(R"(^(?:[\x{4e00}-\x{9fa5}_]{1,4}|[a-zA-Z_]{1,12})$)");
     QRegularExpressionValidator *_validator = new QRegularExpressionValidator(_re, this);
     m_AddTagInput->setValidator(_validator);
-    m_AddTagInput->setPlaceholderText("描述，不超过4个汉字或15个字母，特殊字符仅下划线");
+    m_AddTagInput->setPlaceholderText("描述，不超过4个汉字或12个字母，特殊字符仅下划线");
     m_AddTagSubmit = new QPushButton("提交", this);
     addCityLayout->addWidget(m_lblAddTagTest);
     addCityLayout->addWidget(m_AddTagInput);

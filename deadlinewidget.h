@@ -1,6 +1,12 @@
 #ifndef DEADLINEWIDGET_H
 #define DEADLINEWIDGET_H
 
+
+
+#include "deadlineaddwidget.h"
+#include "deadlinemanager.h"
+#include "deadlinetimemapview.h"
+
 #include <QWidget>
 #include <QLabel>
 #include <QVBoxLayout>
@@ -27,6 +33,16 @@ private slots:
 private:
     QSplitter *m_splitter;
     QStackedWidget *m_leftStack;
+
+    QLabel *m_waittingPage;
+    DeadlineAddWidget *m_deadlineAddWidget;
+
+    DeadlineTimeMapTimelineView *m_mapView;
+
+    int m_action;
+    // 0 search, 1 add, 2 modyfy
+
+
 
 
 
