@@ -37,7 +37,7 @@ private:
     QLabel *m_waittingPage;
     DeadlineAddWidget *m_deadlineAddWidget;
 
-    DeadlineTimeMapTimelineView *m_mapView;
+    DeadlineTimeMapView *m_mapView;
 
     int m_action;
     // 0 search, 1 add, 2 modyfy

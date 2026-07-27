@@ -17,7 +17,7 @@ DeadlineWidget::DeadlineWidget(QWidget *parent)
     QPushButton *awakeAdd = new QPushButton("Add");
     QPushButton *awakeModify = new QPushButton("Modify");
     QPushButton *cancelBtn = new QPushButton("Cancel");
-    m_mapView = new DeadlineTimeMapTimelineView();
+    m_mapView = new DeadlineTimeMapView();
     m_mapView->setAlignment(Qt::AlignCenter);
     rightLyt->addWidget(awakeAdd);
     rightLyt->addWidget(awakeModify);

@@ -7,39 +7,42 @@
 #include <QPainter>
 #include <QStyleOptionGraphicsItem>
 #include <cmath>
+#include <QGraphicsScene>
+#include <QMouseEvent>
+#include <QTimer>
 
 class DeadlineMapTimelineItem : public QGraphicsItem
 {
 public:
-    DeadlineMapTimelineItem(QDateTime baseTime, double pixelsPerMin, QGraphicsItem *parent = nullptr);
-
-    void setPixelsPerMinute(double pxPerMin);
-
+    DeadlineMapTimelineItem(QDateTime baseTime, QRectF baseRect, double pixelsPerMin, QGraphicsItem *parent = nullptr);
+    // 返回元件的范围
     QRectF boundingRect() const override;
-
+    // paint函数
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
 
-    // 🚀 更新鼠标 X 坐标，并开启显示
-    void updateHoverPosition(double mouseX) {
-        m_hoverX = mouseX;
-        m_showIndicator = true;
-        update();
-    }
+    // 调整缩放因子
+    void setZoomFactor(double factor);
 
-    // 🚀 隐藏指示器
-    void setIndicatorVisible(bool visible) {
-        m_showIndicator = visible;
-        update();
-    }
+    // 蓝色气泡
+    void updateHoverPosition(double mouseItemX);
+    void clearHover();
 
 
 private:
-    QDateTime m_baseTime;       // 零点基准时间
-    double m_pixelsPerMinute;   // 比例尺：每分对应的像素数
+    QRectF m_baseRect;
+    double m_basePixelsPerMinute;
+    QDateTime m_baseTime;
 
-    bool m_showIndicator = false; // 默认为 false（初始不显示小球）
-    double m_hoverX = 0.0;        // 记录鼠标的 X 坐标
+    double m_zoomFactor;
+    // 蓝色整 5 分气泡
+    bool m_showHover = false; // 是否显示气泡
+    double m_hoverSnappedX = 0.0; // 气泡的 X 坐标
+    int m_hoverSnappedMinutes = 0; // 气泡的整 5 分钟数
+
+
+
+
 };
 
 #endif // DEADLINEMAPTIMELINEITEM_H

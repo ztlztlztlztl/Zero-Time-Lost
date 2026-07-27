@@ -6,131 +6,167 @@
 
 
 
-DeadlineMapTimelineItem::DeadlineMapTimelineItem(QDateTime baseTime, double pixelsPerMin, QGraphicsItem *parent)
-    : QGraphicsItem(parent), m_baseTime(baseTime), m_pixelsPerMinute(pixelsPerMin) {}
+DeadlineMapTimelineItem::DeadlineMapTimelineItem(
+    QDateTime baseTime, QRectF baseRect, double pixelsPerMin,QGraphicsItem *parent):
+    QGraphicsItem(parent), m_baseRect(baseRect),
+    m_basePixelsPerMinute(pixelsPerMin), m_baseTime(baseTime),
+    m_zoomFactor(1)
+{
 
-
-void DeadlineMapTimelineItem::setPixelsPerMinute(double pxPerMin) {
-    m_pixelsPerMinute = pxPerMin;
-    update(); // 重绘
 }
+
+
 
 QRectF DeadlineMapTimelineItem::boundingRect() const {
-    // 假设时间轴高度为 50px，宽度设置足够大（如 1,000,000px）
-    return QRectF(-500, -250, 3000, 500);
+    return QRectF(m_baseRect.x() * m_zoomFactor, m_baseRect.y(),
+                  m_baseRect.width() * m_zoomFactor, m_baseRect.height());
 }
 
-void DeadlineMapTimelineItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget){
+
+
+void DeadlineMapTimelineItem::paint
+    (QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
+    Q_UNUSED(option);
     Q_UNUSED(widget);
 
-    QRectF exposed = option->exposedRect;
-
-    painter->fillRect(exposed, QColor("transparent"));
-    painter->setPen(QPen(QColor("#cccccc"), 1));
-    painter->drawLine(exposed.left(), 0, exposed.right(), 0);
-
-    // 3. 动态确定刻度间隔（示例：若1小时占用的像素比 40px 大，就按“小时”画，否则按“天”画）
-    QList<int> stepMinutes = {15, 30, 60, 120, 360, 1440, 10080, 43200, 129600, 525600};
-    int index = 0; // 默认 5 分钟为最低刻度
-    for (;index < 10;index++){
-        if (stepMinutes[index] * m_pixelsPerMinute >= 60) break;
+    // 开启抗锯齿
+    painter->setRenderHint(QPainter::Antialiasing);
+    // 局部绘制
+    // 获取可视矩形
+    QRectF visibleRect;
+    if (widget) {
+        visibleRect = painter->transform().inverted().mapRect(QRectF(widget->rect()));
+    } else {
+        visibleRect = option->exposedRect;
     }
 
-    // 4. 计算当前可视区域起始和结束的时间点
-    int startMin = std::floor(exposed.left() / (stepMinutes[index] * m_pixelsPerMinute)) * stepMinutes[index];
-    int endMin = std::ceil(exposed.right() / (stepMinutes[index] * m_pixelsPerMinute)) * stepMinutes[index];
+    double leftX = visibleRect.left();
+    double rightX = visibleRect.right();
 
-    // 5. 循环绘制可见区域内的刻度线和文字
-    painter->setPen(QColor("#cccccc"));
-    for (int min = startMin; min <= endMin; min += stepMinutes[index]) {
-        double x = min * m_pixelsPerMinute;
+    // 画轴
+    QPen pen(QColor("#DDDDDD"), 1.5);
+    painter->setPen(pen);
+
+    painter->drawLine(QPointF(leftX, 0.0), QPointF(rightX, 0.0));
+    // 画刻度
+    double currentPPM = m_basePixelsPerMinute * m_zoomFactor;
+    QList<int> minutesSteps =
+        {15, 60, 180, 360, 1440, 4320, 10080, 43200, 129600, 525600};
+    //   15m 1h  3h   6h   1d    3d    7d     1m     3m      1y
+    int index = 0;
+    for(;index < 9;index++){
+        if (minutesSteps[index] * currentPPM >= 60) break;
+    }
+    double leftMinute  = leftX / currentPPM;
+    double rightMinute = rightX / currentPPM;
+    int stepMinutes = minutesSteps[index];
+    // 左边向下取整，右边向上取整
+    int startMinute = std::floor(leftMinute / stepMinutes) * stepMinutes;
+    int endMinute   = std::ceil(rightMinute / stepMinutes) * stepMinutes;
+    painter->setPen(QPen(QColor("#DDDDDD"), 1)); // 灰色刻度线
+    QString strFormat;
+    if (index == 0) {            // 15分钟刻度 -> 显示 14:15
+        strFormat = "HH:mm";
+    } else if (index < 4) {      // 1h / 3h / 6h 刻度 -> 显示 14:00
+        strFormat = "HH:mm";
+    } else if (index < 7) {      // 1d / 3d / 1w 刻度 -> 显示 05-20 (月-日)
+        strFormat = "MM-dd";
+    } else {                     // 1m / 3m / 1y 刻度 -> 显示 2026-05
+        strFormat = "yyyy-MM";
+    }
+    QRectF textRect(0, 6, 80, 20);
+    for (int min = startMinute; min <= endMinute; min += stepMinutes) {
+        double x = min * currentPPM;
+        painter->drawLine(QPointF(x, 0), QPointF(x, -10));
         QDateTime tickTime = m_baseTime.addSecs(min * 60);
-
-        // 画主刻度线（长线）
-        painter->drawLine(QPointF(x, 0), QPointF(x, -20));
-
-        // 绘制时间字符串
-        QString textFormat;
-        if (index < 5) textFormat = "HH:mm";
-        else if (index == 9) textFormat = "yyyy-MM";
-        else textFormat = "MM-dd";
-        painter->drawText(QRectF(x - 40, -45, 80, 20), Qt::AlignCenter, tickTime.toString(textFormat));
+        QString timeStr = tickTime.toString(strFormat);
+        textRect.moveCenter(QPointF(x, 13));
+        painter->drawText(textRect, Qt::AlignCenter, timeStr);
     }
-    // 蓝色小球
-    if (m_showIndicator) { // 只有鼠标在视口内时才绘制
-        double currentMinutes = m_hoverX / m_pixelsPerMinute;
+    // 画当前时间
+    QDateTime now = QDateTime::currentDateTime();
+    double nowMinutes = m_baseTime.secsTo(now) / 60.0;
+    double nowX = nowMinutes * currentPPM;
+    QPen nowPen(QColor("#EEA560"), 2, Qt::SolidLine);
+    painter->setPen(nowPen);
+    painter->drawLine(QPointF(nowX, -500), QPointF(nowX, 500));
+    // 画气泡
+    if (m_showHover) {
+        double x = m_hoverSnappedX;
 
-        int roundedMinutes;
-        if (index < 5) roundedMinutes = std::round(currentMinutes / 5.0) * 5;
-        else if (index > 6) roundedMinutes = std::round(currentMinutes / 1440.0) * 1440.0;
-        else roundedMinutes = std::round(currentMinutes / 60.0) * 60.0;
+        QPen linePen(QColor("#007ACC"), 1, Qt::DashLine);
+        painter->setPen(linePen);
+        painter->drawLine(QPointF(x, 0.0), QPointF(x, -10.0)); // 穿过画布的高度
 
-        double ballX = roundedMinutes * m_pixelsPerMinute;
+        QDateTime hoverTime = m_baseTime.addSecs(m_hoverSnappedMinutes * 60);
+        QString timeStr = hoverTime.toString("yyyy-MM-dd HH:mm");
 
-        QDateTime targetTime = m_baseTime.addSecs(roundedMinutes * 60);
-        QString timeStr;
-        if (index < 5) timeStr = targetTime.toString("HH:mm"); // 格式如 "14:25"
-        else if (index > 6) timeStr = targetTime.toString("MM-dd");
-        else timeStr = targetTime.toString("dd HH");
-
-
-        painter->setRenderHint(QPainter::Antialiasing); // 开启抗锯齿，让圆球和圆角矩形更平滑
-
-
-        painter->setPen(Qt::NoPen);
-        painter->setBrush(QColor("#1890ff")); // 蓝色小球
-        painter->drawEllipse(QPointF(ballX, 0.0), 5.0, 5.0); // 半径为 5 的小圆
-
-        // 3. 绘制气泡背景（带圆角的矩形）
-        QRectF bubbleRect(ballX - 25, - 30, 50, 22); // 位于小球上方
-        painter->setBrush(QColor(24, 144, 255, 220));      // 半透明蓝色背景
-        painter->drawRoundedRect(bubbleRect, 4, 4);         // 4px 圆角
-
-        // 4. 绘制气泡里的时间文字
-        painter->setPen(Qt::white);
         QFont font = painter->font();
-        font.setPointSize(9);
-        font.setBold(true);
+        font.setPixelSize(11);
         painter->setFont(font);
+
+        QFontMetrics fm(font);
+        int textWidth = fm.horizontalAdvance(timeStr);
+        int paddingH = 8; // 水平内边距
+        int paddingV = 4; // 垂直内边距
+
+        double bubbleWidth = textWidth + paddingH * 2;
+        double bubbleHeight = fm.height() + paddingV * 2;
+
+        // 气泡矩形，中心水平对齐吸附 X 点
+        QRectF bubbleRect(x - bubbleWidth / 2.0, -20 - bubbleHeight, bubbleWidth, bubbleHeight);
+
+        // 4. 画蓝色圆角矩形背景
+        painter->setRenderHint(QPainter::Antialiasing, true); // 气泡开启抗锯齿
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(QColor("#007ACC")); // 经典蓝色背景
+        painter->drawRoundedRect(bubbleRect, 4, 4);
+
+        // 5. 画文字 (白色)
+        painter->setPen(QColor("#FFFFFF"));
         painter->drawText(bubbleRect, Qt::AlignCenter, timeStr);
     }
 
-    painter->setRenderHint(QPainter::Antialiasing); // 开启抗锯齿
-
-    // 1. 计算当前时间的 X 坐标
-    QDateTime now = QDateTime::currentDateTime();
-    qint64 secondsFromBase = m_baseTime.secsTo(now);
-    double nowX = (secondsFromBase / 60.0) * m_pixelsPerMinute;
-
-    // 2. 绘制贯穿时间轴的当前时间红色线
-    QPen nowPen(QColor("#ff4d4f"), 2, Qt::SolidLine); // 醒目的红色
-    painter->setPen(nowPen);
-    painter->drawLine(QPointF(nowX, 0), QPointF(nowX, boundingRect().bottom()));
-
-    // 3. 绘制顶部当前时间小方块/气泡
-    double blockWidth = 50.0;  // 方块宽度
-    double blockHeight = 20.0; // 方块高度
-
-    // 居中在 nowX 上
-    QRectF nowRect(nowX - blockWidth / 2.0, 0.0, blockWidth, blockHeight);
-
-    // 画小方块背景（带圆角矩形）
-    painter->setPen(Qt::NoPen);
-    painter->setBrush(QColor("#ff4d4f")); // 红色背景
-    painter->drawRoundedRect(nowRect, 3, 3);
-
-    // 4. 在小方块里写上当前时间 (如 "21:28" 或 "NOW")
-    painter->setPen(Qt::white);
-    QFont font = painter->font();
-    font.setPointSize(8);
-    font.setBold(true);
-    painter->setFont(font);
-
-    // 显示格式，例如：HH:mm
-    painter->drawText(nowRect, Qt::AlignCenter, now.toString("HH:mm"));
 
 
 
 
 
 }
+
+void DeadlineMapTimelineItem::setZoomFactor(double factor){
+    prepareGeometryChange();
+    m_zoomFactor = factor;
+    update();
+}
+
+void DeadlineMapTimelineItem::updateHoverPosition(double mouseItemX) {
+    double currentPPM = m_basePixelsPerMinute * m_zoomFactor;
+
+    double minutes = mouseItemX / currentPPM;
+    int snappedMin = static_cast<int>(std::round(minutes / 5.0) * 5.0);
+
+    if (!m_showHover || m_hoverSnappedMinutes != snappedMin) {
+        m_showHover = true;
+        m_hoverSnappedMinutes = snappedMin;
+        m_hoverSnappedX = snappedMin * currentPPM;
+
+        update();
+    }
+}
+
+void DeadlineMapTimelineItem::clearHover() {
+    if (m_showHover) {
+        m_showHover = false;
+        update();
+    }
+}
+
+
+
+
+
+
+
+
+

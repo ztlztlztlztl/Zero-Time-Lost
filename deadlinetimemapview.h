@@ -11,24 +11,33 @@
 #include <QGraphicsView>
 #include <QWheelEvent>
 #include <QScrollBar>
+#include <QOpenGLWidget>
 
-class DeadlineTimeMapTimelineView : public QGraphicsView {
+class DeadlineTimeMapView : public QGraphicsView {
     Q_OBJECT
 public:
-    DeadlineTimeMapTimelineView(QWidget *parent = nullptr);
+    DeadlineTimeMapView(QWidget *parent = nullptr);
 
 protected:
-    // 🚀 重写滚轮事件：实现以鼠标指针为中心的时间轴缩放
     void wheelEvent(QWheelEvent *event) override;
 
     void mouseMoveEvent(QMouseEvent *event) override;
     void leaveEvent(QEvent *event) override;
 
+
 private:
-    QGraphicsScene *m_scene = nullptr;
-    DeadlineMapTimelineItem *m_timelineItem = nullptr;
+    QGraphicsScene *m_scene;
+
+    // 元件
+    DeadlineMapTimelineItem *m_timeLine;
+
+    // 基本属性
+    QRectF m_baseRect;
+    double m_basePixelsPerMinute;
     QDateTime m_baseTime;
-    double m_pixelsPerMinute;
+
+    double m_zoomFactor;
+
 };
 
 #endif // DEADLINETIMEMAPVIEW_H
