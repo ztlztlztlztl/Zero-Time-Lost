@@ -1,7 +1,7 @@
 #include "deadlinetimemapview.h"
 
 DeadlineTimeMapView::DeadlineTimeMapView(QWidget *parent):
-    QGraphicsView(parent), m_baseRect(QRectF(-8000, -500, 640000, 1000)),
+    QGraphicsView(parent), m_baseRect(QRectF(-8000, -1000, 640000, 2000)),
     m_basePixelsPerMinute(0.06), m_baseTime(QDateTime(QDate::currentDate(), QTime(0, 0, 0))),
     m_zoomFactor(1)
 {
@@ -28,9 +28,18 @@ DeadlineTimeMapView::DeadlineTimeMapView(QWidget *parent):
 
 
     // 初始化时间轴
-    // DeadlineMapTimelineItem(QDateTime baseTime, QRect baseRect, double pixelsPerMin, QGraphicsItem *parent = nullptr);
     m_timeLine = new DeadlineMapTimelineItem(m_baseTime, m_baseRect, m_basePixelsPerMinute);
     m_scene->addItem(m_timeLine);
+    QList<DeadlineEntity> ddls = DeadlineManager::getInstance()->initFutureList(QDateTime::currentSecsSinceEpoch());
+    for (const DeadlineEntity& ddl:ddls){
+        QPointer<DeadlineMapDDLCardItem> ddlCard = new DeadlineMapDDLCardItem(ddl);
+        m_scene->addItem(ddlCard);
+        ddlCard->setPos(0, -100);
+        m_ddlCards.append(ddlCard);
+    }
+    updateCardsX();
+    updateCardsY();
+
 
 
     // 将一个坐标初始居中
@@ -44,6 +53,32 @@ DeadlineTimeMapView::DeadlineTimeMapView(QWidget *parent):
     });
     OrangeLineTimer->start(15000);
 
+    m_layoutTimer = new QTimer(this);
+    m_layoutTimer->setSingleShot(true); // 极其关键！只触发一次
+    connect(m_layoutTimer, &QTimer::timeout, this, &DeadlineTimeMapView::updateCardsY);
+
+    connect(m_timeLine, &DeadlineMapTimelineItem::addRequest, this, [=](int Minutes){
+        QDateTime initTime = m_baseTime.addSecs(Minutes * 60);
+        emit addRequest(initTime);
+    });
+
+
+
+
+}
+
+
+void DeadlineTimeMapView::addNewDDL(const DeadlineEntity& newDDL){
+    QPointer<DeadlineMapDDLCardItem> ddlCard = new DeadlineMapDDLCardItem(newDDL);
+    m_scene->addItem(ddlCard);
+    ddlCard->setPos(0, -100);
+    auto it = std::lower_bound(m_ddlCards.begin(), m_ddlCards.end(), ddlCard,
+                               [](const QPointer<DeadlineMapDDLCardItem>& a, const DeadlineMapDDLCardItem* b) {
+                                   return a->m_dueTimestamp < b->m_dueTimestamp;
+                               });
+    m_ddlCards.insert(it, ddlCard);
+    updateCardsX();
+    updateCardsY();
 }
 
 
@@ -92,6 +127,14 @@ void DeadlineTimeMapView::wheelEvent(QWheelEvent *event) {
     double deltaX = newMouseX - mouseX;
     horizontalScrollBar()->setValue(horizontalScrollBar()->value() + deltaX);
 
+    updateCardsX();
+    m_layoutTimer->start(150);
+    bool flag = m_basePixelsPerMinute * m_zoomFactor < 0.005953;
+    for (auto ddl:m_ddlCards){
+        ddl->setStyle(!flag);
+    }
+
+
     event->accept();
 }
 
@@ -117,9 +160,74 @@ void DeadlineTimeMapView::leaveEvent(QEvent *event) {
     }
 }
 
+void DeadlineTimeMapView::updateCardsX(){
+    m_ddlCards.erase(
+        std::remove_if(m_ddlCards.begin(), m_ddlCards.end(),
+                       [](const QPointer<DeadlineMapDDLCardItem> &ptr) { return ptr.isNull(); }),
+        m_ddlCards.end()
+        );
+    for (auto ddl:m_ddlCards){
+        double deltaMins = (ddl->m_dueTimestamp - m_baseTime.toSecsSinceEpoch()) / 60.0;
+        double deltaPx = deltaMins * m_basePixelsPerMinute * m_zoomFactor;
+        ddl->setPos(deltaPx, ddl->pos().y());
+    }
+}
 
+void DeadlineTimeMapView::updateCardsY(){
+    m_ddlCards.erase(
+        std::remove_if(m_ddlCards.begin(), m_ddlCards.end(),
+                       [](const QPointer<DeadlineMapDDLCardItem> &ptr) { return ptr.isNull(); }),
+        m_ddlCards.end()
+        );
 
+    double startPx = 60.0;
+    QList<double> upMaxRightPx;
+    QList<double> downMaxRightPx;
+    double hSpacing; // 卡片起点横向最小间隔
+    double vSpacing; // 竖向轨道间间隔
+    double hWidth;
+    if(m_basePixelsPerMinute * m_zoomFactor < 0.005953){
+        // 色条
+        hSpacing = 2.0;
+        vSpacing = 6.0;
+        hWidth = 30.0;
+    }
+    else{
+        // 标题条
+        hSpacing = 10.0;
+        vSpacing = 30.0;
+        hWidth = 150.0;
+    }
+    int usedTrackNumber = 0;
+    int count = 0;
+    for (auto ddl:m_ddlCards) {
+        count++;
+        double cardLeftX = ddl->pos().x();
 
+        int assignedTrack = 0;
+        bool trackFound = false;
+
+        for (int i = 0; i < usedTrackNumber; ++i) {
+            double& rightEdge = (i % 2 == 0) ? upMaxRightPx[i / 2] : downMaxRightPx[i / 2];
+            if (rightEdge + hSpacing < cardLeftX) {
+                assignedTrack = i;
+                rightEdge = cardLeftX + hWidth;
+                trackFound = true;
+                break;
+            }
+        }
+
+        if (!trackFound) {
+            assignedTrack = usedTrackNumber;
+            if (usedTrackNumber % 2 == 0) upMaxRightPx.append(cardLeftX + hWidth);
+            else downMaxRightPx.append(cardLeftX + hWidth);
+            usedTrackNumber++;
+        }
+
+        double y = ((assignedTrack % 2 == 0) ? -1 : 1) * (startPx + vSpacing * int(assignedTrack / 2));
+        ddl->setPos(cardLeftX, y);
+    }
+}
 
 
 

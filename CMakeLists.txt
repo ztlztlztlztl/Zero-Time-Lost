@@ -42,6 +42,7 @@ qt_add_executable(Zero-Time-Lost-tobedone
     deadlineaddtagselector.h deadlineaddtagselector.cpp
     deadlinemaptimelineitem.h deadlinemaptimelineitem.cpp
     deadlinetimemapview.h deadlinetimemapview.cpp
+    deadlinemapddlcarditem.h deadlinemapddlcarditem.cpp
 
 
 )

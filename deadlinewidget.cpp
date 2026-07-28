@@ -47,11 +47,23 @@ DeadlineWidget::DeadlineWidget(QWidget *parent)
 
     connect(m_deadlineAddWidget, &DeadlineAddWidget::addNewDeadlineRequest, this,
             [=](const DeadlineEntity& newDDL){
-        if (m_action == 1) DeadlineManager::getInstance()->addDDL(newDDL);
+        if (m_action == 1) {
+            DeadlineManager::getInstance()->addDDL(newDDL);
+            m_mapView->addNewDDL(newDDL);
+        }
         else if (m_action == 2) DeadlineManager::getInstance()->updateDDL(newDDL);
         m_leftStack->setCurrentIndex(0);
         m_action = 0;
 
+    });
+
+    connect(m_mapView, &DeadlineTimeMapView::addRequest, this,
+            [=](const QDateTime& initTime){
+        DeadlineEntity tmpDDL = DeadlineEntity();
+        tmpDDL.dueTimestamp = initTime.toSecsSinceEpoch();
+        m_deadlineAddWidget->awake(false, tmpDDL);
+        m_leftStack->setCurrentIndex(1);
+        m_action = 1;
     });
 
 

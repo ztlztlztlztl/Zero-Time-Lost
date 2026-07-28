@@ -8,7 +8,7 @@
 
 DeadlineMapTimelineItem::DeadlineMapTimelineItem(
     QDateTime baseTime, QRectF baseRect, double pixelsPerMin,QGraphicsItem *parent):
-    QGraphicsItem(parent), m_baseRect(baseRect),
+    QGraphicsObject(parent), m_baseRect(baseRect),
     m_basePixelsPerMinute(pixelsPerMin), m_baseTime(baseTime),
     m_zoomFactor(1)
 {
@@ -89,14 +89,14 @@ void DeadlineMapTimelineItem::paint
     double nowX = nowMinutes * currentPPM;
     QPen nowPen(QColor("#EEA560"), 2, Qt::SolidLine);
     painter->setPen(nowPen);
-    painter->drawLine(QPointF(nowX, -500), QPointF(nowX, 500));
+    painter->drawLine(QPointF(nowX, -1000), QPointF(nowX, 1000));
     // 画气泡
     if (m_showHover) {
         double x = m_hoverSnappedX;
 
         QPen linePen(QColor("#007ACC"), 1, Qt::DashLine);
         painter->setPen(linePen);
-        painter->drawLine(QPointF(x, 0.0), QPointF(x, -10.0)); // 穿过画布的高度
+        painter->drawLine(QPointF(x, 0.0), QPointF(x, -10.0));
 
         QDateTime hoverTime = m_baseTime.addSecs(m_hoverSnappedMinutes * 60);
         QString timeStr = hoverTime.toString("yyyy-MM-dd HH:mm");
@@ -114,7 +114,7 @@ void DeadlineMapTimelineItem::paint
         double bubbleHeight = fm.height() + paddingV * 2;
 
         // 气泡矩形，中心水平对齐吸附 X 点
-        QRectF bubbleRect(x - bubbleWidth / 2.0, -20 - bubbleHeight, bubbleWidth, bubbleHeight);
+        QRectF bubbleRect(x - 50, -36, 100, 20);
 
         // 4. 画蓝色圆角矩形背景
         painter->setRenderHint(QPainter::Antialiasing, true); // 气泡开启抗锯齿
@@ -125,6 +125,10 @@ void DeadlineMapTimelineItem::paint
         // 5. 画文字 (白色)
         painter->setPen(QColor("#FFFFFF"));
         painter->drawText(bubbleRect, Qt::AlignCenter, timeStr);
+
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(QColor("#007ACC"));
+        painter->drawEllipse(QPoint(x, 0.0), 3, 3); // 3px 半径小圆点
     }
 
 
@@ -162,7 +166,34 @@ void DeadlineMapTimelineItem::clearHover() {
     }
 }
 
+void DeadlineMapTimelineItem::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+    if (event->button() == Qt::LeftButton) {
+        QPointF clickPos = event->pos();
+        QRectF addBtnRect(m_hoverSnappedX - 50, -36, 100, 20);
 
+        if (addBtnRect.contains(clickPos)) {
+            event->accept();
+            return;
+        }
+    }
+    QGraphicsItem::mousePressEvent(event);
+}
+
+// 2. 鼠标释放事件（真正的“点击完成”时刻）
+void DeadlineMapTimelineItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
+    if (event->button() == Qt::LeftButton) {
+
+        QPointF clickPos = event->pos();
+        QRectF addBtnRect(m_hoverSnappedX - 50, -36, 100, 20);
+
+        if (addBtnRect.contains(clickPos)) {
+            qDebug() << "[DeadlineMapTimelineItem] 点击了 [add]";
+            emit addRequest(m_hoverSnappedMinutes);
+        }
+
+        QGraphicsItem::mouseReleaseEvent(event);
+    }
+}
 
 
 

@@ -10,9 +10,11 @@
 #include <QGraphicsScene>
 #include <QMouseEvent>
 #include <QTimer>
+#include <QGraphicsSceneMouseEvent>
 
-class DeadlineMapTimelineItem : public QGraphicsItem
+class DeadlineMapTimelineItem : public QGraphicsObject
 {
+    Q_OBJECT
 public:
     DeadlineMapTimelineItem(QDateTime baseTime, QRectF baseRect, double pixelsPerMin, QGraphicsItem *parent = nullptr);
     // 返回元件的范围
@@ -27,6 +29,14 @@ public:
     // 蓝色气泡
     void updateHoverPosition(double mouseItemX);
     void clearHover();
+
+protected:
+    void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
+    void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
+
+signals:
+    void addRequest(int Minutes);
+    void cancelRequest();
 
 
 private:
