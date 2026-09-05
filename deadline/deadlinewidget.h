@@ -3,9 +3,6 @@
 
 
 
-#include "deadlineaddwidget.h"
-#include "deadlinemanager.h"
-#include "deadlinetimemapview.h"
 
 #include <QWidget>
 #include <QLabel>
@@ -31,16 +28,6 @@ private slots:
 
 
 private:
-    QSplitter *m_splitter;
-    QStackedWidget *m_leftStack;
-
-    QLabel *m_waittingPage;
-    DeadlineAddWidget *m_deadlineAddWidget;
-
-    DeadlineTimeMapView *m_mapView;
-
-    int m_action;
-    // 0 search, 1 add, 2 modyfy
 
 
 

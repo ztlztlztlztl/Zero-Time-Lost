@@ -12,39 +12,53 @@ qt_add_executable(Zero-Time-Lost-tobedone
     mainwindow.h
     mainwindow.ui
 
-    constants.h
-    homebackgroundshader.h homebackgroundshader.cpp
-    homeinfowidget.h homeinfowidget.cpp
-    homewidget.h homewidget.cpp
-    settingwidget.h settingwidget.cpp
-    configmanager.h configmanager.cpp
-    datatype.h
-    settinghomepage.h settinghomepage.cpp
-    homeweatherservice.h homeweatherservice.cpp
-    cachemanager.h cachemanager.cpp
-    homequoteservice.h homequoteservice.cpp
-    logger.h
-    helpjsonioengine.h helpjsonioengine.cpp
-    mailwidget.h mailwidget.cpp
-    settingmailpage.h settingmailpage.cpp
-    settingmailaccountswidget.h settingmailaccountswidget.cpp
-    mailaccountmanager.h mailaccountmanager.cpp
-    mailgetservice.h mailgetservice.cpp
-    mailsimpledisplaywidget.h mailsimpledisplaywidget.cpp
-    mailmanager.h mailmanager.cpp
-    helpsqliteioengine.h helpsqliteioengine.cpp
-    mailsimplecard.h mailsimplecard.cpp
-    mailbodyreader.h mailbodyreader.cpp
-    deadlinewidget.h deadlinewidget.cpp
-    deadlinemanager.h deadlinemanager.cpp
-    settingdeadlinepage.h settingdeadlinepage.cpp
-    deadlineaddwidget.h deadlineaddwidget.cpp
-    deadlineaddtagselector.h deadlineaddtagselector.cpp
-    deadlinemaptimelineitem.h deadlinemaptimelineitem.cpp
-    deadlinetimemapview.h deadlinetimemapview.cpp
-    deadlinemapddlcarditem.h deadlinemapddlcarditem.cpp
+    manager/configmanager.h manager/configmanager.cpp
+    manager/cachemanager.h manager/cachemanager.cpp
+    manager/mailaccountmanager.h manager/mailaccountmanager.cpp
+    manager/mailmanager.h manager/mailmanager.cpp
+
+    help/constants.h
+    help/datatype.h
+    help/helpjsonioengine.h help/helpjsonioengine.cpp
+    help/helpsqliteioengine.h help/helpsqliteioengine.cpp
+    help/logger.h
+
+    home/homebackgroundshader.h home/homebackgroundshader.cpp
+    home/homeinfowidget.h home/homeinfowidget.cpp
+    home/homewidget.h home/homewidget.cpp
+    home/homeweatherservice.h home/homeweatherservice.cpp
+    home/homequoteservice.h home/homequoteservice.cpp
+
+    mail/mailwidget.h mail/mailwidget.cpp
+    mail/mailgetservice.h mail/mailgetservice.cpp
+    mail/mailsimpledisplaywidget.h mail/mailsimpledisplaywidget.cpp
+    mail/mailsimplecard.h mail/mailsimplecard.cpp
+    mail/mailbodyreader.h mail/mailbodyreader.cpp
+
+    setting/settingwidget.h setting/settingwidget.cpp
+    setting/settinghomepage.h setting/settinghomepage.cpp
+    setting/settingmailpage.h setting/settingmailpage.cpp
+    setting/settingmailaccountswidget.h setting/settingmailaccountswidget.cpp
+    setting/settingdeadlinepage.h setting/settingdeadlinepage.cpp
+
+    deadline/deadlinewidget.h deadline/deadlinewidget.cpp
 
 
+
+
+
+
+)
+
+
+target_include_directories(Zero-Time-Lost-tobedone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/help
+    ${CMAKE_CURRENT_SOURCE_DIR}/manager
+    ${CMAKE_CURRENT_SOURCE_DIR}/home
+    ${CMAKE_CURRENT_SOURCE_DIR}/setting
+    ${CMAKE_CURRENT_SOURCE_DIR}/mail
+    ${CMAKE_CURRENT_SOURCE_DIR}/deadline
 )
 
 target_link_libraries(Zero-Time-Lost-tobedone
