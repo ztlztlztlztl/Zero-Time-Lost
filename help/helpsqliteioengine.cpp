@@ -1,11 +1,12 @@
 #include "helpsqliteioengine.h"
+#include "paths.h"
 
 HelpSQLiteIOEngine::HelpSQLiteIOEngine(const QString &folderPath,
     const QString &dbName, const QString &connectionName,
     QObject *parent): QObject(parent){
     // 变量
-    m_folderPath = folderPath;
-    m_dbPath = folderPath + "/" + dbName;
+    m_folderPath = QDir::isAbsolutePath(folderPath) ? folderPath : Paths::data(folderPath);
+    m_dbPath = m_folderPath + "/" + dbName;
     m_connectionName = connectionName;
 
     ensureDirExists();
@@ -141,7 +142,7 @@ void HelpSQLiteIOEngine::ensureDirExists(){
     QDir dir(m_folderPath);
     if (!dir.exists()) {
         qDebug() << "[HelpSQLiteIOEnjine] 目录不存在，尝试创建：" << m_folderPath << "。";
-        if (dir.mkpath(m_folderPath)) {
+        if (QDir().mkpath(m_folderPath)) {
             qDebug() << "[HelpSQLiteIOEnjine] 目录创建成功。";
         } else {
             qWarning() << "[HelpSQLiteIOEnjine] 目录创建失败！";

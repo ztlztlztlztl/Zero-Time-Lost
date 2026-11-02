@@ -1,39 +1,34 @@
-#ifndef HOMEBACKGROUNDSHADER_H
-#define HOMEBACKGROUNDSHADER_H
-
-#include "constants.h"
-
+#pragma once
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLBuffer>
-#include <QTimer>
-
-// 同时继承 QOpenGLWidget 和 QOpenGLFunctions
-class HomeBackgroundShader : public QOpenGLWidget, protected QOpenGLFunctions
-{
+#include <QOpenGLVertexArrayObject>
+#include <QElapsedTimer>
+class QTimer;
+class HomeBackgroundShader:public QOpenGLWidget,protected QOpenGLFunctions {
     Q_OBJECT
 public:
-    explicit HomeBackgroundShader(QWidget *parent = nullptr);
-    ~HomeBackgroundShader();
-
+    explicit HomeBackgroundShader(QWidget *parent=nullptr);
+    ~HomeBackgroundShader() override;
+signals:
+    void flowTimeChanged(qreal seconds);
 protected:
-    void initializeGL() override; // 编译 Shader，准备顶点数据，初次运行时激活
-    void resizeGL(int w, int h) override; // 适配大小，窗口改变和初始化时激活
-    void paintGL() override; // 激活 Shader，绘制全屏矩形
-
-    // 看不到的时候停止绘制
+    void initializeGL() override;
+    void resizeGL(int w,int h) override;
+    void paintGL() override;
     void hideEvent(QHideEvent *event) override;
     void showEvent(QShowEvent *event) override;
-
-private slots:
-    void onTimeout(); // 计时器每次超时激活的槽函数
-
+    bool eventFilter(QObject *object,QEvent *event) override;
 private:
-    QOpenGLShaderProgram m_shaderProgram; // Qt 内置的着色器程序
-    QOpenGLBuffer m_vbo; // 顶点缓冲区，在GPU里存东西
-    QTimer *m_timer; // 驱动时间流逝的马达
-    float m_time = 0.0f; // 传给 Shader 的时间变量 t
+    void syncPlayback();
+    void advance();
+    bool canAnimate() const;
+    QOpenGLShaderProgram program;
+    QOpenGLVertexArrayObject vao;
+    QOpenGLBuffer vbo;
+    QTimer *timer;
+    QElapsedTimer elapsed;
+    qreal seconds=32;
+    bool ready=false,shaderFailed=false;
 };
-
-#endif // HOMEBACKGROUNDSHADER_H

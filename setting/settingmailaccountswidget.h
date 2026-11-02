@@ -44,7 +44,9 @@ private:
     QPushButton *m_saveBtn;
     QPushButton *m_linkBtn;
     QPushButton *m_cancelBtn;
+    QLabel *m_feedback;
 
+    bool validateFields();
     void ckeckLinkable();
 
 

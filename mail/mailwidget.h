@@ -1,46 +1,30 @@
-#ifndef MAILWIDGET_H
-#define MAILWIDGET_H
-
+#pragma once
 #include "mailgetservice.h"
-#include "mailsimpledisplaywidget.h"
-#include "mailmanager.h"
 #include "mailbodyreader.h"
-#include "constants.h"
-
+#include "mailsimpledisplaywidget.h"
 #include <QWidget>
-#include <QLabel>
-#include <QSplitter>
-#include <QHBoxLayout>
-#include <QVBoxLayout>
-#include <QStackedWidget>
-
-class MailWidget : public QWidget
-{
+class QStackedWidget;class QLabel;class QPushButton;class QGridLayout;
+class MailWidget:public QWidget {
     Q_OBJECT
 public:
-    explicit MailWidget(QWidget *parent = nullptr);
-
+    explicit MailWidget(MailGetService *department,QWidget *parent=nullptr);
+    void showUnread();
 signals:
-
-
-
+    void taskDraft(const QString &title,const QString &text);
+    void noteDraft(const QString &title,const QString &text);
+protected:
+    void resizeEvent(QResizeEvent *event) override;
 private:
-    // ui们
-    QSplitter *m_splitter;
-    MailSimpleDisplayWidget *m_mailSimpleDisplay;
-    QStackedWidget *m_readingPart;
-    QLabel *m_lblReadingText;
-    MailBodyReader *m_mailBodyReader;
-
-
-
-    // 信息们
+    void requestBody();
+    void arrangeToolbar();
     MailGetService *m_mailGetService;
-
-
-
-
-
+    MailSimpleDisplayWidget *m_mailSimpleDisplay;
+    MailBodyReader *m_mailBodyReader;
+    QStackedWidget *pages;
+    QGridLayout *toolbar;
+    QWidget *draftActions,*mailActions;
+    QPushButton *backButton,*starButton,*deleteButton,*taskButton,*noteButton;
+    QLabel *syncStatus;
+    MailBrief selected;
+    QString bodyError;
 };
-
-#endif // MAILWIDGET_H

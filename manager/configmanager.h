@@ -48,35 +48,6 @@ struct HomeWeatherConfig{
     }
 };
 
-struct HomeQuoteConfig{
-    int currentThemeIndex;
-    QList<QString> savedThemes;
-
-    HomeQuoteConfig(){
-        currentThemeIndex = 0;
-        savedThemes = {"无"};
-    }
-
-    HomeQuoteConfig(const QJsonObject &homeWeatherObect){
-        currentThemeIndex = homeWeatherObect["currentThemeIndex"].toInt(0);
-        QJsonArray themeArray = homeWeatherObect["savedThemes"].toArray();
-        for (const auto& theme : themeArray) {
-            QString _theme = theme.toString();
-            savedThemes.append(_theme);
-        }
-    }
-
-    QJsonObject toJson(){
-        QJsonObject homeQuoteObect;
-        homeQuoteObect["currentThemeIndex"] = currentThemeIndex;
-        QJsonArray ThemeArray;
-        for (const QString& theme : savedThemes) {
-            ThemeArray.append(theme);
-        }
-        homeQuoteObect["savedThemes"] = ThemeArray;
-        return homeQuoteObect;
-    }
-};
 
 
 struct MailBasicalConfig{
@@ -97,6 +68,13 @@ struct MailBasicalConfig{
         initialNumber = mailBasicalObect["initialNumber"].toInt(10);
         earlierNumber = mailBasicalObect["earlierNumber"].toInt(1);
         storageLimit = mailBasicalObect["storageLimit"].toInt(100);
+    }
+
+    void normalize(){
+        if(pollingInterval!=-1)pollingInterval=qBound(1,pollingInterval,1440);
+        initialNumber=qBound(1,initialNumber,1000);
+        earlierNumber=qBound(1,earlierNumber,100);
+        storageLimit=qBound(1,storageLimit,100000);
     }
 
     QJsonObject toJson(){
@@ -130,7 +108,7 @@ struct DeadlineBasicalConfig{
         saveDuration = deadlineBasicalObect["saveDuration"].toVariant().toLongLong();
         if (saveDuration <= 0) saveDuration = 2592000;
         remindTime = deadlineBasicalObect["remindTime"].toVariant().toLongLong();
-        if (remindTime <= 0) remindTime = 172800;
+        if (remindTime != -1 && remindTime <= 0) remindTime = 172800;
         QJsonArray tagArray = deadlineBasicalObect["commonTags"].toArray();
         for (const auto& tag : tagArray) {
             QString _tag = tag.toString();
@@ -166,21 +144,20 @@ public:
     // weather
     const HomeWeatherConfig& getHomeweather() const;
     void setHomeweather(const HomeWeatherConfig& newconfig);
-    // quote
-    const HomeQuoteConfig& getHomeQuote() const;
-    void setHomeQuote(const HomeQuoteConfig& newconfig);
     // mail
     const MailBasicalConfig& getMailBasical() const;
     void setMailBasical(const MailBasicalConfig& newconfig);
     // deadline
     const DeadlineBasicalConfig& getDeadlineBasical() const;
     void setDeadlineBasical(const DeadlineBasicalConfig& Deadline);
+    QStringList commonTags() const { return m_deadlineBasical.commonTags; }
+    void setCommonTags(const QStringList &tags);
 
 
 signals:
     void homeWeatherChanged();
-    void homeQuoteChanged();
     void mailBasicalChanged();
+    void deadlineChanged();
 
 private slots:
 
@@ -202,12 +179,11 @@ private:
 
     // 配置储存
     HomeWeatherConfig m_homeWeather;
-    HomeQuoteConfig m_homeQuote;
     MailBasicalConfig m_mailBasical;
     DeadlineBasicalConfig m_deadlineBasical;
 
     // 对应的IO引擎
-    HelpJsonIOEngine *m_settingEngine;
+    HelpJsonIOEngine *m_settingEngine=nullptr;
 
 
 

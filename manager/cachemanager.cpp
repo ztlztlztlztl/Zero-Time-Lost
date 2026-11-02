@@ -25,6 +25,7 @@ CacheManager::~CacheManager()
 void CacheManager::initialize()
 {
     qInfo() << "[CacheManager] 开始自检与读取。";
+    delete m_scriptEngine;
     m_scriptEngine = new HelpJsonIOEngine("./cache", "script.json", 1000, this);
     loadFromFile();
     qInfo() << "[CacheManager] 缓存读取完毕。";
@@ -34,10 +35,10 @@ void CacheManager::loadFromFile(){
     qDebug() << "[CacheManager] 加载缓存：";
     // script部分
     QJsonObject scriptObj = m_scriptEngine->read();
+    m_weatherCaches.clear();
     if (scriptObj.isEmpty()) {
         qWarning() << "[CacheManager] ./script.json JSON 格式损坏或空。";
         m_weatherCaches = QHash<QString, CityWeatherInfo>();
-        m_quoteCache = QuoteInfo();
         return;
     }
     QJsonArray weatherArray = scriptObj["weather"].toArray();
@@ -48,8 +49,6 @@ void CacheManager::loadFromFile(){
         CityWeatherInfo item = CityWeatherInfo(cityObj);
         m_weatherCaches[item.cityCode] = item;
     }
-    QJsonObject quoteObject = scriptObj["quote"].toObject();
-    m_quoteCache = QuoteInfo(quoteObject);
 }
 
 void CacheManager::saveScript(){
@@ -60,7 +59,6 @@ void CacheManager::saveScript(){
         weatherArray.append(info.toJson());
     }
     scriptObj["weather"] = weatherArray;
-    scriptObj["quote"] = m_quoteCache.toJson();
     m_scriptEngine->lazyWrite(scriptObj);
 
 }
@@ -73,16 +71,6 @@ void CacheManager::updateWeatherCache(const CityWeatherInfo& newWeatherCache){
     m_weatherCaches[newWeatherCache.cityCode] = newWeatherCache;
     saveScript();
     emit weatherCacheUpdated(newWeatherCache.cityCode);
-}
-
-QuoteInfo CacheManager::getQuoteInfo() const {
-    return m_quoteCache;
-}
-
-void CacheManager::updateQuoteCache(const QuoteInfo& newQuoteCache){
-    m_quoteCache = newQuoteCache;
-    saveScript();
-    emit quoteCacheUpdated(newQuoteCache.content);
 }
 
 

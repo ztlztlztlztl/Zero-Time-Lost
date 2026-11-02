@@ -1,64 +1,31 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
-
-#include "homewidget.h"
-#include "settingwidget.h"
-#include "configmanager.h"
-#include "mailwidget.h"
-#include "mailaccountmanager.h"
-#include "mailmanager.h"
-#include "deadlinewidget.h"
-
+#pragma once
 #include <QMainWindow>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QStackedWidget>
-#include <QKeyEvent>
-#include <QDebug>
-#include <QFile>
-
-QT_BEGIN_NAMESPACE
-namespace Ui {
-class MainWindow;
-}
-QT_END_NAMESPACE
-
-class MainWindow : public QMainWindow
-{
+#include <QElapsedTimer>
+#include <QAbstractNativeEventFilter>
+class AppContext;class QStackedWidget;class HomeWidget;class SettingWidget;class MailWidget;class DeadlineWidget;class NoteWidget;class QSystemTrayIcon;
+class MainWindow:public QMainWindow,public QAbstractNativeEventFilter {
     Q_OBJECT
-
 public:
-    explicit MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(AppContext *context,QWidget *parent=nullptr);
     ~MainWindow() override;
-
-
-
+    void lock();
 protected:
     void closeEvent(QCloseEvent *event) override;
-
+    bool eventFilter(QObject *object,QEvent *event) override;
+    bool nativeEventFilter(const QByteArray &,void *,qintptr *) override;
 private:
-    Ui::MainWindow *ui;
-    // 一个stackedwidget 作为所有页面的承载
-    QStackedWidget *m_stackedWidget;
-    // 页面们
-    HomeWidget *m_homeWidget;
-    SettingWidget *m_settingWidget;
-    MailWidget *m_mailWidget;
-    DeadlineWidget *m_deadlineWidget;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    void navigate(int page);
+    void showHelp();
+    void refreshHomeSummary();
+    AppContext *app;
+    QStackedWidget *stack;
+    HomeWidget *home;
+    SettingWidget *settings;
+    MailWidget *mail;
+    DeadlineWidget *ddl;
+    NoteWidget *notes;
+    QSystemTrayIcon *tray;
+    QElapsedTimer activity;
+    bool quitting=false;
+    int notificationPage=2;
 };
-#endif // MAINWINDOW_H

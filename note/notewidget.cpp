@@ -1,0 +1,275 @@
+#include "notewidget.h"
+#include "bookmarktarget.h"
+#include "configmanager.h"
+#include "notestyle.h"
+#include <algorithm>
+namespace {
+// Route Esc, window-close and popup dismissal through the same draft guard.
+class DraftDialog:public QDialog {
+public:
+    using QDialog::QDialog;
+    std::function<bool(int)> canClose;
+    void done(int result) override {
+        if(deciding)return;
+        QScopedValueRollback<bool> guard(deciding,true);
+        if(!canClose||canClose(result))QDialog::done(result);
+    }
+private:
+    bool deciding=false;
+};
+
+QString passwordInput(QWidget *parent,const QString &title,const QString &label,bool *ok){
+    QInputDialog dialog(parent);dialog.setObjectName("notePasswordDialog");dialog.setWindowTitle(title);dialog.setStyleSheet(NoteStyle::sheet);
+    dialog.setInputMode(QInputDialog::TextInput);dialog.setTextEchoMode(QLineEdit::Password);dialog.setLabelText(label);dialog.setOption(QInputDialog::NoButtons);
+    auto buttons=new QDialogButtonBox;auto accept=new NoteStyle::Button("确认"),cancel=new NoteStyle::Button("取消");
+    buttons->addButton(accept,QDialogButtonBox::AcceptRole);buttons->addButton(cancel,QDialogButtonBox::RejectRole);dialog.layout()->addWidget(buttons);
+    accept->setDefault(true);cancel->setAutoDefault(false);
+    QObject::connect(buttons,&QDialogButtonBox::accepted,&dialog,&QDialog::accept);QObject::connect(buttons,&QDialogButtonBox::rejected,&dialog,&QDialog::reject);
+    for(auto input:dialog.findChildren<QLineEdit*>())QObject::connect(input,&QLineEdit::returnPressed,&dialog,&QDialog::accept);
+    for(auto caption:dialog.findChildren<QLabel*>())caption->setWordWrap(true);
+    NoteStyle::placeDialog(dialog,parent,QSize(480,220),false);
+    QTimer::singleShot(0,&dialog,[&]{NoteStyle::placeDialog(dialog,parent,QSize(480,220),false);});
+    *ok=dialog.exec()==QDialog::Accepted;auto value=dialog.textValue();dialog.setTextValue({});return value;
+}
+
+void addDialogFields(QVBoxLayout *layout,NoteFields *fields){
+    auto scroll=new QScrollArea;scroll->setObjectName("noteDialogScroll");scroll->setWidgetResizable(true);scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->setMinimumSize(0,0);scroll->setSizePolicy(QSizePolicy::Ignored,QSizePolicy::Ignored);scroll->setWidget(fields);layout->addWidget(scroll,1);
+}
+
+void addDialogHeader(QVBoxLayout *layout,QDialog *dialog){
+    auto row=new QHBoxLayout;auto heading=new QLabel(dialog->windowTitle());heading->setObjectName("noteDialogHeading");
+    auto close=new NoteStyle::Button("×",true);close->setObjectName("popupClose");close->setAccessibleName("关闭");close->setFixedWidth(36);
+    row->addWidget(heading,1);row->addWidget(close);layout->addLayout(row);QObject::connect(close,&QPushButton::clicked,dialog,&QDialog::reject);
+}
+
+}
+NoteWidget::NoteWidget(NoteDepartment *department,QWidget *parent):QWidget(parent),dept(department){
+    setAttribute(Qt::WA_StyledBackground,true);setObjectName("notePage");setStyleSheet(NoteStyle::sheet);setFocusPolicy(Qt::StrongFocus);
+    auto layout=new QVBoxLayout(this);layout->setContentsMargins(28,22,28,20);layout->setSpacing(18);
+    auto bar=new QHBoxLayout;tabs=new QTabBar;tabs->setObjectName("noteTabs");tabs->setExpanding(false);for(const auto &name:{"纸条","书签","秘密"})tabs->addTab(name);
+    search=new QLineEdit;search->setObjectName("noteSearch");search->setPlaceholderText("搜索标题或内容");search->setMinimumWidth(80);search->setClearButtonEnabled(true);
+    tagFilter=new QComboBox;tagFilter->setObjectName("noteTagFilter");tagFilter->setMinimumWidth(110);tagFilter->addItem("全部标签",QString());
+    add=new NoteStyle::Button("新增纸条");add->setObjectName("noteAdd");
+    bar->addWidget(tabs);bar->addStretch();bar->addWidget(add);layout->addLayout(bar);
+    auto filters=new QHBoxLayout;filters->setSpacing(12);search->setMaximumWidth(400);filters->addWidget(search,1);filters->addWidget(tagFilter);
+    clearFilters=new NoteStyle::Button("清除筛选",true);clearFilters->setObjectName("noteClearFilters");clearFilters->hide();filters->addWidget(clearFilters);filters->addStretch();layout->addLayout(filters);
+    notice=new QLabel;notice->setObjectName("noteMigrationNotice");notice->setWordWrap(true);notice->setProperty("role","muted");layout->addWidget(notice);
+    scroll=new QScrollArea;scroll->setWidgetResizable(true);scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);scroll->setObjectName("noteScroll");
+    canvas=new QWidget;canvas->setObjectName("noteCanvas");scroll->setWidget(canvas);scroll->viewport()->installEventFilter(this);layout->addWidget(scroll,1);
+    emptyGroup=new QWidget(canvas);auto emptyLayout=new QVBoxLayout(emptyGroup);emptyLayout->setContentsMargins(16,26,16,26);emptyLayout->setSpacing(18);
+    empty=new QLabel;empty->setObjectName("noteEmpty");empty->setAlignment(Qt::AlignCenter);empty->setWordWrap(true);emptyLayout->addWidget(empty);
+    emptyAction=new NoteStyle::Button("新增纸条");emptyAction->setObjectName("noteEmptyAction");emptyLayout->addWidget(emptyAction,0,Qt::AlignHCenter);
+    connect(clearFilters,&QPushButton::clicked,this,[this]{search->clear();tagFilter->setCurrentIndex(0);});
+    connect(emptyAction,&QPushButton::clicked,this,[this]{if(!activeSearch.isEmpty()||!activeTag.isEmpty()){search->clear();tagFilter->setCurrentIndex(0);}else edit();});
+    connect(add,&QPushButton::clicked,this,[this]{edit();});
+    connect(tabs,&QTabBar::currentChanged,this,[this](int index){
+        if(!prepareLeave()){QSignalBlocker blocker(tabs);tabs->setCurrentIndex(activeTab);return;}
+        activeTab=index;tagFilter->setVisible(index!=2);add->setText(index==0?"新增纸条":index==1?"新增书签":"新增秘密");
+        search->setPlaceholderText(index==0?"搜索标题或内容":index==1?"搜索标题或目标":"搜索秘密标题");refresh();
+    });
+    connect(search,&QLineEdit::textChanged,this,[this]{filterCards();});
+    connect(tagFilter,&QComboBox::currentIndexChanged,this,[this]{filterCards();});
+    connect(dept,&NoteDepartment::changed,this,[this]{QTimer::singleShot(0,this,&NoteWidget::refresh);});
+    connect(ConfigManager::getInstance(),&ConfigManager::deadlineChanged,this,&NoteWidget::refresh);
+    auto create=new QShortcut(QKeySequence("Ctrl+N"),this);create->setContext(Qt::WidgetWithChildrenShortcut);connect(create,&QShortcut::activated,this,[this]{edit();});
+    auto find=new QShortcut(QKeySequence::Find,this);find->setContext(Qt::WidgetWithChildrenShortcut);connect(find,&QShortcut::activated,search,qOverload<>(&QWidget::setFocus));
+    qApp->installEventFilter(this);refresh();
+}
+bool NoteWidget::ensureUnlocked() {
+    if(dept->unlocked()) return true;
+    bool ok=false;QString password=passwordInput(this,dept->exists()?"解锁私人信息":"首次创建加密密库",
+        dept->exists()?"请输入主密码":"设置至少10字符的主密码；遗忘无法找回",&ok);
+    if(!ok){password.fill(QChar(0));return false;}
+    bool result;
+    if(!dept->exists()) {
+        auto confirm=passwordInput(this,"确认主密码","再次输入",&ok);const bool matches=confirm==password;confirm.fill(QChar(0));
+        if(!ok||!matches) {password.fill(QChar(0));QMessageBox::warning(this,"未创建","两次密码不一致");return false;}
+        result=dept->create(password);
+    } else result=dept->unlock(password);
+    password.fill(QChar(0));
+    if(!result) QMessageBox::warning(this,"无法解锁",dept->error());return result;
+}
+
+bool NoteWidget::prepareLeave(){
+    for(auto card:ordered){
+        if(!card->save()){scroll->ensureWidgetVisible(card);return false;}
+    }
+    for(auto card:ordered){card->collapse();card->select(false);}relayout();return true;
+}
+void NoteWidget::refresh(){
+    if(refreshing)return;refreshing=true;
+    auto records=dept->catalog();if(dept->needsMigration())records.append(QJsonObject{{"id","legacy-vault"},{"kind",0},{"title","旧版密库：双击解锁迁移"},{"legacy",true}});
+    QSet<QString> seen;ordered.clear();QStringList tags=ConfigManager::getInstance()->commonTags();
+    for(auto value:records){
+        const auto e=value.toObject();if(e["deleted"].toBool())continue;const auto id=e["id"].toString();seen.insert(id);
+        auto card=cards.value(id);
+        if(!card){
+            card=new NoteCard(e,dept,canvas);cards.insert(id,card);
+            connect(card,&NoteCard::saveFailed,this,&NoteWidget::saveFailed);
+            connect(card,&NoteCard::selected,this,[this](NoteCard *chosen,bool toggle){const bool selected=!toggle||!chosen->property("selected").toBool();for(auto c:cards)c->select(c==chosen&&selected);});
+            connect(card,&NoteCard::expansionRequested,this,&NoteWidget::expand);
+            connect(card,&NoteCard::collapseRequested,this,[this](NoteCard *c){if(c->save()){c->collapse();relayout();}});
+            connect(card,&NoteCard::deleteRequested,this,[this](NoteCard *c){
+                if(QMessageBox::question(this,"永久删除","删除「"+c->entry()["title"].toString()+"」？此操作无法撤销。")!=QMessageBox::Yes)return;
+                if(!dept->remove(c->id()))QMessageBox::warning(this,"删除失败",dept->error());else refresh();
+            });
+            connect(card,&NoteCard::activated,this,[this](NoteCard *c){
+                if(c->entry()["kind"].toInt()==0)secretEditor(c->entry());
+                else{QString error;if(!BookmarkTarget::open(c->entry(),&error))QMessageBox::warning(this,"无法打开书签",error);}
+            });
+        }else if(!card->expanded())card->updateRecord(e);
+        ordered.append(card);
+        for(const auto &tag:e["tags"].toString().split(',',Qt::SkipEmptyParts))if(!tags.contains(tag))tags.append(tag);
+    }
+    for(auto it=cards.begin();it!=cards.end();){if(!seen.contains(it.key())){it.value()->hide();it.value()->deleteLater();it=cards.erase(it);}else ++it;}
+    std::stable_sort(ordered.begin(),ordered.end(),[](NoteCard *a,NoteCard *b){return a->entry()["createdAt"].toString()>b->entry()["createdAt"].toString();});
+    {QSignalBlocker blocker(tagFilter);auto selected=tagFilter->currentData().toString();tagFilter->clear();tagFilter->addItem("全部标签",QString());for(auto t:tags)tagFilter->addItem(t,t);tagFilter->setCurrentIndex(qMax(0,tagFilter->findData(selected)));}
+    notice->setText(dept->migrationNotice().isEmpty()?dept->error():dept->migrationNotice());notice->setVisible(!notice->text().isEmpty());
+    refreshing=false;filterCards();
+}
+bool NoteWidget::filterCards(){
+    if(refreshing)return true;
+    const int kind=activeTab==0?2:activeTab==1?1:0;const auto keyword=search->text(),tag=activeTab==2?QString():tagFilter->currentData().toString();
+    QList<QPair<NoteCard*,bool>> matches;
+    for(auto c:ordered){
+        auto e=c->draft();QString hay=e["title"].toString();if(kind==2)hay+=' '+e["body"].toString();if(kind==1)hay+=' '+e["target"].toString();
+        bool match=e["kind"].toInt()==kind&&hay.contains(keyword,Qt::CaseInsensitive)&&(tag.isEmpty()||e["tags"].toString().split(',').contains(tag));
+        if(!match&&c->expanded()){
+            if(!c->save()){
+                QSignalBlocker a(search),b(tagFilter);search->setText(activeSearch);tagFilter->setCurrentIndex(qMax(0,tagFilter->findData(activeTag)));return false;
+            }
+            c->collapse();
+        }
+        matches.append({c,match});
+    }
+    activeSearch=keyword;activeTag=tag;for(auto pair:matches)pair.first->setVisible(pair.second);relayout();return true;
+}
+void NoteWidget::relayout(){
+    // Monotonic cursor preserves order and leaves holes before a moved large card.
+    // Occupancy lets subsequent small cards fill the large card's right side.
+    constexpr int preferred=200,gap=16;const int width=qMax(1,scroll->viewport()->width());
+    const int columns=qMax(1,(width+gap)/(preferred+gap));const int cell=qMax(1,(width-gap*(columns-1))/columns);
+    QSet<quint64> occupied;auto key=[](int r,int c){return (quint64(r)<<32)|quint32(c);};
+    int cursor=0,bottom=0,count=0;
+    for(auto card:ordered){
+        if(card->isHidden())continue;++count;
+        int span=card->expanded()?qMin(3,columns):1,heightSpan=card->expanded()?3:1;
+        int row=0,column=0;
+        for(;;++cursor){
+            row=cursor/columns;column=cursor%columns;if(column+span>columns)continue;bool free=true;
+            for(int r=row;r<row+heightSpan;++r)for(int c=column;c<column+span;++c)if(occupied.contains(key(r,c)))free=false;
+            if(free)break;
+        }
+        for(int r=row;r<row+heightSpan;++r)for(int c=column;c<column+span;++c)occupied.insert(key(r,c));
+        const int cardWidth=card->expanded()&&columns<3?width:span*cell+(span-1)*gap;
+        card->setGeometry(column*(cell+gap),row*(cell+gap),cardWidth,heightSpan*cell+(heightSpan-1)*gap);
+        bottom=qMax(bottom,card->geometry().bottom()+1);++cursor;
+    }
+    const bool filtered=!activeSearch.isEmpty()||!activeTag.isEmpty();clearFilters->setVisible(filtered);
+    empty->setText(filtered?"没有匹配的条目，试试其他关键词或标签。":activeTab==0?"记下第一个值得留住的片段。":activeTab==1?"把常用网站、文件和文件夹收在这里。":dept->creationReady()?"秘密正文加密保存，每次查看时验证主密码。":"还没有秘密，请先到设置 → Note 初始化秘密加密。");
+    emptyAction->setText(filtered?"清除筛选":activeTab==0?"新增纸条":activeTab==1?"新增书签":"新增秘密");
+    emptyAction->setVisible(filtered||activeTab!=2||dept->creationReady());
+    emptyGroup->setVisible(count==0);emptyGroup->setGeometry(0,24,width,qMax(150,emptyGroup->sizeHint().height()));canvas->setMinimumHeight(qMax(bottom+16,220));
+}
+bool NoteWidget::eventFilter(QObject *object,QEvent *event){
+    if(event->type()==QEvent::MouseButtonPress){
+        if(auto widget=qobject_cast<QWidget*>(object)){
+            NoteCard *clicked=nullptr;for(auto ancestor=widget;ancestor;ancestor=ancestor->parentWidget())if(auto c=qobject_cast<NoteCard*>(ancestor)){if(cards.value(c->id())==c)clicked=c;break;}
+            if(!clicked){for(auto c:cards)c->select(false);}
+            else if(widget!=clicked&&(qobject_cast<QAbstractButton*>(widget)||widget->focusPolicy()!=Qt::NoFocus)){for(auto c:cards)c->select(c==clicked);}
+        }
+    }
+    if(event->type()==QEvent::ApplicationDeactivate)for(auto c:cards)c->select(false);
+    if(object==scroll->viewport()&&event->type()==QEvent::Resize)QTimer::singleShot(0,this,&NoteWidget::relayout);
+    return QWidget::eventFilter(object,event);
+}
+void NoteWidget::showEvent(QShowEvent *event){QWidget::showEvent(event);setFocus(Qt::OtherFocusReason);}
+void NoteWidget::expand(NoteCard *card){
+    card->expand();relayout();
+    QPointer<NoteCard> target=card;
+    QTimer::singleShot(0,this,[this,target]{if(!target||!target->expanded())return;scroll->verticalScrollBar()->setValue(qMax(0,target->y()-16));});
+}
+void NoteWidget::addDraft(const QString &title,const QString &body){
+    if(!prepareLeave())return;tabs->setCurrentIndex(0);edit({{"kind",2},{"title",title},{"body",body}});
+}
+void NoteWidget::edit(QJsonObject e){
+    const int kind=activeTab==0?2:activeTab==1?1:0;
+    if(kind==0&&!dept->creationReady()){QMessageBox::information(this,"先初始化秘密加密","请到设置 → Note → 初始化／升级秘密加密。完成一次设置后，新增无需密码，查看时才验证。");return;}
+    for(auto card:ordered)if(!card->save())return;
+    e["kind"]=kind;e["id"]=QUuid::createUuid().toString(QUuid::WithoutBraces);
+    if(kind==1){e["targetType"]="website";e["target"]="";}
+    DraftDialog dialog(this,Qt::Dialog|Qt::FramelessWindowHint);dialog.setObjectName("noteEditor");dialog.setWindowTitle("新增"+QString(kind==2?"纸条":kind==1?"书签":"秘密"));dialog.setStyleSheet(NoteStyle::sheet);
+    auto layout=new QVBoxLayout(&dialog);layout->setContentsMargins(22,18,22,20);layout->setSpacing(18);addDialogHeader(layout,&dialog);
+    NoteFields fields(e);fields.setCreationMode();addDialogFields(layout,&fields);
+    auto create=new NoteStyle::Button("创建");create->setObjectName("noteCreate");layout->addWidget(create,0,Qt::AlignRight);
+    bool failed=false;
+    dialog.canClose=[&](int result){if(result==QDialog::Accepted||(!failed&&!fields.dirty()))return true;return QMessageBox::question(&dialog,"放弃新增","条目尚未保存，放弃这些输入？")==QMessageBox::Yes;};
+    connect(create,&QPushButton::clicked,&dialog,[&]{if(dept->save(fields.values()))dialog.accept();else{failed=true;fields.setError(dept->error());}});
+    NoteStyle::placeDialog(dialog,this,QSize(550,kind==0?480:620),true);
+    if(dialog.exec()==QDialog::Accepted){
+        search->clear();tagFilter->setCurrentIndex(0);refresh();
+    }
+}
+void NoteWidget::secretEditor(QJsonObject e){
+    dept->lock();if(!ensureUnlocked())return;
+    if(e.value("legacy").toBool()){dept->lock();refresh();return;}
+    e=dept->entry(e.value("id").toString());if(e.isEmpty()){dept->lock();return;}
+    DraftDialog dialog(this);dialog.setObjectName("noteSecretEditor");dialog.setWindowTitle("秘密");dialog.setStyleSheet(NoteStyle::sheet);
+    auto layout=new QVBoxLayout(&dialog);layout->setContentsMargins(22,18,22,20);layout->setSpacing(18);addDialogHeader(layout,&dialog);NoteFields fields(e);addDialogFields(layout,&fields);
+    const auto recovered=dept->recoveryDraft(e["id"].toString());
+    bool hasRecovery=!recovered.isEmpty();
+    if(hasRecovery){
+        QSignalBlocker a(fields.title),b(fields.body);
+        fields.title->setText(recovered["title"].toString());fields.body->setPlainText(recovered["body"].toString());
+        fields.findChild<QLabel*>("noteSaveStatus")->setText("已恢复未保存的输入");
+    }else if(!dept->error().isEmpty())fields.setError(dept->error());
+    auto buttons=new QHBoxLayout;auto copy=new NoteStyle::Button("复制秘密",true),remove=new NoteStyle::Button("删除",true),close=new NoteStyle::Button("关闭",true);remove->setProperty("danger",true);
+    buttons->addWidget(copy);buttons->addStretch();buttons->addWidget(remove);buttons->addWidget(close);layout->addLayout(buttons);
+    bool forcedClose=false;
+    auto commit=[&]{if(!fields.dirty()&&!hasRecovery){fields.committed(dept->entry(e.value("id").toString()));return true;}if(!dept->save(fields.values())){fields.setError(dept->error());return false;}hasRecovery=false;fields.committed(dept->entry(e.value("id").toString()));return true;};
+    dialog.canClose=[&](int){return forcedClose||commit();};
+    connect(&fields,&NoteFields::saveRequested,&dialog,[&]{commit();});
+    connect(close,&QPushButton::clicked,&dialog,&QDialog::reject);
+    connect(copy,&QPushButton::clicked,&dialog,[&]{dept->copySecret(fields.body->toPlainText());});
+    connect(remove,&QPushButton::clicked,&dialog,[&]{
+        if(QMessageBox::question(&dialog,"永久删除","删除这个秘密？此操作无法撤销。")!=QMessageBox::Yes)return;
+        if(dept->remove(e.value("id").toString())){forcedClose=true;dialog.accept();}else fields.setError(dept->error());
+    });
+    connect(dept,&NoteDepartment::aboutToLock,&dialog,[&]{
+        if(!commit()){
+            const bool durable=dept->preserveDraft(fields.values());
+            emit saveFailed(durable?"秘密未正式保存，已封存加密恢复草稿；下次验证密码后恢复输入。":dept->error());
+        }
+        forcedClose=true;
+    });
+    connect(dept,&NoteDepartment::locked,&dialog,&QDialog::reject);
+    NoteStyle::placeDialog(dialog,this,QSize(560,520),false);dialog.exec();disconnect(dept,nullptr,&dialog,nullptr);disconnect(&fields,nullptr,&dialog,nullptr);fields.body->clear();fields.title->clear();e={};dept->lock(false);
+}
+void NoteWidget::manage(const QString &name){
+    if(name=="初始化／升级秘密加密"){
+        dept->lock();if(!ensureUnlocked())return;dept->lock();QMessageBox::information(this,"秘密加密已就绪","此后新增秘密无需密码；每次打开已有秘密仍需验证主密码。");return;
+    }
+    if(name=="备份"){
+        auto path=QFileDialog::getSaveFileName(this,"导出秘密备份",{},"ZTL 密库 (*.ztlvault)");
+        if(!path.isEmpty()&&!dept->backup(path))QMessageBox::warning(this,"备份失败",dept->error());return;
+    }
+    if(name=="恢复备份"){
+        const auto path=QFileDialog::getOpenFileName(this,"选择秘密备份",{},"ZTL 密库 (*.ztlvault);;全部 (*)");if(path.isEmpty())return;
+        if(QMessageBox::question(this,"恢复","替换现有秘密？普通纸条和书签保留。")!=QMessageBox::Yes)return;
+        bool ok=false;auto password=passwordInput(this,"备份密码","请输入备份密码",&ok);
+        if(ok&&!dept->restore(path,password))QMessageBox::warning(this,"恢复失败",dept->error());password.fill(QChar(0));dept->lock();return;
+    }
+    if(name=="修改密码"){
+        dept->lock();if(!ensureUnlocked())return;
+        bool ok=false;auto password=passwordInput(this,"新密码","至少10字符",&ok);
+        while(ok){
+            auto confirm=passwordInput(this,"确认密码","再次输入",&ok);const bool matches=confirm==password;confirm.fill(QChar(0));
+            if(!ok)break;
+            if(!matches){QMessageBox::warning(this,"密码不一致","两次输入的密码不一致，密码未修改。请重新确认。");continue;}
+            if(!dept->changePassword(password))QMessageBox::warning(this,"修改失败",dept->error());
+            break;
+        }
+        password.fill(QChar(0));dept->lock();
+    }
+}

@@ -27,20 +27,19 @@ public:
     void forceWrite();
     // 结束接口
     void endWrite(const QJsonObject &jsonObj);
-
-private slots:
-    // 真 写入
-    void onSaveTimerTimeout();
+signals:
+    void writeFailed(const QString &message);
+    void writeRecovered(const QString &message);
 
 private:
     QString m_folderPath; // 文件夹路径
     QString m_fileName; // 文件名称
     QString m_filePath; // 文件路径
-    int m_delayMs; // 防抖延迟
 
     QTimer *m_saveTimer; // 倒计时秒表
     QJsonObject m_cacheBuffer; // 内存缓冲区
     bool m_isDirty;
+    bool m_writeFailed=false;
 
     void writeToDisk(const QJsonObject &jsonObj);
     void ensureDirExists();   // 剥离出来的自动建文件夹小助手

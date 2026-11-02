@@ -1,157 +1,60 @@
 #include "mailgetservice.h"
-
-MailGetService::MailGetService(QObject *parent)
-    : QObject{parent}
-{
-    qInfo() << "[MailGetService] 启动。";
-
-    m_watcher = new QFutureWatcher<bool>(this);
-    connect(m_watcher, &QFutureWatcher<bool>::finished, this, [=]() {
-        bool isSuccess = m_watcher->result();
-        emit pollingOver(isSuccess);
-    });
-
-
+#include "mailmanager.h"
+#include "configmanager.h"
+#include <QJsonArray>
+namespace {
+QJsonObject accountJson(const MailAccount &a){return {{"address",a.address},{"code",a.code},{"server",a.server},{"port",a.port}};}
 }
-
-
-
-
+MailGetService::MailGetService(QObject *parent):QObject(parent),worker(this){}
 void MailGetService::mailPolling(){
-    const QList<MailAccount> mailAccounts = MailAccountManager::getInstance()->getMailAccounts();
-    QFuture<bool> future = QtConcurrent::run([=]() {
-        for (const MailAccount &acc: mailAccounts){
-            if (useGetMail(acc)) return true;
-        }
-        return false;
-    });
-    m_watcher->setFuture(future);
+    if(busy)return;historyMode=false;accounts=MailAccountManager::getInstance()->getMailAccounts();index=0;found=false;errors.clear();busy=true;emit status("正在同步邮件…");nextAccount();
 }
-
-void MailGetService::mailBody(const MailAccount& acc, const QString &uid){
-    useGetBody(acc, uid);
+void MailGetService::mailHistory(){
+    if(busy)return;historyMode=true;accounts=MailAccountManager::getInstance()->getMailAccounts();index=0;found=false;errors.clear();busy=true;emit status("正在拉取更早邮件…");nextAccount();
 }
-
-
-
-bool MailGetService::useGetMail(const MailAccount& acc){
-    // 准备访问条件
-    QDir scriptdir("./scripts");
-    if (!scriptdir.exists()) {
-        qWarning() << "[MailGetService] script文件夹不存在。";
-        return false;
-    }
-    QFile scriptfile("./scripts/getSimpleMail.py");
-    if (!scriptfile.exists()) {
-        qWarning() << "[MailGetService] getSimpleMail.py不存在。";
-        return false;
-    }
-    qDebug() << "[MailGetService] getSimpleMail.py存在。";
-    // 启动进程
-    QProcess process = QProcess();
-    QString program = "python";
-    QStringList arguments;
-    arguments << "-u";
-    arguments << "./scripts/getSimpleMail.py";
-    arguments << "--address" << acc.address;
-    arguments << "--code" << acc.code;
-    arguments << "--server" << acc.server;
-    arguments << "--port" << acc.port;
-    process.start(program, arguments);
-    process.waitForFinished(-1);
-    QByteArray output = process.readAllStandardOutput();
-    QString outputStr = QString::fromUtf8(output).trimmed();
-    if (outputStr.isEmpty()){
-        qDebug() << "[MailGetService] 脚本返回为空。";
-        return false;
-    }
-    QJsonParseError error;
-    QJsonDocument doc = QJsonDocument::fromJson(outputStr.toUtf8(), &error);
-    if (error.error != QJsonParseError::NoError) {
-        qWarning() << "[MailGetService] JSON 解析失败，错误原因：" << error.errorString();
-        return false;
-    }
-    QJsonObject jsonObj = doc.object();
-    QString status = jsonObj.value("status").toString();
-    if (status == "FAILED") {
-        qWarning() << "[MailGetService] 错误:" << jsonObj["message"].toString();
-        return false;
-    }
-    else if(status == "SUCCESS"){
-        qDebug() << "[MailGetService] 找到新邮件。";
-        QJsonObject data = jsonObj.value("data").toObject();
-        emit newMailBrief(MailBrief(data, acc.address));
-        return true;
-    }
-    else{
-        qDebug() << "[MailGetService] 没有新邮件。";
-        return false;
-    }
-
+void MailGetService::nextAccount(){
+    if(index>=accounts.size()){busy=false;emit status(errors.isEmpty()?"同步完成 "+QDateTime::currentDateTime().toString("HH:mm:ss"):errors.join("；"));emit pollingOver(found&&!historyMode);return;}
+    const auto account=accounts[index++];auto state=MailManager::getInstance()->syncState(account.address);
+    QJsonObject req{{"command","sync"},{"account",accountJson(account)},{"limit",qBound(10,ConfigManager::getInstance()->getMailBasical().initialNumber,100)},
+        {"cursor",state["cursor"].toInteger(0)},{"validity",state["validity"].toString()}};
+    const bool historyBatch=historyMode&&!state["validity"].toString().isEmpty();
+    if(historyBatch){req["command"]="history";req["before"]=MailManager::getInstance()->oldestUid(account.address,state["validity"].toString());}
+    worker.run(req,[this,account,historyBatch](const QJsonObject &result,const QString &error){
+        if(!error.isEmpty())errors<<account.name+"："+error;
+        else if(MailAccountManager::getInstance()->getMailAcc(account.address).address==account.address){
+            const auto data=result["data"].toObject();
+            if(!MailManager::getInstance()->saveBatch(account.address,data,!historyBatch))errors<<account.name+"：本地保存失败";
+            else {found|=!data["messages"].toArray().isEmpty();if(data["remaining"].toInt()>0)emit status("仍有积压邮件，下次同步继续");}
+        }
+        nextAccount();
+    });
 }
-
-
-void MailGetService::useGetBody(const MailAccount& acc, const QString &uid){
-    // 准备访问条件
-    QDir scriptdir("./scripts");
-    if (!scriptdir.exists()) {
-        qWarning() << "[MailGetService] script文件夹不存在。";
-        return;
+void MailGetService::mailBody(const MailAccount &a,const QString &id){
+    if(a.address.isEmpty()||id.startsWith("legacy:")){const QString message="离线账号或旧邮件记录，无法从服务器获取";emit status(message);emit bodyFailed(a.address,id,message);emit getBodyOver(a.address,id);return;}
+    worker.run({{"command","body"},{"account",accountJson(a)},{"id",id}},[this,a,id](const QJsonObject &r,const QString &error){
+        if(!error.isEmpty()){emit status(error);emit bodyFailed(a.address,id,error);}
+        else if(!MailManager::getInstance()->isDeleted(a.address,id)){auto data=r["data"].toObject();emit newMailBody(a.address,id,data["body"].toString());emit status("正文已获取");}
+        emit getBodyOver(a.address,id);
+    });
+}
+void MailGetService::restoreMail(const QString &address,const QString &id){
+    const auto key=address+"/"+id;if(restoring.contains(key))return;
+    const auto account=MailAccountManager::getInstance()->getMailAcc(address);
+    if(account.address.isEmpty()||id.startsWith("legacy:")){
+        emit status("无法恢复：请先配置原邮箱账号；旧版离线记录无法联网定位");emit restoreFinished(address,id,false);return;
     }
-    QFile scriptfile("./scripts/getMailBody.py");
-    if (!scriptfile.exists()) {
-        qWarning() << "[MailGetService] getMailBody.py不存在。";
-        return;
-    }
-    qDebug() << "[MailGetService] getMailBody.py存在。";
-    // 启动进程
-    QProcess *process = new QProcess(this);
-    QString program = "python";
-    QStringList arguments;
-    arguments << "-u";
-    arguments << "./scripts/getMailBody.py";
-    arguments << "--address" << acc.address;
-    arguments << "--code" << acc.code;
-    arguments << "--server" << acc.server;
-    arguments << "--port" << acc.port;
-    arguments << "--uid" << uid;
-    connect(process, &QProcess::readyReadStandardOutput, this, [=]() {
-        QByteArray output = process->readAllStandardOutput();
-        QString outputStr = QString::fromUtf8(output).trimmed();
-        if (outputStr.isEmpty()){
-            qDebug() << "[MailGetService] 脚本返回为空。";
-            return;
+    if(!MailManager::getInstance()->isDeleted(address,id))return;
+    restoring.insert(key);emit status("正在从服务器恢复邮件…");
+    worker.run({{"command","restore"},{"account",accountJson(account)},{"id",id}},[this,address,id,key](const QJsonObject &result,const QString &error){
+        restoring.remove(key);bool success=false;
+        if(!error.isEmpty())emit status("恢复失败："+error+"；已删除记录保留");
+        else if(MailAccountManager::getInstance()->getMailAcc(address).address!=address)emit status("恢复失败：原账号已移除；已删除记录保留");
+        else {
+            success=MailManager::getInstance()->restoreMail(address,id,result["data"].toObject()["message"].toObject());
+            emit status(success?"邮件已恢复，正文在打开时重新获取":"恢复失败：响应无效或本地保存失败；已删除记录保留");
         }
-        QJsonParseError error;
-        QJsonDocument doc = QJsonDocument::fromJson(outputStr.toUtf8(), &error);
-        if (error.error != QJsonParseError::NoError) {
-            qWarning() << "[MailGetService] JSON 解析失败，错误原因：" << error.errorString();
-            return;
-        }
-        QJsonObject jsonObj = doc.object();
-        QString status = jsonObj.value("status").toString();
-        if (status == "error") {
-            qWarning() << "[MailGetService] 错误:" << jsonObj["message"].toString();
-            return;
-        }
-        else if(status == "success"){
-            qDebug() << "[MailGetService] 找到正文。";
-            QString body = jsonObj.value("body").toString();
-            emit newMailBody(acc.address, uid, body);
-            return;
-        }
+        emit restoreFinished(address,id,success);
     });
-    connect(process, &QProcess::readyReadStandardError, this, [=]() {
-        qInfo() << "[MailGetService]] 正文脚本错误：" << QString::fromLocal8Bit(process->readAllStandardError()).trimmed();
-    });
-    connect(process, &QProcess::finished, process, [=](){
-        process->deleteLater();
-        emit getBodyOver(acc.address, uid);
-        qInfo() << "[MailGetService]] 正文脚本调用完毕。";
-    });
-    process->start(program, arguments);
-
-
 }
 
 

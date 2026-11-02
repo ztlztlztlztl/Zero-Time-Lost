@@ -1,38 +1,37 @@
-#ifndef DEADLINEWIDGET_H
-#define DEADLINEWIDGET_H
-
-
-
-
+#pragma once
+#include "ddldepartment.h"
 #include <QWidget>
-#include <QLabel>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QSplitter>
-#include <QStackedWidget>
-
-class DeadlineWidget : public QWidget
-{
+class QLineEdit;class QTabBar;class QCheckBox;class QStackedWidget;class QComboBox;class QLabel;class QPushButton;class DeadlineCalendarWidget;class DeadlineAgendaWidget;
+class DeadlineWidget:public QWidget {
     Q_OBJECT
 public:
-    explicit DeadlineWidget(QWidget *parent = nullptr);
-
-
-
-
+    explicit DeadlineWidget(DDLDepartment *department,QWidget *parent=nullptr);
+    void addDraft(const QString &title,const QString &note);
+    void refresh();
+    void showDay(const QDate &date);
+    void prepareLock(){emit locking();}
 signals:
-
-private slots:
-
-
-
-
+    void locking();
+    void saveFailed(const QString &message);
 private:
-
-
-
-
-
+    void edit(const TaskOccurrence *item=nullptr);
+    void showDetail(const TaskOccurrence &item);
+    bool removeTask(const TaskOccurrence &item);
+    void changeView(int index);
+    void navigate(int direction);
+    void updateHeading();
+    DDLDepartment *dept;
+    QLineEdit *search;
+    QTabBar *tabs;
+    DeadlineAgendaWidget *agenda;
+    QCheckBox *showCompleted;
+    QStackedWidget *pages;
+    DeadlineCalendarWidget *calendar;
+    QComboBox *calendarTag,*calendarStar;
+    QLabel *heading;
+    QPushButton *clearFilters;
+    QDate anchor=QDate::currentDate();
+    bool focusedDayInstances=false,pendingFocus=false;
+    bool refreshing=false;
+    QList<TaskOccurrence> visible;
 };
-
-#endif // DEADLINEWIDGET_H

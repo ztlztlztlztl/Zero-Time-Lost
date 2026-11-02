@@ -3,6 +3,7 @@
 
 
 #include "helpjsonioengine.h"
+#include "cryptotool.h"
 
 
 #include <QObject>
@@ -29,7 +30,7 @@ struct MailAccount{
     MailAccount(const QJsonObject& mailAccountObj){
         name = mailAccountObj["name"].toString();
         address = mailAccountObj["address"].toString();
-        code = mailAccountObj["code"].toString();
+        code = mailAccountObj.contains("protectedCode") ? CryptoTool::unprotect(mailAccountObj["protectedCode"].toString()) : mailAccountObj["code"].toString();
         server = mailAccountObj["server"].toString();
         port = mailAccountObj["port"].toString();
     }
@@ -38,7 +39,7 @@ struct MailAccount{
         QJsonObject mailAccountObj;
         mailAccountObj["name"] = name;
         mailAccountObj["address"] = address;
-        mailAccountObj["code"] = code;
+        mailAccountObj["protectedCode"] = CryptoTool::protect(code);
         mailAccountObj["server"] = server;
         mailAccountObj["port"] = port;
         return mailAccountObj;
@@ -94,7 +95,7 @@ private:
 
 
 
-    HelpJsonIOEngine *m_mailEngine;
+    HelpJsonIOEngine *m_mailEngine = nullptr;
 
 
 

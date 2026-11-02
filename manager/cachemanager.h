@@ -42,27 +42,6 @@ struct CityWeatherInfo {
     }
 };
 
-struct QuoteInfo {
-    QString content; // 句子
-    qint64 timestamp; // 获取的时间戳
-
-    QuoteInfo(){
-        content = "愿你千帆阅尽，归来仍是少年。";
-        timestamp = 0;
-    }
-
-    QuoteInfo(const QJsonObject &quoteObect) {
-        content = quoteObect["content"].toString();
-        timestamp = quoteObect["timestamp"].toVariant().toLongLong();
-    }
-
-    QJsonObject toJson() const{
-        QJsonObject quoteObect;
-        quoteObect["content"] = content;
-        quoteObect["timestamp"] = QString::number(timestamp);
-        return quoteObect;
-    }
-};
 
 class CacheManager : public QObject
 {
@@ -75,14 +54,10 @@ public:
     // weather
     CityWeatherInfo getCityWeatherInfo(QString code) const;
     void updateWeatherCache(const CityWeatherInfo& newWeatherCache);
-    // weather
-    QuoteInfo getQuoteInfo() const;
-    void updateQuoteCache(const QuoteInfo& newQuoteCache);
 
 
 signals:
     void weatherCacheUpdated(QString code);
-    void quoteCacheUpdated(QString content);
 
 private slots:
 
@@ -102,9 +77,8 @@ private:
 
     // 配置储存
     QHash<QString, CityWeatherInfo> m_weatherCaches;
-    QuoteInfo m_quoteCache;
 
-    HelpJsonIOEngine *m_scriptEngine;
+    HelpJsonIOEngine *m_scriptEngine=nullptr;
 
 
 

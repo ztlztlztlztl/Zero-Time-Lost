@@ -1,59 +1,31 @@
-#ifndef MAILMANAGER_H
-#define MAILMANAGER_H
-
+#pragma once
 #include "helpsqliteioengine.h"
 #include "datatype.h"
-
 #include <QObject>
-
-
-
-
-
-
-
-
-
-
-
-
-class MailManager : public QObject
-{
+#include <QJsonObject>
+class MailManager : public QObject {
     Q_OBJECT
 public:
-    // 单例模式
-    static MailManager* getInstance();
+    static MailManager *getInstance();
     void initialize();
-    // 获取信息
-    QList<MailBrief> initMailList(int number); // 启动程序时获取初始邮件列表
-    QList<MailBrief> moreMailList(int startNumber, int number); // 加载本地更多邮件时获取邮件列表
-    void checkMail(QString address, QString uid); // 标记某封邮件为已读
-    void addMail(const MailBrief& newMail); // 向本地添加一封邮件
-    void deleteMail(const QString &address, const QString &uid); // 删除某封邮件
-    QString getMailBody(const QString &address, const QString &uid);
-    void updateMailBody(const QString &address, const QString &uid, const QString &body);
-
+    QList<MailBrief> query(const QString &text,const QString &account,int state,int limit,int offset=0);
+    qint64 unreadCount() const;
+    void checkMail(QString address,QString uid);
+    void addMail(const MailBrief &mail);
+    void deleteMail(const QString &address,const QString &uid);
+    bool restoreMail(const QString &address,const QString &uid,const QJsonObject &message);
+    bool isDeleted(const QString &address,const QString &uid) const;
+    void setStar(const QString &address,const QString &uid,bool starred);
+    QString getMailBody(const QString &address,const QString &uid);
+    void updateMailBody(const QString &address,const QString &uid,const QString &body);
+    QJsonObject syncState(const QString &address);
+    bool saveBatch(const QString &address,const QJsonObject &data,bool updateSync=true);
+    qint64 oldestUid(const QString &address,const QString &validity);
+    bool importLegacy(const QString &databasePath);
     void clearUp();
-
-
-
-
 signals:
-
-private slots:
-
-
-
-
+    void changed();
 private:
-    explicit MailManager(QObject *parent = nullptr);
-    ~MailManager();
-    MailManager(const MailManager&) = delete;
-    MailManager& operator=(const MailManager&) = delete;
-
-
-
-    HelpSQLiteIOEngine *m_mailEngine;
+    explicit MailManager(QObject *parent=nullptr):QObject(parent) {}
+    HelpSQLiteIOEngine *m_mailEngine=nullptr;
 };
-
-#endif // MAILMANAGER_H

@@ -1,66 +1,30 @@
-#ifndef MAILSIMPLEDISPLAYWIDGET_H
-#define MAILSIMPLEDISPLAYWIDGET_H
-
+#pragma once
 #include "datatype.h"
-#include "configmanager.h"
-#include "mailmanager.h"
 #include "mailaccountmanager.h"
-#include "mailsimplecard.h"
-#include "constants.h"
-
 #include <QWidget>
-#include <QLabel>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QPushButton>
-#include <QScrollArea>
-#include <QTimer>
-#include <QScrollBar>
-
-
-
-
-
-
-
-class MailSimpleDisplayWidget : public QWidget
-{
+#include <QSet>
+class QTreeWidget;class QTabBar;class QPushButton;class QLineEdit;class QComboBox;class QLabel;
+class MailSimpleDisplayWidget:public QWidget{
     Q_OBJECT
 public:
-    explicit MailSimpleDisplayWidget(QWidget *parent = nullptr);
-    void addMailBrief(int location, const MailBrief& newMailBrief);
+    explicit MailSimpleDisplayWidget(QWidget *parent=nullptr);
     void enablePollingBtn();
-
+    void reload();
+    void showUnread();
+    void restoreFinished(const QString &address,const QString &id,bool success);
 signals:
     void refreshRequest();
-    void readRequest(const MailAccount &mailAcc, const MailBrief &mailBrief);
-
-
-
-
+    void historyRequest();
+    void readRequest(const MailAccount &,const MailBrief &);
+    void restoreRequest(const QString &address,const QString &id);
 private:
-    // ui们
-    QScrollArea *m_mailScrollArea;
-    QVBoxLayout *m_contentLyt;
-    QLabel *m_generalTitle;
-    QPushButton *m_forceRefreshBtn;
-    QPushButton *m_localMailBtn;
-
-    QTimer *m_timer;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    QTreeWidget *rows;
+    QTabBar *tabs;
+    QPushButton *refresh,*more;
+    QLineEdit *search;
+    QComboBox *account;
+    QLabel *empty;
+    QList<MailBrief> visible;
+    int loaded=10;
+    QSet<QString> pendingRestores;
 };
-
-#endif // MAILSIMPLEDISPLAYWIDGET_H

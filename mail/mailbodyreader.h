@@ -1,36 +1,25 @@
-#ifndef MAILBODYREADER_H
-#define MAILBODYREADER_H
-
+#pragma once
 #include "datatype.h"
-#include "constants.h"
-
 #include <QWidget>
-#include <QLabel>
-#include <QTextBrowser>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
+class QLabel;class QTextBrowser;class QComboBox;class QStackedWidget;class QPushButton;
 
-class MailBodyReader : public QWidget
-{
+class MailBodyReader:public QWidget {
     Q_OBJECT
 public:
-    explicit MailBodyReader(QWidget *parent = nullptr);
-
-    void loadMail(const MailBrief &mailBrief, const QString &htmlBody);
+    explicit MailBodyReader(QWidget *parent=nullptr);
+    void loadMail(const MailBrief &brief,const QString &htmlBody);
     void loadMail(const QString &htmlBody);
-
+    void showLoading();
+    void showError(const QString &message);
+    QString plainText() const {return text;}
 signals:
-
-
-
+    void retryRequested();
 private:
-    QLabel *m_lblSubject;
-    QLabel *m_lblAddress;
-    QLabel *m_lblSender;
-    QLabel *m_lblDate;
-    QTextBrowser *m_textBrowser;
-
-
+    void render();
+    QLabel *subject,*sender,*recipient,*date,*stateText;
+    QTextBrowser *browser;
+    QComboBox *mode;
+    QStackedWidget *bodyStack;
+    QPushButton *retry;
+    QString source,text,identity;
 };
-
-#endif // MAILBODYREADER_H

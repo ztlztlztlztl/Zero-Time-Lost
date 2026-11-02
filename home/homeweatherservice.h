@@ -1,42 +1,19 @@
-#ifndef HOMEWEATHERSERVICE_H
-#define HOMEWEATHERSERVICE_H
-
-#include "constants.h"
-#include "configmanager.h"
-#include "cachemanager.h"
-
+#pragma once
 #include <QObject>
-#include <QTime>
-#include <QProcess>
-#include <QDir>
-#include <QFile>
-#include <QString>
-#include <QTimer>
-
-class HomeWeatherService : public QObject
-{
+#include <QNetworkAccessManager>
+#include <QPointer>
+#include <QUrl>
+class QNetworkReply;
+class HomeWeatherService:public QObject {
     Q_OBJECT
 public:
-    explicit HomeWeatherService(QObject *parent = nullptr);
-    void updateWeather();
-
+    explicit HomeWeatherService(QObject *parent=nullptr,const QUrl &endpoint=QUrl("https://restapi.amap.com/v3/weather/weatherInfo"));
+    void updateWeather(bool force=false);
 signals:
-    void updateWeatherRequest(QString name, QString temp, QString account);
-
-private slots:
-
+    void updateWeatherRequest(QString name,QString temp,QString weather);
 private:
-    bool useWeatherAPI(QString code);
-
-    QTimer *m_timer;  // 🚀 计时器指针
-    int m_count = 0;
-
-
-
-
-
-
-
+    QNetworkAccessManager network;
+    QUrl endpoint;
+    QPointer<QNetworkReply> pending;
+    QString active;
 };
-
-#endif // HOMEWEATHERSERVICE_H

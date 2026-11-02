@@ -1,33 +1,27 @@
-#ifndef HOMEWIDGET_H
-#define HOMEWIDGET_H
-
-#include "homebackgroundshader.h"
-#include "homeinfowidget.h"
-#include "homeweatherservice.h"
-#include "homequoteservice.h"
-
+#pragma once
 #include <QWidget>
-#include <QGridLayout>
-#include <QVBoxLayout>
-#include <QSpacerItem>
-
-class HomeWidget : public QWidget
-{
+#include <QDate>
+class HomeDepartment;class HomeBackgroundShader;class HomeInfoWidget;class QLabel;
+class HomeWidget:public QWidget {
     Q_OBJECT
 public:
-    explicit HomeWidget(QWidget *parent = nullptr);
-    ~HomeWidget();
-
-
-
+    explicit HomeWidget(HomeDepartment *department,QWidget *parent=nullptr);
+    void setSummary(const QDate &date,int today,int tomorrow,int overdue,qint64 unread,bool available=true);
 signals:
-
+    void ddlRequested(const QDate &date);
+    void mailRequested();
+    void summaryRefreshRequested();
+protected:
+    void showEvent(QShowEvent *event) override;
 private:
-    HomeBackgroundShader *m_background; // 背景
-    HomeInfoWidget *m_infoWidget; // 信息板
-
-    HomeWeatherService *m_weatherService; // 天气服务器
-    HomeQuoteService *m_quoteService; // 每日一言服务器
+    void updateWeather(const QString &name,const QString &temperature,const QString &description);
+    void updateSummaryText();
+    HomeBackgroundShader *background;
+    HomeInfoWidget *info;
+    QLabel *location,*temperature,*weather,*summary;
+    QString hoveredLink;
+    QDate summaryDate;
+    int todayCount=0,tomorrowCount=0,overdueCount=0;
+    qint64 unreadCount=-1;
+    bool summaryAvailable=false;
 };
-
-#endif // HOMEWIDGET_H

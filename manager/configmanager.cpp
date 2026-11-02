@@ -21,6 +21,7 @@ ConfigManager::~ConfigManager()
 void ConfigManager::initialize()
 {
     qInfo() << "[ConfigManager] 开始自检与读取。";
+    delete m_settingEngine;
     m_settingEngine = new HelpJsonIOEngine("./config", "settings.json", 1000, this);
     loadFromFile();
     qInfo() << "[ConfigManager] 配置读取完毕。";
@@ -33,17 +34,17 @@ void ConfigManager::loadFromFile(){
     if (settingObj.isEmpty()) {
         qWarning() << "[ConfigManager] ./settings.json JSON 格式损坏或空。";
         m_homeWeather = HomeWeatherConfig();
-        m_homeQuote = HomeQuoteConfig();
         m_mailBasical = MailBasicalConfig();
+        m_deadlineBasical = DeadlineBasicalConfig();
         return;
     }
     QJsonObject homeObj = settingObj["home"].toObject();
     QJsonObject weatherObj = homeObj["weather"].toObject();
     m_homeWeather = HomeWeatherConfig(weatherObj);
-    QJsonObject quoteObj = homeObj["quote"].toObject();
-    m_homeQuote = HomeQuoteConfig(quoteObj);
+    if(m_homeWeather.currentCityIndex<0||m_homeWeather.currentCityIndex>=m_homeWeather.savedCities.size())m_homeWeather.currentCityIndex=-1;
     QJsonObject mailObj = settingObj["mail"].toObject();
     m_mailBasical = MailBasicalConfig(mailObj);
+    m_mailBasical.normalize();
     QJsonObject deadlineObj = settingObj["deadline"].toObject();
     m_deadlineBasical = DeadlineBasicalConfig(deadlineObj);
 
@@ -55,7 +56,6 @@ void ConfigManager::saveSetting(){
     // home
     QJsonObject homeObj;
     homeObj["weather"] = m_homeWeather.toJson(); // weather
-    homeObj["quote"] = m_homeQuote.toJson(); // quote
     settingObj["home"] = homeObj; // home
     settingObj["mail"] = m_mailBasical.toJson(); // mail
     settingObj["deadline"] = m_deadlineBasical.toJson();
@@ -70,19 +70,9 @@ const HomeWeatherConfig& ConfigManager::getHomeweather() const {
 
 void ConfigManager::setHomeweather(const HomeWeatherConfig& newconfig){
     m_homeWeather = newconfig;
+    if(m_homeWeather.currentCityIndex<0||m_homeWeather.currentCityIndex>=m_homeWeather.savedCities.size())m_homeWeather.currentCityIndex=-1;
     saveSetting();
     emit homeWeatherChanged();
-}
-
-// quote
-const HomeQuoteConfig& ConfigManager::getHomeQuote() const{
-    return m_homeQuote;
-}
-
-void ConfigManager::setHomeQuote(const HomeQuoteConfig& newconfig){
-    m_homeQuote = newconfig;
-    saveSetting();
-    emit homeQuoteChanged();
 }
 
 // mail
@@ -92,6 +82,7 @@ const MailBasicalConfig& ConfigManager::getMailBasical() const{
 }
 void ConfigManager::setMailBasical(const MailBasicalConfig& newconfig){
     m_mailBasical = newconfig;
+    m_mailBasical.normalize();
     saveSetting();
     emit mailBasicalChanged();
 }
@@ -104,7 +95,15 @@ const DeadlineBasicalConfig& ConfigManager::getDeadlineBasical() const{
 void ConfigManager::setDeadlineBasical(const DeadlineBasicalConfig& newconfig){
     m_deadlineBasical = newconfig;
     saveSetting();
-    emit mailBasicalChanged();
+    emit deadlineChanged();
+}
+
+void ConfigManager::setCommonTags(const QStringList &tags){
+    auto config=m_deadlineBasical;config.commonTags.clear();
+    for(const auto &value:tags){const auto tag=value.trimmed();
+        if(!tag.isEmpty()&&tag.size()<=32&&!tag.contains(',')&&!tag.contains("，")&&!config.commonTags.contains(tag))config.commonTags.append(tag);
+    }
+    setDeadlineBasical(config);
 }
 
 
