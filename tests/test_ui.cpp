@@ -1,5 +1,6 @@
 
 #include <QtTest>
+#include "testdialogs.h"
 #include <QtWidgets>
 #include <QTemporaryDir>
 #include "appcontext.h"
@@ -102,7 +103,7 @@ private slots:
         auto button=[](QWidget *widget,const QString &text)->QPushButton*{for(auto b:widget->findChildren<QPushButton*>())if(b->text()==text)return b;return nullptr;};
         auto modal=[&](const QString &name){for(auto d:window.findChildren<QDialog*>())if(d->objectName()==name&&d->isVisible())return d;return static_cast<QDialog*>(nullptr);};
         // Keep failed assertions in a timer from leaving a modal dialog blocking the whole test process.
-        QTimer watchdog;watchdog.setInterval(5000);connect(&watchdog,&QTimer::timeout,[] {if(auto d=qobject_cast<QDialog*>(QApplication::activeModalWidget()))d->reject();});watchdog.start();
+        QTimer watchdog;watchdog.setInterval(5000);connect(&watchdog,&QTimer::timeout,[] {if(auto d=qobject_cast<QDialog*>(activeTestDialog()))d->reject();});watchdog.start();
         QVERIFY(window.findChildren<QMenuBar*>().isEmpty());
         navigate(Qt::Key_S);auto settings=window.findChild<SettingWidget*>();QVERIFY(settings->isVisible());
         QCOMPARE(QApplication::focusWidget(),settings);
@@ -135,14 +136,14 @@ private slots:
         button(tagPage,"添加")->click();auto dismissed=tagPage->findChild<QDialog*>("tagPopup");QVERIFY(dismissed);QTest::keyClick(dismissed,Qt::Key_Escape);QVERIFY(!dismissed->isVisible());QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);
         button(tagPage,"添加")->click();dismissed=tagPage->findChild<QDialog*>("tagPopup");QVERIFY(dismissed);
         if(!qEnvironmentVariable("ZTL_QA_DIR").isEmpty())dismissed->grab().save(qEnvironmentVariable("ZTL_QA_DIR")+"/settings-popup.png");
-        QTest::mouseClick(dismissed->windowHandle(),Qt::LeftButton,Qt::NoModifier,QPoint(-8,-8));QVERIFY(!dismissed->isVisible());QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);
+        QTest::mouseClick(tagPage,Qt::LeftButton,Qt::NoModifier,QPoint(1,1));QTRY_VERIFY(!dismissed->isVisible());QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);
         // Validation and asynchronous connection errors must leave the account popup and its draft intact.
         auto mailSettings=settings->findChild<SettingMailPage*>();QVERIFY(mailSettings);
         button(mailSettings,"添加")->click();QPointer<QDialog> accountPopup=mailSettings->findChild<QDialog*>("accountPopup");QVERIFY(accountPopup);
         auto accountField=[&](const QString &name){return accountPopup->findChild<QLineEdit*>(name);};
         auto feedback=accountPopup->findChild<QLabel*>("accountFeedback");QVERIFY(feedback);
         auto testConnection=accountPopup->findChild<QPushButton*>("accountTest");auto saveAccount=accountPopup->findChild<QPushButton*>("accountSave");QVERIFY(testConnection&&saveAccount);
-        accountField("accountName")->setText("未完成的账号");testConnection->click();
+        QInputMethodEvent chineseInput;chineseInput.setCommitString("未完成的账号");QApplication::sendEvent(accountField("accountName"),&chineseInput);testConnection->click();
         QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);QVERIFY(accountPopup&&accountPopup->isVisible());
         QVERIFY(feedback->text().contains("信息不完整"));QCOMPARE(accountField("accountName")->text(),QString("未完成的账号"));QVERIFY(!saveAccount->isEnabled());
         accountField("accountAddress")->setText("popup@example.test");accountField("accountCode")->setText("fixture-only");accountField("accountServer")->setText("offline.invalid");
@@ -155,6 +156,7 @@ private slots:
         accountField("accountServer")->setText("imap.example.test");testConnection->click();QTRY_VERIFY_WITH_TIMEOUT(saveAccount->isEnabled(),10000);QVERIFY(accountPopup->isVisible());
         button(accountPopup,"取消")->click();QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);QVERIFY(accountPopup.isNull());
         // Inputs apply on Enter/focus loss, toggles apply immediately, and no section Save button remains.
+        window.activateWindow();QCoreApplication::processEvents();
         auto weatherKey=settings->findChild<QLineEdit*>("weatherKey");QVERIFY(weatherKey);weatherKey->setText("   ");QTest::keyClick(weatherKey,Qt::Key_Return);QCOMPARE(QSettings().value("weatherKey").toString(),QString());
         auto storage=settings->findChild<QLineEdit*>("mailStorageLimit");QVERIFY(storage);settingsScroll->ensureWidgetVisible(storage);storage->setFocus();storage->setText("42");QTest::keyClick(storage,Qt::Key_Return);QCOMPARE(ConfigManager::getInstance()->getMailBasical().storageLimit,42);
         storage->setText("51");settings->findChild<NoWheelComboBox*>("mailPollingInterval")->setFocus();QCoreApplication::processEvents();QCOMPARE(ConfigManager::getInstance()->getMailBasical().storageLimit,51);
@@ -164,7 +166,7 @@ private slots:
         QWheelEvent wheel(QPointF(4,4),QPointF(combo->mapToGlobal(QPoint(4,4))),QPoint(),QPoint(0,-120),Qt::NoButton,Qt::NoModifier,Qt::NoScrollPhase,false);
         QApplication::sendEvent(combo,&wheel);QCOMPARE(combo->currentIndex(),oldIndex);QVERIFY(!wheel.isAccepted());
         auto groupDDL=settings->findChild<QWidget*>("settingsGroupDDL");settingsScroll->ensureWidgetVisible(groupDDL);QCoreApplication::processEvents();snapshot("settings-ddl");
-        navigate(Qt::Key_D);auto ddl=window.findChild<DeadlineWidget*>();QVERIFY(ddl->isVisible());QCOMPARE(responder.count,0);
+        navigate(Qt::Key_C);auto ddl=window.findChild<DeadlineWidget*>();QVERIFY(ddl->isVisible());QCOMPARE(responder.count,0);
         const auto now=QDateTime::currentDateTime();
         QVERIFY(app.ddl.save({{"title","过期待办"},{"hasDue",true},{"due",now.addSecs(-3600).toString(Qt::ISODate)},{"repeat","none"},{"tags","课程"}}));
         QVERIFY(app.ddl.save({{"title","未来待办"},{"hasDue",true},{"due",now.addSecs(7200).toString(Qt::ISODate)},{"repeat","none"},{"tags","生活"}}));
@@ -434,9 +436,9 @@ private slots:
         save->click();QCOMPARE(submitted.size(),1);QCOMPARE(editor.values()["hasDue"].toBool(),true);QCOMPARE(title->text(),QString("保留草稿"));
         if(!qEnvironmentVariable("ZTL_QA_DIR").isEmpty())editor.grab().save(qEnvironmentVariable("ZTL_QA_DIR")+"/ddl-editor.png");
         QTest::mouseClick(editor.windowHandle(),Qt::LeftButton,Qt::NoModifier,QPoint(-8,-8));QVERIFY(editor.isVisible());
-        QTimer::singleShot(10,[]{if(auto box=qobject_cast<QMessageBox*>(QApplication::activeModalWidget()))box->button(QMessageBox::No)->click();});
+        QTimer::singleShot(10,[]{if(auto box=qobject_cast<QMessageBox*>(activeTestDialog()))box->button(QMessageBox::No)->click();});
         editor.reject();QVERIFY(editor.isVisible());QCOMPARE(title->text(),QString("保留草稿"));
-        QTimer::singleShot(10,[]{if(auto box=qobject_cast<QMessageBox*>(QApplication::activeModalWidget()))box->button(QMessageBox::Yes)->click();});
+        QTimer::singleShot(10,[]{if(auto box=qobject_cast<QMessageBox*>(activeTestDialog()))box->button(QMessageBox::Yes)->click();});
         editor.reject();QVERIFY(!editor.isVisible());
         // Outside clicks keep an unchanged dialog open; explicit Esc closes it.
         DeadlineEditor popup({},time,false,false);QSignalSpy ignored(&popup,&DeadlineEditor::submitted);

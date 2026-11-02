@@ -1,4 +1,5 @@
 #include "ddldepartment.h"
+#include "tagrules.h"
 #include <QUuid>
 #include <QTimeZone>
 #include <algorithm>
@@ -48,6 +49,7 @@ QJsonObject DDLDepartment::task(const QString &id) const {
     return repo->find(id);
 }
 bool DDLDepartment::save(QJsonObject t) {
+    message=TagRules::selectionError(t["tags"].toString());if(!message.isEmpty())return false;
     if(t["title"].toString().trimmed().isEmpty()) { message="请输入标题"; return false; }
     if(t["hasDue"].toBool()&&!QDateTime::fromString(t["due"].toString(),Qt::ISODate).isValid()){message="时间无效";return false;}
     if(!QStringList{"none","daily","weekly","monthly"}.contains(t["repeat"].toString())){message="循环规则无效";return false;}
@@ -69,6 +71,7 @@ bool DDLDepartment::save(QJsonObject t) {
     emit changed(); return true;
 }
 bool DDLDepartment::setOccurrence(const QString &id,const QString &key,const QJsonObject &values) {
+    if(values.contains("tags")){message=TagRules::selectionError(values["tags"].toString());if(!message.isEmpty())return false;}
     auto t=task(id); if(t.isEmpty()) return false;
     if(t["excluded"].toArray().contains(key)){message="本次事务已永久移除";return false;}
     auto overrides=t["instances"].toObject(), item=overrides[key].toObject();
@@ -242,6 +245,7 @@ void DDLDepartment::checkReminders(qint64 now) {
 }
 
 bool DDLDepartment::splitSeries(const QString &id,const QDate &from,QJsonObject replacement){
+    message=TagRules::selectionError(replacement["tags"].toString());if(!message.isEmpty())return false;
     auto previous=task(id);
     if(previous.isEmpty()||replacement["title"].toString().trimmed().isEmpty()||
        !replacement["hasDue"].toBool()||!QDateTime::fromString(replacement["due"].toString(),Qt::ISODate).isValid()){

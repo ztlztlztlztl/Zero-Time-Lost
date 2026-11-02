@@ -8,6 +8,14 @@
 class MailSyncTests: public QObject {
     Q_OBJECT
 private slots:
+    void failedSeenRetriesAfterLocalCommit(){
+        QTemporaryDir data;qputenv("ZTL_DATA_DIR",data.path().toUtf8());qputenv("ZTL_SCRIPTS_DIR",QByteArray(ZTL_TEST_FIXTURES));
+        QCoreApplication::setOrganizationName("ZTL-Tests");QCoreApplication::setApplicationName("MailSyncRetry");QSettings::setDefaultFormat(QSettings::IniFormat);QSettings::setPath(QSettings::IniFormat,QSettings::UserScope,data.path());
+        AppContext app;app.clock.stop();MailAccount account;account.name="中文测试";account.address="retry@example.test";account.server="fail-seen-once.test";account.port="993";account.code="fixture";MailAccountManager::getInstance()->setMailAccount(account);
+        auto repo=MailManager::getInstance();QSignalSpy completed(&app.mail,&MailGetService::pollingOver);QSignalSpy status(&app.mail,&MailGetService::status);
+        app.mail.mailPolling();QTRY_COMPARE_WITH_TIMEOUT(completed.size(),1,10000);QCOMPARE(repo->pendingSeen(account.address).size(),4);QCOMPARE(repo->unreadCount(),qint64(4));QVERIFY(status.last().first().toString().contains("下次同步重试"));
+        app.mail.mailPolling();QTRY_COMPARE_WITH_TIMEOUT(completed.size(),2,10000);QVERIFY(repo->pendingSeen(account.address).isEmpty());QCOMPARE(repo->unreadCount(),qint64(4));app.shutdown();
+    }
     void firstSyncThroughProcessAndDatabase() {
         QTemporaryDir data;
         QVERIFY(data.isValid());
@@ -20,7 +28,7 @@ private slots:
         AppContext app;
         app.clock.stop();
         MailAccount account;
-        account.name="Offline integration";
+        account.name="中文邮箱账号";
         account.address="user@example.test";
         account.server="imap.example.test";
         account.port="993";
@@ -34,6 +42,7 @@ private slots:
         QTRY_COMPARE_WITH_TIMEOUT(completed.size(),1,10000);
         QVERIFY2(statuses.last().first().toString().startsWith("同步完成"),qPrintable(statuses.last().first().toString()));
         QVERIFY(completed.last().first().toBool());
+        QVERIFY(repo->pendingSeen(account.address).isEmpty());
         QCOMPARE(repo->query({},account.address,0,100).size(),4);
         QCOMPARE(repo->syncState(account.address)["cursor"].toInteger(),qint64(4));
         QCOMPARE(repo->syncState(account.address)["validity"].toString(),QString("9"));
@@ -41,6 +50,7 @@ private slots:
         app.mail.mailPolling();
         QTRY_COMPARE_WITH_TIMEOUT(completed.size(),2,10000);
         QVERIFY(!completed.last().first().toBool());
+        QVERIFY(repo->pendingSeen(account.address).isEmpty());
         QCOMPARE(repo->query({},account.address,0,100).size(),4);
         app.mail.mailHistory();
         QTRY_COMPARE_WITH_TIMEOUT(completed.size(),3,10000);
@@ -71,6 +81,7 @@ private slots:
         app.mail.restoreMail(account.address,"9:4");
         QTRY_COMPARE_WITH_TIMEOUT(restored.size(),1,10000);QVERIFY(restored.last().at(2).toBool());
         QVERIFY(!repo->isDeleted(account.address,"9:4"));
+        QVERIFY(repo->pendingSeen(account.address).contains("9:4"));
         QCOMPARE(repo->query({},account.address,0,100).size(),4);
         QCOMPARE(repo->query({},account.address,0,100).first().sender,QString("sender@example.test"));
         QCOMPARE(repo->syncState(account.address)["cursor"].toInteger(),qint64(4));
@@ -88,6 +99,11 @@ private slots:
         QCOMPARE(repo->query({},{},1,1000).size(),1000);
         repo->checkMail(account.address,"9:200");QCOMPARE(repo->unreadCount(),baseline+1104);
         repo->deleteMail(account.address,"9:201");QCOMPARE(repo->unreadCount(),baseline+1103);
+        app.mail.mailPolling();QTRY_COMPARE_WITH_TIMEOUT(completed.size(),4,15000);QVERIFY(repo->pendingSeen(account.address).isEmpty());QCOMPARE(repo->unreadCount(),baseline+1103);
+        auto engine=repo->findChild<HelpSQLiteIOEngine*>();QVERIFY(engine);
+        QVERIFY(engine->executeNonQuery("CREATE TRIGGER reject_summary BEFORE INSERT ON mails WHEN NEW.uid='9:99999' BEGIN SELECT RAISE(ABORT,'fixture failure'); END"));
+        QVERIFY(!repo->saveBatch(account.address,{{"messages",QJsonArray{QJsonObject{{"id","9:99999"},{"subject","not saved"}}}},{"validity","9"},{"cursor",99999}},true));
+        QVERIFY(!repo->pendingSeen(account.address).contains("9:99999"));QCOMPARE(repo->syncState(account.address)["cursor"].toInteger(),qint64(4));
         app.shutdown();
     }
 };

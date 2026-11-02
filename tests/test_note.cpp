@@ -1,4 +1,5 @@
 #include <QtTest>
+#include "testdialogs.h"
 #include <QtWidgets>
 #include "notewidget.h"
 #include "bookmarktarget.h"
@@ -29,7 +30,7 @@ private slots:
     void initTestCase(){
         QCoreApplication::setOrganizationName("ZTL-Tests");QCoreApplication::setApplicationName("Note");
         qputenv("ZTL_DATA_DIR",settings.path().toUtf8());QSettings::setDefaultFormat(QSettings::IniFormat);QSettings::setPath(QSettings::IniFormat,QSettings::UserScope,settings.path());
-        ConfigManager::getInstance()->initialize();ConfigManager::getInstance()->setCommonTags({"学习","生活","项目","收藏"});qApp->setFont(QFont("Microsoft YaHei UI",10));
+        ConfigManager::getInstance()->initialize();ConfigManager::getInstance()->setNoteTags({"学习","生活","项目","收藏"});qApp->setFont(QFont("Microsoft YaHei UI",10));
     }
     void migrationAndPermanentDeletion(){
         QTemporaryDir dir;const auto path=dir.filePath("vault");
@@ -100,22 +101,22 @@ private slots:
             for(auto w:QApplication::topLevelWidgets())if(w->objectName()=="noteEditor"&&w->isVisible()){
                 auto editor=qobject_cast<QDialog*>(w);auto fields=editor->findChild<NoteFields*>();auto create=editor->findChild<QPushButton*>("noteCreate");
                 create->click();invalidRetained=editor->isVisible()&&fields->findChild<QLabel*>("noteError")->isVisible();
-                QTimer::singleShot(10,[]{if(auto confirm=qobject_cast<QMessageBox*>(QApplication::activeModalWidget()))confirm->button(QMessageBox::No)->click();});QTest::keyClick(editor,Qt::Key_Escape);invalidRetained=invalidRetained&&editor->isVisible();
+                QTimer::singleShot(10,[]{if(auto confirm=qobject_cast<QMessageBox*>(activeTestDialog()))confirm->button(QMessageBox::No)->click();});QTest::keyClick(editor,Qt::Key_Escape);invalidRetained=invalidRetained&&editor->isVisible();
                 fields->title->setText("新增纸条");fields->body->setPlainText("创建时填写的内容");create->click();return;
             }
         });fill.start();add->click();fill.stop();QVERIFY(invalidRetained);QCOMPARE(dept.catalog().size(),1);auto c=card(page,dept.catalog().first().toObject()["id"].toString());QVERIFY(c);QVERIFY(!c->expanded());QCOMPARE(dept.entry(c->id())["body"].toString(),QString("创建时填写的内容"));snapshot(page,"note-created");QTest::mouseDClick(c,Qt::LeftButton);
-        QTimer::singleShot(10,[]{if(auto confirm=qobject_cast<QMessageBox*>(QApplication::activeModalWidget()))confirm->button(QMessageBox::Yes)->click();});c->findChild<QPushButton*>("noteDelete")->click();QVERIFY(dept.catalog().isEmpty());
+        QTimer::singleShot(10,[]{if(auto confirm=qobject_cast<QMessageBox*>(activeTestDialog()))confirm->button(QMessageBox::Yes)->click();});c->findChild<QPushButton*>("noteDelete")->click();QVERIFY(dept.catalog().isEmpty());
     }
     void secretLockAndPermanentDeletion(){
         QTemporaryDir dir;const auto path=dir.filePath("vault");VaultRepository vault(path);NoteDepartment dept(&vault);QVERIFY(dept.create("test-master-password"));QVERIFY(dept.save({{"id","secret"},{"kind",0},{"title","秘密标题"},{"body","保密正文"}}));dept.lock();
         QVERIFY(!dept.remove("secret"));NoteWidget page(&dept);page.resize(950,740);page.show();page.findChild<QTabBar*>("noteTabs")->setCurrentIndex(2);QTest::qWait(20);auto c=card(page,"secret");QVERIFY(c);QTest::mouseClick(c,Qt::LeftButton);QVERIFY(!dept.unlocked());
         int authentications=0,stage=0;QTimer responder;responder.setInterval(20);
         connect(&responder,&QTimer::timeout,this,[&]{
-            if(auto password=qobject_cast<QInputDialog*>(QApplication::activeModalWidget())){++authentications;snapshotDialog(password,"note-design-password");password->setTextValue("test-master-password");QTest::keyClick(password->findChild<QLineEdit*>(),Qt::Key_Return);return;}
-            auto editor=qobject_cast<QDialog*>(QApplication::activeModalWidget());if(!editor||editor->objectName()!="noteSecretEditor")return;
+            if(auto password=qobject_cast<QInputDialog*>(activeTestDialog())){++authentications;snapshotDialog(password,"note-design-password");password->setTextValue("test-master-password");QTest::keyClick(password->findChild<QLineEdit*>(),Qt::Key_Return);return;}
+            auto editor=qobject_cast<QDialog*>(activeTestDialog());if(!editor||editor->objectName()!="noteSecretEditor")return;
             auto fields=editor->findChild<NoteFields*>();
             if(stage==0){QVERIFY(!fields->tags);fields->body->setPlainText("锁屏前的修改");snapshotDialog(editor,"note-design-secret-editor");stage=1;dept.lock();}
-            else if(stage==1){stage=2;QTimer::singleShot(10,[]{if(auto confirm=qobject_cast<QMessageBox*>(QApplication::activeModalWidget()))confirm->button(QMessageBox::Yes)->click();});for(auto b:editor->findChildren<QPushButton*>())if(b->text()=="删除"){b->click();break;}}
+            else if(stage==1){stage=2;QTimer::singleShot(10,[]{if(auto confirm=qobject_cast<QMessageBox*>(activeTestDialog()))confirm->button(QMessageBox::Yes)->click();});for(auto b:editor->findChildren<QPushButton*>())if(b->text()=="删除"){b->click();break;}}
         });
         QTimer::singleShot(20000,&page,[]{qFatal("Secret test exceeded five seconds");});responder.start();QTest::mouseDClick(c,Qt::LeftButton);QCOMPARE(authentications,1);QVERIFY(!dept.unlocked());QVERIFY(dept.unlock("test-master-password"));QCOMPARE(dept.entry("secret")["body"].toString(),QString("锁屏前的修改"));dept.lock();
         QTest::mouseDClick(c,Qt::LeftButton);responder.stop();QCOMPARE(authentications,2);QVERIFY(!dept.unlocked());QVERIFY(dept.entry("secret").isEmpty());QVERIFY(dept.unlock("test-master-password"));QVERIFY(dept.entries().isEmpty());dept.lock();
@@ -126,8 +127,8 @@ private slots:
         NoteWidget page(&dept);page.resize(950,740);page.show();page.findChild<QTabBar*>("noteTabs")->setCurrentIndex(2);QTest::qWait(20);
         QSignalSpy failures(&page,&NoteWidget::saveFailed);int stage=0;bool recovered=false;
         QTimer responder;responder.setInterval(20);connect(&responder,&QTimer::timeout,this,[&]{
-            if(auto password=qobject_cast<QInputDialog*>(QApplication::activeModalWidget())){password->setTextValue("test-master-password");password->accept();return;}
-            auto dialog=qobject_cast<QDialog*>(QApplication::activeModalWidget());if(!dialog||dialog->objectName()!="noteSecretEditor")return;
+            if(auto password=qobject_cast<QInputDialog*>(activeTestDialog())){password->setTextValue("test-master-password");password->accept();return;}
+            auto dialog=qobject_cast<QDialog*>(activeTestDialog());if(!dialog||dialog->objectName()!="noteSecretEditor")return;
             auto fields=dialog->findChild<NoteFields*>();
             if(stage==0){stage=1;fields->title->clear();fields->body->setPlainText("锁定时尚未保存的正文");dept.lock();}
             else if(stage==1){
@@ -143,8 +144,8 @@ private slots:
         QTemporaryDir dir;VaultRepository vault(dir.filePath("vault"));NoteDepartment dept(&vault);QVERIFY(dept.create("test-master-password"));QVERIFY(dept.save({{"id","guard"},{"kind",0},{"title","保存的标题"},{"body","保存的内容"}}));dept.lock();
         NoteWidget page(&dept);page.resize(900,740);page.show();page.findChild<QTabBar*>("noteTabs")->setCurrentIndex(2);QTest::qWait(20);
         bool stayed=false;QTimer responder;responder.setInterval(20);connect(&responder,&QTimer::timeout,this,[&]{
-            if(auto password=qobject_cast<QInputDialog*>(QApplication::activeModalWidget())){password->setTextValue("test-master-password");password->accept();return;}
-            auto editor=qobject_cast<QDialog*>(QApplication::activeModalWidget());if(!editor||editor->objectName()!="noteSecretEditor")return;
+            if(auto password=qobject_cast<QInputDialog*>(activeTestDialog())){password->setTextValue("test-master-password");password->accept();return;}
+            auto editor=qobject_cast<QDialog*>(activeTestDialog());if(!editor||editor->objectName()!="noteSecretEditor")return;
             auto fields=editor->findChild<NoteFields*>();QVERIFY(!editor->findChild<QPushButton*>("noteSecretSave"));fields->title->setText("");fields->body->setPlainText("自动保存的内容");editor->reject();stayed=editor->isVisible()&&fields->body->toPlainText()=="自动保存的内容";
             fields->title->setText("修正标题");editor->reject();
         });QTimer::singleShot(20000,&page,[]{qFatal("Secret close test timed out");});responder.start();QTest::mouseDClick(card(page,"guard"),Qt::LeftButton);responder.stop();QVERIFY(stayed);QVERIFY(!dept.unlocked());QVERIFY(dept.unlock("test-master-password"));QCOMPARE(dept.entry("guard")["body"].toString(),QString("自动保存的内容"));dept.lock();
@@ -158,14 +159,14 @@ private slots:
     }
     void initializeInSettings(){
         QTemporaryDir dir;VaultRepository vault(dir.filePath("vault"));NoteDepartment dept(&vault);NoteWidget page(&dept);page.resize(900,740);page.show();page.findChild<QTabBar*>("noteTabs")->setCurrentIndex(2);int passwords=0;
-        QTimer responder;responder.setInterval(20);connect(&responder,&QTimer::timeout,this,[&]{if(auto password=qobject_cast<QInputDialog*>(QApplication::activeModalWidget())){++passwords;password->setTextValue("test-master-password");password->accept();}else if(auto message=qobject_cast<QMessageBox*>(QApplication::activeModalWidget()))message->accept();});
+        QTimer responder;responder.setInterval(20);connect(&responder,&QTimer::timeout,this,[&]{if(auto password=qobject_cast<QInputDialog*>(activeTestDialog())){++passwords;password->setTextValue("test-master-password");password->accept();}else if(auto message=qobject_cast<QMessageBox*>(activeTestDialog()))message->accept();});
         QTimer::singleShot(15000,&page,[]{qFatal("Initialization timed out");});responder.start();page.findChild<QPushButton*>("noteAdd")->click();QCOMPARE(passwords,0);QVERIFY(!dept.exists());page.manage("初始化／升级秘密加密");responder.stop();QCOMPARE(passwords,2);QVERIFY(dept.creationReady());QVERIFY(!dept.unlocked());
     }
     void createSecretWithoutAuthentication(){
         QTemporaryDir dir;VaultRepository vault(dir.filePath("vault"));NoteDepartment dept(&vault);QVERIFY(dept.create("test-master-password"));dept.lock();
         NoteWidget page(&dept);page.resize(900,740);page.show();page.findChild<QTabBar*>("noteTabs")->setCurrentIndex(2);int passwords=0;QTimer fill;fill.setInterval(20);connect(&fill,&QTimer::timeout,this,[&]{
-            if(auto password=qobject_cast<QInputDialog*>(QApplication::activeModalWidget())){++passwords;password->reject();}
-            if(auto editor=qobject_cast<QDialog*>(QApplication::activeModalWidget()))if(editor->objectName()=="noteEditor"){auto fields=editor->findChild<NoteFields*>();fields->title->setText("免密新增");fields->body->setPlainText("首次查看前也必须加密的正文");editor->findChild<QPushButton*>("noteCreate")->click();}
+            if(auto password=qobject_cast<QInputDialog*>(activeTestDialog())){++passwords;password->reject();}
+            if(auto editor=qobject_cast<QDialog*>(activeTestDialog()))if(editor->objectName()=="noteEditor"){auto fields=editor->findChild<NoteFields*>();fields->title->setText("免密新增");fields->body->setPlainText("首次查看前也必须加密的正文");editor->findChild<QPushButton*>("noteCreate")->click();}
         });QTimer::singleShot(10000,&page,[]{qFatal("Secret creation timed out");});fill.start();page.findChild<QPushButton*>("noteAdd")->click();fill.stop();QCOMPARE(passwords,0);QVERIFY(!dept.unlocked());QCOMPARE(dept.catalog().size(),1);auto c=card(page,dept.catalog().first().toObject()["id"].toString());QVERIFY(c);QVERIFY(!c->expanded());QVERIFY(!dept.entry(c->id()).contains("body"));QVERIFY(dept.unlock("test-master-password"));QCOMPARE(dept.entry(c->id())["body"].toString(),QString("首次查看前也必须加密的正文"));dept.lock();
     }
     void createFileAndFolderBookmarks(){
@@ -176,7 +177,7 @@ private slots:
         
         for(const auto &type:{QString("file"),QString("folder")}){
             bool retained=false;QTimer fill;fill.setInterval(30);connect(&fill,&QTimer::timeout,this,[&]{
-                auto editor=qobject_cast<QDialog*>(QApplication::activeModalWidget());if(!editor||editor->objectName()!="noteEditor")return;
+                auto editor=qobject_cast<QDialog*>(activeTestDialog());if(!editor||editor->objectName()!="noteEditor")return;
                 auto fields=editor->findChild<NoteFields*>();fields->title->setText(type);fields->targetType->setCurrentIndex(fields->targetType->findData(type));
                 if(native){
                     fields->target->setText(QDir::toNativeSeparators(type=="file"?target:dir.path()));
@@ -211,9 +212,9 @@ private slots:
         QCOMPARE(fields->tags->selectedCount(),3);QCOMPARE(dept.entry("0")["tags"].toString().split(',').size(),3);QVERIFY(!(available->item(0)->flags()&Qt::ItemIsEnabled));
         auto selected=fields->findChild<QListWidget*>("noteSelectedTags");QTest::mouseClick(selected->viewport(),Qt::LeftButton,Qt::NoModifier,selected->visualItemRect(selected->item(0)).center());QCOMPARE(fields->tags->selectedCount(),2);QVERIFY(available->item(0)->flags()&Qt::ItemIsEnabled);
         auto added=available->item(0);const auto historical=added->data(Qt::UserRole).toString();QTest::mouseClick(available->viewport(),Qt::LeftButton,Qt::NoModifier,available->visualItemRect(added).center());
-        const auto common=ConfigManager::getInstance()->commonTags();auto fewer=common;fewer.removeAll(historical);ConfigManager::getInstance()->setCommonTags(fewer);
+        const auto common=ConfigManager::getInstance()->noteTags();auto fewer=common;fewer.removeAll(historical);ConfigManager::getInstance()->setNoteTags(fewer);
         for(int i=0;i<selected->count();++i)if(selected->item(i)->data(Qt::UserRole)==historical){QTest::mouseClick(selected->viewport(),Qt::LeftButton,Qt::NoModifier,selected->visualItemRect(selected->item(i)).center());break;}
-        bool found=false;for(int i=0;i<available->count();++i)if(available->item(i)->data(Qt::UserRole)==historical)found=true;QVERIFY(found);ConfigManager::getInstance()->setCommonTags(common);
+        bool found=false;for(int i=0;i<available->count();++i)if(available->item(i)->data(Qt::UserRole)==historical)found=true;QVERIFY(found);ConfigManager::getInstance()->setNoteTags(common);
     }
     void designSummariesAndEmptyStates(){
         QTemporaryDir dir;VaultRepository vault(dir.filePath("vault"));NoteDepartment dept(&vault);
@@ -232,7 +233,7 @@ private slots:
         tabs->setCurrentIndex(2);auto secret=card(page,"secret");QVERIFY(secret->findChild<QLabel*>("noteCardPreview")->isHidden());QVERIFY(secret->findChild<QLabel*>("noteCardPreview")->text().isEmpty());QVERIFY(secret->findChild<QWidget*>("noteLockMark"));QVERIFY(!secret->entry().contains("body"));snapshot(page,"note-design-secrets");
         tabs->setCurrentIndex(0);QTest::mouseDClick(paper,Qt::LeftButton);auto fields=paper->findChild<NoteFields*>();QVERIFY(fields);fields->body->setPlainText("保存状态检查");auto status=fields->findChild<QLabel*>("noteSaveStatus");QCOMPARE(status->text(),QString("等待保存…"));QTRY_COMPARE(status->text(),QString("已保存"));fields->title->clear();QVERIFY(!paper->save());QVERIFY(status->text().contains("保存失败"));fields->title->setText(papers[0].first);QVERIFY(paper->save());snapshot(page,"note-design-editor");QVERIFY(page.prepareLeave());
         page.resize(420,500);QTest::qWait(50);QVERIFY(page.width()<=420);page.findChild<QScrollArea*>("noteScroll")->verticalScrollBar()->setValue(0);snapshot(page,"note-design-narrow");
-        bool fitted=false;QTimer::singleShot(50,&page,[&]{auto dialog=qobject_cast<QDialog*>(QApplication::activeModalWidget());if(!dialog||dialog->objectName()!="noteEditor")return;fitted=dialog->width()<=page.width()&&dialog->height()<=page.height();const auto out=qEnvironmentVariable("ZTL_QA_DIR");if(!out.isEmpty())dialog->grab().save(out+"/note-design-create-narrow.png");dialog->reject();});
+        bool fitted=false;QTimer::singleShot(50,&page,[&]{auto dialog=qobject_cast<QDialog*>(activeTestDialog());if(!dialog||dialog->objectName()!="noteEditor")return;fitted=dialog->width()<=page.width()&&dialog->height()<=page.height();const auto out=qEnvironmentVariable("ZTL_QA_DIR");if(!out.isEmpty())dialog->grab().save(out+"/note-design-create-narrow.png");dialog->reject();});
         page.findChild<QPushButton*>("noteAdd")->click();QVERIFY(fitted);
         QTemporaryDir emptyDir;VaultRepository emptyVault(emptyDir.filePath("vault"));NoteDepartment emptyDept(&emptyVault);NoteWidget emptyPage(&emptyDept);emptyPage.resize(900,700);emptyPage.show();QTest::qWait(30);QCOMPARE(emptyPage.findChild<QPushButton*>("noteEmptyAction")->text(),QString("新增纸条"));snapshot(emptyPage,"note-design-empty");
     }

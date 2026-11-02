@@ -4,7 +4,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
-$binary = Join-Path $projectRoot (Join-Path $BuildDirectory 'Zero-Time-Lost-tobedone.exe')
+$binary = Join-Path $projectRoot (Join-Path $BuildDirectory 'Z.T.L.exe')
 if (-not (Test-Path -LiteralPath $binary)) { throw '请先运行 scripts/build.ps1。' }
 $qtBin = Join-Path $QtRoot 'bin'
 if (Test-Path -LiteralPath $qtBin) { $env:PATH = $qtBin + ';' + $env:PATH }

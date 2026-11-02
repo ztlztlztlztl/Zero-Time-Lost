@@ -151,6 +151,8 @@ public:
     const DeadlineBasicalConfig& getDeadlineBasical() const;
     void setDeadlineBasical(const DeadlineBasicalConfig& Deadline);
     QStringList commonTags() const { return m_deadlineBasical.commonTags; }
+    QStringList noteTags() const { return m_noteTags; }
+    void setNoteTags(const QStringList &tags);
     void setCommonTags(const QStringList &tags);
 
 
@@ -158,6 +160,7 @@ signals:
     void homeWeatherChanged();
     void mailBasicalChanged();
     void deadlineChanged();
+    void noteTagsChanged();
 
 private slots:
 
@@ -181,6 +184,7 @@ private:
     HomeWeatherConfig m_homeWeather;
     MailBasicalConfig m_mailBasical;
     DeadlineBasicalConfig m_deadlineBasical;
+    QStringList m_noteTags;
 
     // 对应的IO引擎
     HelpJsonIOEngine *m_settingEngine=nullptr;

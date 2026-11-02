@@ -41,7 +41,9 @@ void SettingMailPage::resetUI(){
 }
 void SettingMailPage::editAccount(bool creating){
     if(!creating&&!accounts->currentItem())return;
-    auto popup=SettingControls::popup(this,creating?"添加邮箱":"修改邮箱","accountPopup");
+    const auto draftKey=creating?QString("new"):accounts->currentItem()->data(Qt::UserRole).toString();
+    for(auto draft:findChildren<QDialog*>("accountPopup",Qt::FindDirectChildrenOnly))if(draft->property("draftKey").toString()==draftKey){SettingControls::showPopup(draft,accounts);return;}
+    auto popup=SettingControls::popup(this,creating?"添加邮箱":"修改邮箱","accountPopup");popup->setProperty("draftKey",draftKey);
     auto editor=new SettingMailAccountsWidget(popup);if(!creating)editor->setAccount(MailAccountManager::getInstance()->getMailAcc(accounts->currentItem()->data(Qt::UserRole).toString()));
     popup->layout()->addWidget(editor);connect(editor,&SettingMailAccountsWidget::cancel,popup,&QDialog::close);
     popup->setMinimumWidth(520);SettingControls::showPopup(popup,accounts);

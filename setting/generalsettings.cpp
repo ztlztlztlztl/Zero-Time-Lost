@@ -1,4 +1,5 @@
 #include "generalsettings.h"
+#include "autostart.h"
 #include "settingcontrols.h"
 #include "paths.h"
 #include "configmanager.h"
@@ -29,6 +30,8 @@ GeneralSettings::GeneralSettings(Section section,QWidget *parent):QWidget(parent
         for(const auto &name:{"初始化／升级秘密加密","修改密码","备份","恢复备份"}){auto button=new SettingButton(name);form->addRow(button);connect(button,&QPushButton::clicked,this,[this,name]{emit noteAction(name);});}
     }else{
         toggle("关闭窗口时隐藏到托盘","closeToTray",true);
+        auto startup=new QCheckBox("随 Windows 启动到托盘");startup->setObjectName("autostart");startup->setChecked(AutoStart::enabled());form->addRow(SettingControls::label("开机自启动"),startup);
+        connect(startup,&QCheckBox::toggled,this,[this,startup](bool checked){QString error;if(!AutoStart::setEnabled(checked,&error)){QSignalBlocker b(startup);startup->setChecked(!checked);emit saveStatus(error);}});
         auto folder=new SettingButton("打开数据目录");form->addRow(folder);connect(folder,&QPushButton::clicked,this,[]{QDesktopServices::openUrl(QUrl::fromLocalFile(Paths::root()));});
     auto import=new SettingButton("从旧版本目录导入设置和离线邮件");form->addRow(import);
     connect(import,&QPushButton::clicked,this,[this]{

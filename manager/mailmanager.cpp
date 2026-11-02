@@ -6,6 +6,7 @@ void MailManager::initialize() {
     if(m_mailEngine)return;
     m_mailEngine=new HelpSQLiteIOEngine("./database","mail.db","ZTL_Mail_Conn",this);
     m_mailEngine->createTable("CREATE TABLE IF NOT EXISTS mails(owner_email TEXT,uid TEXT,sender TEXT,subject TEXT,timestamp INTEGER,isRead INTEGER,body TEXT,hidden INTEGER DEFAULT 0,starred INTEGER DEFAULT 0,PRIMARY KEY(owner_email,uid))");
+    m_mailEngine->createTable("CREATE TABLE IF NOT EXISTS pending_seen(address TEXT,uid TEXT,PRIMARY KEY(address,uid))");
     // Existing databases predate hidden/starred columns.
     auto columns=m_mailEngine->executeQuery("PRAGMA table_info(mails)");
     QStringList names;while(columns.next()) names<<columns.value("name").toString();columns.finish();
@@ -53,6 +54,7 @@ bool MailManager::saveBatch(const QString &address,const QJsonObject &data,bool 
     bool ok=true;
     for(auto v:data["messages"].toArray()){
         MailBrief m(v.toObject(),address);auto params=m.toBindValues();params<<QString("");
+        ok=ok&&m_mailEngine->executeNonQuery("INSERT OR IGNORE INTO pending_seen(address,uid) VALUES(?,?)",{address,m.uid});
         ok=ok&&m_mailEngine->executeNonQuery("INSERT OR IGNORE INTO mails(owner_email,uid,sender,subject,timestamp,isRead,body) VALUES(?,?,?,?,?,?,?)",params);
     }
     if(updateSync)ok=ok&&m_mailEngine->executeNonQuery("INSERT INTO sync_state(address,validity,cursor) VALUES(?,?,?) ON CONFLICT(address) DO UPDATE SET validity=excluded.validity,cursor=excluded.cursor",
@@ -101,3 +103,12 @@ qint64 MailManager::oldestUid(const QString &address,const QString &validity){
 
 
 
+
+QStringList MailManager::pendingSeen(const QString &address){
+    QStringList ids;auto q=m_mailEngine->executeQuery("SELECT uid FROM pending_seen WHERE address=? ORDER BY uid LIMIT 100",{address});while(q.next())ids.append(q.value(0).toString());return ids;
+}
+bool MailManager::acknowledgeSeen(const QString &address,const QStringList &ids){
+    if(!m_mailEngine->beginTransaction())return false;
+    for(const auto &id:ids)if(!m_mailEngine->executeNonQuery("DELETE FROM pending_seen WHERE address=? AND uid=?",{address,id})){m_mailEngine->rollbackTransaction();return false;}
+    return m_mailEngine->commitTransaction();
+}

@@ -18,7 +18,6 @@ $cleanupRelative = @(
     'tests\__pycache__'
     'architecture.md'
     'methodology.md'
-    'report.md'
     'repuire.md'
 )
 

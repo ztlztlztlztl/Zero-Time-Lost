@@ -26,6 +26,7 @@ void MailGetService::nextAccount(){
             if(!MailManager::getInstance()->saveBatch(account.address,data,!historyBatch))errors<<account.name+"：本地保存失败";
             else {found|=!data["messages"].toArray().isEmpty();if(data["remaining"].toInt()>0)emit status("仍有积压邮件，下次同步继续");}
         }
+        if(error.isEmpty()){markPendingSeen(account);return;}
         nextAccount();
     });
 }
@@ -73,3 +74,17 @@ void MailGetService::restoreMail(const QString &address,const QString &id){
 
 
 
+
+void MailGetService::markPendingSeen(const MailAccount &account){
+    if(MailAccountManager::getInstance()->getMailAcc(account.address).address!=account.address){nextAccount();return;}
+    const auto pending=MailManager::getInstance()->pendingSeen(account.address);
+    if(pending.isEmpty()){nextAccount();return;}
+    worker.run({{"command","markSeen"},{"account",accountJson(account)},{"ids",QJsonArray::fromStringList(pending)}},
+        [this,account,pending](const QJsonObject &result,const QString &failure){
+        if(!failure.isEmpty())errors<<account.name+"：摘要已保存，服务器标记已读失败，下次同步重试："+failure;
+        else if(result["data"].toObject()["acknowledged"].toArray()!=QJsonArray::fromStringList(pending))errors<<account.name+"：服务器已读确认无效，下次同步重试";
+        else if(!MailManager::getInstance()->acknowledgeSeen(account.address,pending))errors<<account.name+"：已读确认保存失败，下次重试";
+        else {markPendingSeen(account);return;}
+        nextAccount();
+    });
+}

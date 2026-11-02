@@ -3,7 +3,7 @@
 class DeadlineTagPicker:public QWidget {
     Q_OBJECT
 public:
-    explicit DeadlineTagPicker(const QString &tags={},QWidget *parent=nullptr);
+    explicit DeadlineTagPicker(const QString &tags={},QWidget *parent=nullptr,bool noteScope=false);
     QString selectedTags() const {return chosen.join(',');}
     int selectedCount() const {return chosen.size();}
 signals:
@@ -11,6 +11,7 @@ signals:
 private:
     void refresh();
     QStringList chosen,originalTags;
+    bool noteScope=false;
     QListWidget *selected,*available;
     QLabel *summary;
 };

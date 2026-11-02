@@ -20,6 +20,8 @@ public:
     void updateMailBody(const QString &address,const QString &uid,const QString &body);
     QJsonObject syncState(const QString &address);
     bool saveBatch(const QString &address,const QJsonObject &data,bool updateSync=true);
+    QStringList pendingSeen(const QString &address);
+    bool acknowledgeSeen(const QString &address,const QStringList &ids);
     qint64 oldestUid(const QString &address,const QString &validity);
     bool importLegacy(const QString &databasePath);
     void clearUp();

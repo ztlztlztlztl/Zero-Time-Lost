@@ -1,3 +1,4 @@
+#include "pageheader.h"
 #include "deadlineeditor.h"
 #include "deadlinewidget.h"
 #include "deadlinecalendarwidget.h"
@@ -8,6 +9,8 @@
 #include <QtWidgets>
 #include <QTimeZone>
 #include <algorithm>
+#include "popuppolicy.h"
+#include "draftstore.h"
 
 namespace {
 class PeriodLabel:public QLabel {
@@ -31,6 +34,7 @@ QWidget#deadlinePage QLineEdit:focus,QWidget#deadlinePage QComboBox:focus {borde
 QWidget#deadlinePage QLabel[role="muted"] {font-size:12px;color:#81868e;}
 )qss"));
     auto layout=new QVBoxLayout(this);layout->setContentsMargins(28,22,28,20);layout->setSpacing(18);
+    addPageHeader(layout,"Calendar");
     auto bar=new QHBoxLayout;bar->setSpacing(10);
     heading=new PeriodLabel;heading->setObjectName("ddlPeriod");heading->setStyleSheet("font-size:28px;font-weight:600;color:#d0d0d0;");
     heading->setSizePolicy(QSizePolicy::Ignored,QSizePolicy::Preferred);heading->setMinimumWidth(120);
@@ -142,12 +146,13 @@ void DeadlineWidget::showDetail(const TaskOccurrence &source){
         connect(modify,&QPushButton::clicked,&dialog,[&]{editing=true;dialog.accept();});
         connect(remove,&QPushButton::clicked,&dialog,[&]{if(removeTask(o))dialog.accept();else QMessageBox::warning(&dialog,"删除失败",dept->error());});
     }
-    layout->addLayout(actions);dialog.exec();if(editing)edit(&o);
+    layout->addLayout(actions);PopupPolicy::exec(dialog);if(editing)edit(&o);
 }
 void DeadlineWidget::addDraft(const QString &title,const QString &note) {
     tabs->setCurrentIndex(0);setProperty("draftTitle",title); setProperty("draftNote",note); edit();
 }
 void DeadlineWidget::edit(const TaskOccurrence *item) {
+    for(auto dialog:findChildren<QDialog*>("ddlEditor"))if(dialog->isVisible())return;
     auto task=item?dept->task(item->taskId):QJsonObject();
     bool onlyThis=false;
     if(item&&item->repeat!="none") {
@@ -159,8 +164,10 @@ void DeadlineWidget::edit(const TaskOccurrence *item) {
     }
     if(item){task["title"]=item->title;task["note"]=item->note;task["tags"]=item->tags;}
     else {task["title"]=property("draftTitle").toString();task["note"]=property("draftNote").toString();}
+    const QString draftKey=item?("calendar/"+item->taskId+"/"+item->key+"/"+(onlyThis?"one":"series")):"calendar/new";
+    const auto recovery=DraftStore::read(draftKey);if(!recovery.isEmpty())task=recovery;
     const auto initial=item&&item->due.isValid()?item->due.toLocalTime():QDateTime::currentDateTime().addDays(1);
-    DeadlineEditor dialog(task,initial,item!=nullptr,onlyThis,this);
+    DeadlineEditor dialog(task,recovery.isEmpty()?initial:QDateTime::fromString(task["due"].toString(),Qt::ISODate),item!=nullptr,onlyThis,this);
     setProperty("draftTitle",QVariant()); setProperty("draftNote",QVariant());
     connect(&dialog,&DeadlineEditor::submitted,&dialog,[&](QJsonObject updated){
         if(onlyThis) {
@@ -184,5 +191,9 @@ void DeadlineWidget::edit(const TaskOccurrence *item) {
     });
     dialog.adjustSize();const auto screen=DialogLayout::fit(dialog,this,dialog.size());auto position=mapToGlobal(rect().center())-QPoint(dialog.width()/2,dialog.height()/2);
     position.setX(qBound(screen.left(),position.x(),qMax(screen.left(),screen.right()-dialog.width()+1)));position.setY(qBound(screen.top(),position.y(),qMax(screen.top(),screen.bottom()-dialog.height()+1)));
-    dialog.move(position);dialog.exec();
+    dialog.move(position);
+    PopupPolicy::exec(dialog);
+    if(dialog.property("outsideDismiss").toBool()){
+        if(!DraftStore::save(draftKey,dialog.values()))emit saveFailed("事务草稿保存失败");
+    }else DraftStore::clear(draftKey);
 }

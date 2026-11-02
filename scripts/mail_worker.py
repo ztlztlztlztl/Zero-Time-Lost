@@ -22,17 +22,17 @@ class MailAccessError(RuntimeError):
     """A local, safe explanation of a failed IMAP setup stage."""
 
 
-def prepare_mailbox(mail):
+def prepare_mailbox(mail, readonly=True):
     # Capabilities can change after authentication (notably NetEase's ID support).
     status, capabilities = mail.capability()
     if status != "OK":
         raise MailAccessError("邮箱已登录，但无法读取 IMAP 服务能力，请稍后重试")
     supported = b" ".join(value for value in capabilities if isinstance(value, bytes)).upper().split()
     if b"ID" in supported:
-        status, _ = mail.xatom("ID", '("name" "ZTL Sidekick" "version" "0.2.0" "vendor" "ZTL")')
+        status, _ = mail.xatom("ID", '("name" "Z.T.L" "version" "0.2.0" "vendor" "ZTL")')
         if status != "OK":
             raise MailAccessError("邮箱拒绝客户端身份声明，无法打开收件箱，请检查服务商的客户端访问设置")
-    status, response = mail.select("INBOX", readonly=True)
+    status, response = mail.select("INBOX", readonly=readonly)
     if status != "OK":
         unsafe = any(b"unsafe login" in value.lower() for value in response if isinstance(value, bytes))
         if unsafe:
@@ -115,10 +115,27 @@ def execute(request, factory=imaplib.IMAP4_SSL):
     try:
         mail.login(account["address"].strip(), account["code"])
         command = request.get("command", "sync")
-        prepare_mailbox(mail)
+        prepare_mailbox(mail, readonly=command != "markSeen")
         validity = (mail.response("UIDVALIDITY")[1] or [b"0"])[0].decode("ascii")
         if not validity.isdigit() or int(validity) == 0:
             raise MailAccessError("收件箱未返回有效 UIDVALIDITY，无法安全同步邮件")
+        if command == "markSeen":
+            ids = request.get("ids")
+            if not isinstance(ids, list) or not 1 <= len(ids) <= 100:
+                raise ValueError("invalid ids")
+            uids = []
+            for identity_value in ids:
+                expected, uid = identity_value.split(":")
+                if expected != validity:
+                    continue
+                if not uid.isascii() or not uid.isdigit() or int(uid) < 1:
+                    raise ValueError("invalid uid")
+                uids.append(str(int(uid)))
+            if uids:
+                status, _ = mail.uid("store", ",".join(uids), "+FLAGS.SILENT", r"(\Seen)")
+                if status != "OK":
+                    raise MailAccessError("摘要已保存，但服务器拒绝标记已读")
+            return {"acknowledged": ids}
         if command == "check":
             return {"mailbox": "INBOX"}
         if command in ("body", "restore"):

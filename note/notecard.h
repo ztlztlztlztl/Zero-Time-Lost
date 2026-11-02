@@ -47,6 +47,8 @@ signals:
     void collapseRequested(NoteCard *card);
     void deleteRequested(NoteCard *card);
     void activated(NoteCard *card);
+    void locateRequested(NoteCard *card);
+    void moveRequested(NoteCard *card,int direction);
     void saveFailed(const QString &message);
 protected:
     void mousePressEvent(QMouseEvent *event) override;

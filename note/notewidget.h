@@ -22,6 +22,13 @@ private:
     void edit(QJsonObject entry={});
     void secretEditor(QJsonObject entry={});
     void expand(NoteCard *card);
+    bool moveCard(const QString &source,const QString &target);
+    QPointer<NoteCard> dragCandidate;
+    QPoint dragPress;
+    QTimer longPress;
+    QFrame *dropMarker=nullptr;
+    void startCardDrag();
+    NoteCard *dropTarget(const QPoint &point) const;
     NoteDepartment *dept;
     QLineEdit *search;
     QTabBar *tabs;

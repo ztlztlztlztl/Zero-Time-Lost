@@ -4,6 +4,7 @@
 #include "uistyle.h"
 #include <QTimeZone>
 #include <functional>
+#include "popuppolicy.h"
 namespace {
 class TagChoiceList:public QListWidget {
 public:
@@ -22,7 +23,7 @@ public:
     void makeReadOnly(){lineEdit()->setReadOnly(true);}
 };
 }
-DeadlineTagPicker::DeadlineTagPicker(const QString &tags,QWidget *parent):QWidget(parent){
+DeadlineTagPicker::DeadlineTagPicker(const QString &tags,QWidget *parent,bool noteScope):QWidget(parent),noteScope(noteScope){
     setObjectName("ddlTagChoices");chosen=tags.split(',',Qt::SkipEmptyParts);chosen.removeDuplicates();
     originalTags=chosen;
     auto layout=new QVBoxLayout(this);layout->setContentsMargins(0,0,0,0);layout->setSpacing(5);
@@ -38,15 +39,15 @@ DeadlineTagPicker::DeadlineTagPicker(const QString &tags,QWidget *parent):QWidge
     connect(available,&QListWidget::itemClicked,this,add);
     static_cast<TagChoiceList*>(selected)->activate=remove;
     static_cast<TagChoiceList*>(available)->activate=add;
-    connect(ConfigManager::getInstance(),&ConfigManager::deadlineChanged,this,&DeadlineTagPicker::refresh);refresh();
+    connect(ConfigManager::getInstance(),noteScope?&ConfigManager::noteTagsChanged:&ConfigManager::deadlineChanged,this,&DeadlineTagPicker::refresh);refresh();
 }
 void DeadlineTagPicker::refresh(){
-    const auto common=ConfigManager::getInstance()->commonTags();for(const auto &tag:chosen)if(!originalTags.contains(tag))originalTags.append(tag);selected->clear();available->clear();
+    const auto common=noteScope?ConfigManager::getInstance()->noteTags():ConfigManager::getInstance()->commonTags();for(const auto &tag:chosen)if(!originalTags.contains(tag))originalTags.append(tag);selected->clear();available->clear();
     for(const auto &tag:chosen){auto item=new QListWidgetItem("×  "+tag+(common.contains(tag)?"":"（历史）"),selected);item->setData(Qt::UserRole,tag);item->setToolTip("单击移除，移回可选列表");}
     auto candidates=common;for(const auto &tag:originalTags)if(!candidates.contains(tag))candidates.append(tag);
     for(const auto &tag:candidates)if(!chosen.contains(tag)){auto item=new QListWidgetItem(tag+(common.contains(tag)?"":"（历史）"),available);item->setData(Qt::UserRole,tag);if(chosen.size()>=3)item->setFlags(Qt::NoItemFlags);}
     summary->setText(QString("已选 %1 / 3 · 单击移除").arg(chosen.size())+(chosen.size()>3?"；请减到三个后保存":""));
-    available->setToolTip(common.isEmpty()?"请先在设置 → DDL 中添加共享标签":"最多选择三个标签");
+    available->setToolTip(common.isEmpty()?(noteScope?"请先在设置 → Note 中添加标签":"请先在设置 → Calendar 中添加标签"):"最多选择三个标签");
 }
 QDateTime DeadlineDateTimeInput::roundUp(const QDateTime &value){
     if(!value.isValid())return {};
@@ -99,7 +100,7 @@ DeadlineEditor::DeadlineEditor(const QJsonObject &task,const QDateTime &date,boo
 }
 void DeadlineEditor::done(int result){
     if(deciding)return;QScopedValueRollback<bool> guard(deciding,true);
-    if(result!=QDialog::Accepted&&values()!=initialValues&&
+    if(!property("outsideDismiss").toBool()&&result!=QDialog::Accepted&&values()!=initialValues&&
        QMessageBox::question(this,"放弃修改","事务尚未保存，放弃这些输入？")!=QMessageBox::Yes)return;
     QDialog::done(result);
 }

@@ -1,6 +1,7 @@
 #include "settingcontrols.h"
 #include "uistyle.h"
 #include "dialoglayout.h"
+#include "popuppolicy.h"
 namespace {
 const QColor background("#101216");
 QColor tint(const QColor &accent,qreal amount){
@@ -150,9 +151,10 @@ QLabel *SettingControls::label(const QString &text){
     auto result=new QLabel(text);result->setProperty("role","settingLabel");result->setFixedWidth(220);return result;
 }
 QDialog *SettingControls::popup(QWidget *owner,const QString &title,const QString &name){
-    auto dialog=new QDialog(owner,Qt::Popup);dialog->setObjectName(name);dialog->setWindowTitle(title);
+    auto dialog=new QDialog(owner,Qt::Tool|Qt::FramelessWindowHint);dialog->setObjectName(name);dialog->setWindowTitle(title);
     const auto accent=accentColor(owner);dialog->setProperty("settingsAccent",accent);
-    dialog->setAttribute(Qt::WA_DeleteOnClose);dialog->setStyleSheet(UiStyle::sheet+themeStyle(accent));
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    new PopupPolicy(dialog,[dialog]{dialog->hide();});dialog->setStyleSheet(UiStyle::sheet+themeStyle(accent));
     auto layout=new QVBoxLayout(dialog);layout->setContentsMargins(20,16,20,20);layout->setSpacing(14);
     auto header=new QHBoxLayout;auto heading=new QLabel(title);heading->setProperty("role","settingLabel");
     auto close=new SettingButton("×");close->setObjectName("popupClose");close->setFixedWidth(38);
