@@ -71,17 +71,17 @@ private slots:
     void autosaveFiltersAndFailure(){
         QTemporaryDir dir;const auto path=dir.filePath("vault");VaultRepository vault(path);NoteDepartment dept(&vault);seed(dept,3);
         NoteWidget page(&dept);page.resize(1000,760);page.show();QTest::qWait(20);auto c=card(page,"2");QTest::mouseDClick(c,Qt::LeftButton);auto fields=c->findChild<NoteFields*>();
-        fields->body->setFocus();QCoreApplication::processEvents();fields->body->setPlainText("失焦后的新正文");page.findChild<QLineEdit*>("noteSearch")->setFocus();QTRY_COMPARE(dept.entry("2")["body"].toString(),QString("失焦后的新正文"));
+        fields->body->setFocus();QCoreApplication::processEvents();fields->body->setPlainText("失焦后的新正文");page.findChild<QPushButton*>("noteFilter")->setFocus();QTRY_COMPARE(dept.entry("2")["body"].toString(),QString("失焦后的新正文"));
         fields->title->setText("");QVERIFY(!page.prepareLeave());QVERIFY(c->expanded());
         auto tabs=page.findChild<QTabBar*>("noteTabs");tabs->setCurrentIndex(1);QCOMPARE(tabs->currentIndex(),0);QCOMPARE(fields->title->text(),QString());
-        auto search=page.findChild<QLineEdit*>("noteSearch");search->setText("nothing");QCOMPARE(search->text(),QString());QVERIFY(!c->isHidden());
+        QVERIFY(applyTestFilter(page,"noteFilter","nothing"));QCOMPARE(page.findChild<QPushButton*>("noteFilter")->text(),QString("启用筛选"));QVERIFY(!c->isHidden());
         fields->title->setText("有效标题");QVERIFY(c->save());
         // A failed atomic write retains both the editor draft and stored snapshot.
         QVERIFY(QFile::rename(path+".notes.json",path+".saved"));QVERIFY(QDir().mkdir(path+".notes.json"));fields->body->setPlainText("磁盘故障时的草稿");QVERIFY(!page.prepareLeave());QVERIFY(c->expanded());QCOMPARE(fields->body->toPlainText(),QString("磁盘故障时的草稿"));QCOMPARE(dept.entry("2")["body"].toString(),QString("失焦后的新正文"));
         QVERIFY(QDir().rmdir(path+".notes.json"));QVERIFY(QFile::rename(path+".saved",path+".notes.json"));QVERIFY(c->save());
-        search->setText("磁盘故障");QVERIFY(!c->isHidden());QVERIFY(card(page,"1")->isHidden());
-        auto filter=page.findChild<QComboBox*>("noteTagFilter");filter->setCurrentIndex(filter->findData("学习"));QVERIFY(c->isHidden());QVERIFY(!c->expanded());
-        search->clear();filter->setCurrentIndex(0);QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);QTest::mouseDClick(c,Qt::LeftButton);fields=c->findChild<NoteFields*>();fields->title->setText("");
+        QVERIFY(applyTestFilter(page,"noteFilter","有效标题"));QVERIFY(!c->isHidden());QVERIFY(card(page,"1")->isHidden());
+        QVERIFY(applyTestFilter(page,"noteFilter",{},"学习"));QVERIFY(c->isHidden());QVERIFY(!c->expanded());
+        page.findChild<QPushButton*>("noteFilter")->click();QCoreApplication::sendPostedEvents(nullptr,QEvent::DeferredDelete);QTest::mouseDClick(c,Qt::LeftButton);fields=c->findChild<NoteFields*>();fields->title->setText("");
         QVERIFY(!c->findChild<QPushButton*>("noteDiscard"));QVERIFY(!page.prepareLeave());fields->title->setText("修正标题");QVERIFY(page.prepareLeave());QVERIFY(!c->expanded());
     }
     void bookmarkSingleAndDoubleClick(){
@@ -90,7 +90,7 @@ private slots:
         QTest::mouseClick(c,Qt::LeftButton);QTest::mouseDClick(c,Qt::LeftButton);QCOMPARE(receiver.urls.size(),1);QTest::qWait(QApplication::doubleClickInterval()+30);QVERIFY(!c->expanded());
         QTest::mouseClick(c,Qt::LeftButton);QTest::qWait(QApplication::doubleClickInterval()+80);QVERIFY(!c->expanded());QVERIFY(!c->property("selected").toBool());
         QTest::mouseClick(c,Qt::LeftButton);QVERIFY(c->property("selected").toBool());
-        QTest::mouseClick(page.findChild<QLineEdit*>("noteSearch"),Qt::LeftButton);QVERIFY(!c->property("selected").toBool());
+        QTest::mouseClick(&page,Qt::LeftButton,Qt::NoModifier,QPoint(1,1));QVERIFY(!c->property("selected").toBool());
         c->findChild<QPushButton*>("noteBookmarkEdit")->click();QVERIFY(c->expanded());QTest::mouseDClick(c,Qt::LeftButton);QCOMPARE(receiver.urls.size(),1);QVERIFY(!c->findChild<QPushButton*>("noteDiscard"));snapshot(page,"note-bookmark");QDesktopServices::unsetUrlHandler("https");
     }
     void createAndDismiss(){
@@ -224,11 +224,11 @@ private slots:
         QVERIFY(dept.save({{"id","file"},{"kind",1},{"title","课程论文"},{"targetType","file"},{"target",dir.filePath("课程论文.pdf")},{"tags","项目"}}));
         QVERIFY(dept.save({{"id","folder"},{"kind",1},{"title","本学期资料"},{"targetType","folder"},{"target",dir.path()},{"tags","学习,收藏"}}));
         QVERIFY(dept.create("test-master-password"));QVERIFY(dept.save({{"id","secret"},{"kind",0},{"title","校园服务账号"},{"body","PRIVATE-BODY-MUST-NOT-APPEAR"}}));dept.lock();
-        NoteWidget page(&dept);page.resize(1180,760);page.show();QTest::mouseMove(&page,QPoint(1,1));QTest::qWait(50);auto tabs=page.findChild<QTabBar*>("noteTabs");auto search=page.findChild<QLineEdit*>("noteSearch");
+        NoteWidget page(&dept);page.resize(1180,760);page.show();QTest::mouseMove(&page,QPoint(1,1));QTest::qWait(50);auto tabs=page.findChild<QTabBar*>("noteTabs");auto filterButton=page.findChild<QPushButton*>("noteFilter");
         for(auto c:page.findChildren<NoteCard*>())QVERIFY(!c->property("selected").toBool());
         auto paper=card(page,"paper0");QCOMPARE(paper->findChild<QLabel*>("noteCardPreview")->text(),papers[0].second);snapshot(page,"note-design-papers");
         auto summary=paper->findChild<QWidget*>("noteCardSummary");QTest::mouseClick(summary,Qt::LeftButton);QVERIFY(paper->property("selected").toBool());QTest::mouseClick(summary,Qt::LeftButton);QVERIFY(!paper->property("selected").toBool());
-        search->setText("not-found");QVERIFY(page.findChild<QPushButton*>("noteClearFilters")->isVisible());auto emptyAction=page.findChild<QPushButton*>("noteEmptyAction");QVERIFY(emptyAction->isVisible());QCOMPARE(emptyAction->text(),QString("清除筛选"));snapshot(page,"note-design-no-results");emptyAction->click();QVERIFY(search->text().isEmpty());QVERIFY(!paper->isHidden());
+        QVERIFY(applyTestFilter(page,"noteFilter","not-found"));QCOMPARE(filterButton->text(),QString("关闭筛选"));auto emptyAction=page.findChild<QPushButton*>("noteEmptyAction");QVERIFY(emptyAction->isVisible());QCOMPARE(emptyAction->text(),QString("清除筛选"));snapshot(page,"note-design-no-results");emptyAction->click();QCOMPARE(filterButton->text(),QString("启用筛选"));QVERIFY(!paper->isHidden());
         tabs->setCurrentIndex(1);auto website=card(page,"website");QCOMPARE(website->findChild<QLabel*>("noteCardPreview")->text(),QString("library.example.edu"));QCOMPARE(card(page,"file")->findChild<QLabel*>("noteCardPreview")->text(),QString("课程论文.pdf"));snapshot(page,"note-design-bookmarks");
         tabs->setCurrentIndex(2);auto secret=card(page,"secret");QVERIFY(secret->findChild<QLabel*>("noteCardPreview")->isHidden());QVERIFY(secret->findChild<QLabel*>("noteCardPreview")->text().isEmpty());QVERIFY(secret->findChild<QWidget*>("noteLockMark"));QVERIFY(!secret->entry().contains("body"));snapshot(page,"note-design-secrets");
         tabs->setCurrentIndex(0);QTest::mouseDClick(paper,Qt::LeftButton);auto fields=paper->findChild<NoteFields*>();QVERIFY(fields);fields->body->setPlainText("保存状态检查");auto status=fields->findChild<QLabel*>("noteSaveStatus");QCOMPARE(status->text(),QString("等待保存…"));QTRY_COMPARE(status->text(),QString("已保存"));fields->title->clear();QVERIFY(!paper->save());QVERIFY(status->text().contains("保存失败"));fields->title->setText(papers[0].first);QVERIFY(paper->save());snapshot(page,"note-design-editor");QVERIFY(page.prepareLeave());

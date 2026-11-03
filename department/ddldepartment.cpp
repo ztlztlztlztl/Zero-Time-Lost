@@ -1,5 +1,6 @@
 #include "ddldepartment.h"
 #include "tagrules.h"
+#include "recurrence.h"
 #include <QUuid>
 #include <QTimeZone>
 #include <algorithm>
@@ -7,11 +8,7 @@
 namespace {
 QTimeZone taskZone(const QJsonObject &t){const QTimeZone zone(t["zone"].toString().toUtf8());return zone.isValid()?zone:QTimeZone::systemTimeZone();}
 bool scheduled(const QJsonObject &t,const QDate &date){
-    const auto start=QDateTime::fromString(t["due"].toString(),Qt::ISODate).toTimeZone(taskZone(t));
-    const auto until=QDate::fromString(t["until"].toString(),Qt::ISODate);
-    return date.isValid()&&date>=start.date()&&(!until.isValid()||date<=until)&&
-        (t["repeat"]!="weekly"||t["weekdays"].toArray().contains(date.dayOfWeek()))&&
-        (t["repeat"]!="monthly"||date.day()==start.date().day());
+    return Recurrence::scheduled(t,date);
 }
 TaskOccurrence occurrence(const QJsonObject &t,const QString &key,QDateTime due){
     const auto v=t["instances"].toObject()[key].toObject();TaskOccurrence o;
@@ -67,6 +64,23 @@ bool DDLDepartment::save(QJsonObject t) {
     t["revision"]=previous["revision"].toInt()+1;
     if(t["repeat"].toString()!="none" && !t["hasDue"].toBool()) { message="循环事务需要时间"; return false; }
     if(t["repeat"]=="weekly") {bool valid=false;for(const auto &day:t["weekdays"].toArray())if(day.toInt()>=1&&day.toInt()<=7)valid=true;if(!valid){message="每周循环至少选择一天";return false;}}
+    const auto remainingCount=t.take("remainingCount");
+    if(!remainingCount.isUndefined()&&t["countLimited"].toBool()&&t["repeat"]!="none"){
+        const int requested=remainingCount.toInt();
+        if(requested<1||requested>1000000){message="剩余次数须为 1–1000000 的正数";return false;}
+        t["countLimit"]=requested;t.remove("repeatLast");
+        if(!previous.isEmpty()){
+            // Find the shortest allocation with the requested number of unconsumed
+            // slots. An early completion beyond the new tail must not add a slot.
+            const auto now=QDateTime::currentDateTime();
+            int low=requested,high=qMin(1000000,Recurrence::ordinal(t,now.toTimeZone(taskZone(t)).date())+requested+t["instances"].toObject().size()+t["excluded"].toArray().size()+t["consumed"].toArray().size()+1);
+            while(low<high){const int mid=low+(high-low)/2;t["countLimit"]=mid;t["repeatLast"]=Recurrence::nth(t,mid).toString(Qt::ISODate);if(Recurrence::remaining(t,now)>=requested)high=mid;else low=mid+1;}
+            t["countLimit"]=low;t["repeatLast"]=Recurrence::nth(t,low).toString(Qt::ISODate);
+            if(Recurrence::remaining(t,now)!=requested){message="循环有效日期不足，请调整循环规则或次数";return false;}
+        }
+    }
+    t.remove("repeatLast");message=Recurrence::validate(t);if(!message.isEmpty())return false;
+    if(t["countLimited"].toBool())t["repeatLast"]=Recurrence::nth(t,t["countLimit"].toInt()).toString(Qt::ISODate);
     if(!repo->save(t)) { message=repo->lastError(); return false; }
     emit changed(); return true;
 }
@@ -75,6 +89,13 @@ bool DDLDepartment::setOccurrence(const QString &id,const QString &key,const QJs
     auto t=task(id); if(t.isEmpty()) return false;
     if(t["excluded"].toArray().contains(key)){message="本次事务已永久移除";return false;}
     auto overrides=t["instances"].toObject(), item=overrides[key].toObject();
+    if(t["countLimited"].toBool()&&values.contains("due")){
+        const auto nominal=QDateTime(QDate::fromString(key,Qt::ISODate),Recurrence::start(t).time(),taskZone(t));
+        const auto previous=occurrence(t,key,nominal);
+        if(previous.done||previous.due<=QDateTime::currentDateTime()){
+            auto consumed=t["consumed"].toArray();if(!consumed.contains(key))consumed.append(key);t["consumed"]=consumed;
+        }
+    }
     for(auto it=values.begin();it!=values.end();++it) item[it.key()]=it.value();
     if(values.contains("due"))item["revision"]=item["revision"].toInt()+1;
     overrides[key]=item; t["instances"]=overrides;
@@ -144,12 +165,12 @@ QList<TaskOccurrence> DDLDepartment::occurrences(const QDate &from,const QDate &
         const auto effective=taskZone(t);
         const auto local=start.toTimeZone(effective);
         QDate end=to;
+        if(t["countLimited"].toBool())end=qMin(end,Recurrence::last(t));
         if(t.contains("until")) { auto d=QDate::fromString(t["until"].toString(),Qt::ISODate); if(d.isValid()&&d<end) end=d; }
         QSet<QString> generated;
         // Expand by one day for series whose timezone differs from the display timezone.
         for(auto day=qMax(from.addDays(-1),local.date());day<=end.addDays(1);day=day.addDays(1)) {
             if(!scheduled(t,day))continue;
-            if(repeat=="weekly"&&!t["weekdays"].toArray().contains(day.dayOfWeek())) continue;
             auto due=QDateTime(day,local.time(),effective);
             const auto key=day.toString(Qt::ISODate);generated.insert(key);append(key,due);
         }
@@ -185,7 +206,8 @@ QList<TaskOccurrence> DDLDepartment::listOccurrences(const QDateTime &now,bool s
         // Moved instances can precede the next date generated by the regular schedule.
         const auto instances=t["instances"].toObject();
         for(auto it=instances.begin();it!=instances.end();++it){const auto date=QDate::fromString(it.key(),Qt::ISODate);if(scheduled(t,date))consider(occurrence(t,it.key(),QDateTime(date,local.time(),zone)));}
-        const auto until=QDate::fromString(t["until"].toString(),Qt::ISODate);
+        auto until=QDate::fromString(t["until"].toString(),Qt::ISODate);
+        if(t["countLimited"].toBool()){const auto end=Recurrence::last(t);if(!end.isValid())continue;until=until.isValid()?qMin(until,end):end;}
         for(auto date=qMax(local.date(),now.toTimeZone(zone).date());date.isValid()&&(!until.isValid()||date<=until);date=date.addDays(1)){
             const auto nominal=QDateTime(date,local.time(),zone);
             if(!best.taskId.isEmpty()&&nominal>best.due)break;
@@ -209,6 +231,7 @@ void DDLDepartment::checkReminders(qint64 now) {
         const auto states=t["instances"].toObject();const auto start=QDateTime::fromString(t["due"].toString(),Qt::ISODate);
         for(auto it=states.begin();it!=states.end();++it){
             if(it.value().toObject()["snooze"].toVariant().toLongLong()<=0||known.contains(t["id"].toString()+"/"+it.key()))continue;
+            if(t["repeat"]!="none"&&!scheduled(t,QDate::fromString(it.key(),Qt::ISODate)))continue;
             const auto nominal=t["repeat"]=="none"?start:QDateTime(QDate::fromString(it.key(),Qt::ISODate),start.toTimeZone(taskZone(t)).time(),taskZone(t));
             items.append(occurrence(t,it.key(),nominal));
         }
@@ -253,6 +276,10 @@ bool DDLDepartment::splitSeries(const QString &id,const QDate &from,QJsonObject 
     }
     if(!QStringList{"none","daily","weekly","monthly"}.contains(replacement["repeat"].toString())){message="循环规则无效";return false;}
     if(replacement["repeat"]=="weekly"&&replacement["weekdays"].toArray().isEmpty()){message="请选择每周日期";return false;}
+    if(replacement.contains("remainingCount"))replacement["countLimit"]=replacement.take("remainingCount");
+    replacement.remove("repeatLast");replacement.remove("consumed");replacement.remove("excluded");replacement.remove("instances");replacement.remove("until");
+    message=Recurrence::validate(replacement);if(!message.isEmpty())return false;
+    if(replacement["countLimited"].toBool())replacement["repeatLast"]=Recurrence::nth(replacement,replacement["countLimit"].toInt()).toString(Qt::ISODate);
     previous["until"]=from.addDays(-1).toString(Qt::ISODate);
     replacement["id"]=QUuid::createUuid().toString(QUuid::WithoutBraces);replacement["revision"]=1;
     // End date and new series commit atomically.

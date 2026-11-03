@@ -11,6 +11,7 @@
 #include <algorithm>
 #include "popuppolicy.h"
 #include "draftstore.h"
+#include "recurrence.h"
 
 namespace {
 class PeriodLabel:public QLabel {
@@ -44,14 +45,11 @@ QWidget#deadlinePage QLabel[role="muted"] {font-size:12px;color:#81868e;}
     auto next=new QPushButton("›");next->setObjectName("ddlCalendarNext");next->setAccessibleName("下一个日期范围");next->setFixedWidth(38);
     bar->addWidget(heading,1);bar->addWidget(tabs);bar->addSpacing(6);bar->addWidget(previous);bar->addWidget(today);bar->addWidget(next);layout->addLayout(bar);
     auto filters=new QHBoxLayout;filters->setSpacing(10);
-    search=new QLineEdit;search->setObjectName("ddlSearch");search->setPlaceholderText("搜索标题、备注、标签");search->setMinimumWidth(100);search->setMaximumWidth(380);search->setClearButtonEnabled(true);
-    calendarTag=new QComboBox;calendarTag->setObjectName("ddlCalendarTag");calendarTag->setMinimumWidth(120);calendarTag->setAccessibleName("筛选标签");
-    calendarStar=new QComboBox;calendarStar->setObjectName("ddlCalendarStar");calendarStar->setAccessibleName("筛选标星");calendarStar->addItem("标星不限",-1);calendarStar->addItem("已标星",1);calendarStar->addItem("未标星",0);
+    filterButton=new QPushButton("启用筛选");filterButton->setObjectName("ddlFilter");
     showCompleted=new QCheckBox("显示已完成");showCompleted->setObjectName("ddlShowCompleted");showCompleted->setChecked(QSettings().value("ddl/showCompleted",false).toBool());
     showCompleted->setStyleSheet("QCheckBox::indicator {width:14px;height:14px;border:1px solid #646a73;border-radius:2px;background:#101216;} QCheckBox::indicator:checked {border-color:#7f2636;background:#7f2636;}");
-    clearFilters=new QPushButton("清除筛选");clearFilters->setObjectName("ddlClearFilters");clearFilters->hide();
     auto add=new QPushButton("＋新增");add->setObjectName("ddlAdd");add->setProperty("role","primary");
-    filters->addWidget(search,1);filters->addWidget(calendarTag);filters->addWidget(calendarStar);filters->addWidget(showCompleted);filters->addWidget(clearFilters);filters->addStretch();filters->addWidget(add);layout->addLayout(filters);
+    filters->addWidget(filterButton);filters->addWidget(showCompleted);filters->addStretch();filters->addWidget(add);layout->addLayout(filters);
     pages=new QStackedWidget;pages->setObjectName("ddlPages");agenda=new DeadlineAgendaWidget;calendar=new DeadlineCalendarWidget(dept);pages->addWidget(agenda);pages->addWidget(calendar);layout->addWidget(pages,1);
     connect(add,&QPushButton::clicked,this,[this]{edit();});connect(tabs,&QTabBar::currentChanged,this,&DeadlineWidget::changeView);
     connect(previous,&QPushButton::clicked,this,[this]{navigate(-1);});connect(next,&QPushButton::clicked,this,[this]{navigate(1);});
@@ -62,16 +60,12 @@ QWidget#deadlinePage QLabel[role="muted"] {font-size:12px;color:#81868e;}
     });
     connect(agenda,&DeadlineAgendaWidget::detailRequested,this,&DeadlineWidget::showDetail);
     connect(agenda,&DeadlineAgendaWidget::completeRequested,this,[this](const TaskOccurrence &o){if(!dept->complete(o)){QMessageBox::warning(this,"操作失败",dept->error());refresh();}});
-    connect(calendarTag,&QComboBox::currentIndexChanged,this,&DeadlineWidget::refresh);
-    connect(calendarStar,&QComboBox::currentIndexChanged,this,&DeadlineWidget::refresh);
     connect(ConfigManager::getInstance(),&ConfigManager::deadlineChanged,this,&DeadlineWidget::refresh);
     connect(showCompleted,&QCheckBox::toggled,this,[this](bool checked){QSettings().setValue("ddl/showCompleted",checked);refresh();});
-    connect(search,&QLineEdit::textChanged,this,&DeadlineWidget::refresh);connect(dept,&DDLDepartment::changed,this,&DeadlineWidget::refresh);
-    connect(clearFilters,&QPushButton::clicked,this,[this]{
-        {QSignalBlocker a(search),b(calendarTag),c(calendarStar);search->clear();calendarTag->setCurrentIndex(0);calendarStar->setCurrentIndex(0);}refresh();
-    });
+    connect(dept,&DDLDepartment::changed,this,&DeadlineWidget::refresh);
+    connect(filterButton,&QPushButton::clicked,this,&DeadlineWidget::toggleFilter);
     auto create=new QShortcut(QKeySequence("Ctrl+N"),this);create->setContext(Qt::WidgetWithChildrenShortcut);connect(create,&QShortcut::activated,this,[this]{edit();});
-    auto find=new QShortcut(QKeySequence::Find,this);find->setContext(Qt::WidgetWithChildrenShortcut);connect(find,&QShortcut::activated,search,qOverload<>(&QWidget::setFocus));
+    auto find=new QShortcut(QKeySequence::Find,this);find->setContext(Qt::WidgetWithChildrenShortcut);connect(find,&QShortcut::activated,this,[this]{AdvancedFilter next;if(AdvancedFilterDialog::open(AdvancedFilterDialog::Calendar,filterButton,next)){filter=next;refresh();}});
     refresh();
 }
 void DeadlineWidget::changeView(int index){
@@ -81,7 +75,7 @@ void DeadlineWidget::changeView(int index){
 }
 void DeadlineWidget::showDay(const QDate &date){
     if(!date.isValid())return;
-    {QSignalBlocker a(search),b(calendarTag),c(calendarStar),d(tabs);search->clear();calendarTag->setCurrentIndex(0);calendarStar->setCurrentIndex(0);tabs->setCurrentIndex(0);}
+    {QSignalBlocker block(tabs);tabs->setCurrentIndex(0);filter={};}
     anchor=date;focusedDayInstances=true;pendingFocus=true;pages->setCurrentIndex(0);showCompleted->show();calendar->setDate(date);refresh();
 }
 void DeadlineWidget::navigate(int direction){
@@ -99,22 +93,18 @@ void DeadlineWidget::updateHeading(){
 void DeadlineWidget::refresh(){
     if(refreshing)return;QScopedValueRollback<bool> guard(refreshing,true);
     const auto now=QDateTime::currentDateTime();if(!dept->purgeExpired(now))emit saveFailed("事务清理失败："+dept->error());
-    const auto selectedTag=calendarTag->currentData().toString();QStringList tagOptions=ConfigManager::getInstance()->commonTags();
-    auto addTags=[&](const QString &value){for(const auto &tag:value.split(',',Qt::SkipEmptyParts))if(!tagOptions.contains(tag))tagOptions.append(tag);};
-    for(const auto &task:dept->templates()){addTags(task["tags"].toString());const auto states=task["instances"].toObject();for(auto it=states.begin();it!=states.end();++it)addTags(it.value().toObject()["tags"].toString());}
-    {QSignalBlocker block(calendarTag);calendarTag->clear();calendarTag->addItem("全部标签",QString());for(const auto &tag:tagOptions)calendarTag->addItem(tag,tag);calendarTag->setCurrentIndex(qMax(0,calendarTag->findData(selectedTag)));}
-    const auto tag=calendarTag->currentData().toString(),keyword=search->text().trimmed();const int star=calendarStar->currentData().toInt();
-    auto matches=[&](const TaskOccurrence &o){return (o.title+" "+o.note+" "+o.tags).contains(keyword,Qt::CaseInsensitive)&&(tag.isEmpty()||o.tags.split(',',Qt::SkipEmptyParts).contains(tag))&&(star<0||((o.priority>0)==(star==1)));};
-    auto items=dept->listOccurrences(now,showCompleted->isChecked());
-    if(focusedDayInstances&&anchor>=now.date()){
+    auto matches=[&](const TaskOccurrence &o){return filter.matchesTitle(o.title)&&filter.matchesTags(o.tags)&&filter.matchesDate(o.due)&&(filter.starred<0||((o.priority>0)==(filter.starred==1)));};
+    auto items=filter.limitDates?dept->occurrences(filter.from,filter.to):dept->listOccurrences(now,showCompleted->isChecked());
+    items.erase(std::remove_if(items.begin(),items.end(),[&](const auto &o){return o.deleted||(o.done&&!showCompleted->isChecked());}),items.end());
+    if(!filter.limitDates&&focusedDayInstances&&anchor>=now.date()){
         QSet<QString> keys;for(const auto &o:items)keys.insert(o.taskId+"/"+o.key);
         for(const auto &o:dept->occurrences(anchor,anchor))if(o.repeat!="none"&&!o.deleted&&(!o.done||showCompleted->isChecked())&&!(o.done&&o.due<=now)&&!keys.contains(o.taskId+"/"+o.key))items.append(o);
     }
     visible.clear();for(const auto &o:items)if(matches(o))visible.append(o);
     std::stable_sort(visible.begin(),visible.end(),[](const TaskOccurrence &a,const TaskOccurrence &b){if(a.due!=b.due)return a.due<b.due;return a.taskId==b.taskId?a.key<b.key:a.taskId<b.taskId;});
-    const bool filtered=!keyword.isEmpty()||!tag.isEmpty()||star>=0;clearFilters->setVisible(filtered);
+    const bool filtered=filter.active();filterButton->setText(filtered?"关闭筛选":"启用筛选");
     agenda->setOccurrences(visible,anchor,filtered);if(pendingFocus&&tabs->currentIndex()==0){agenda->focusDate(anchor);pendingFocus=false;}
-    calendar->setFilter(keyword,tag,star);updateHeading();
+    calendar->setFilter(filter);updateHeading();
 }
 bool DeadlineWidget::removeTask(const TaskOccurrence &o){
     if(o.repeat=="none")return dept->setDeleted(o.taskId,true);
@@ -129,6 +119,7 @@ void DeadlineWidget::showDetail(const TaskOccurrence &source){
     auto layout=new QVBoxLayout(&dialog);layout->setContentsMargins(24,20,24,20);layout->setSpacing(16);
     auto title=new QLabel(o.title);title->setTextFormat(Qt::PlainText);title->setWordWrap(true);title->setProperty("role","title");layout->addWidget(title);
     auto meta=new QLabel((o.due.isValid()?o.due.toLocalTime().toString("yyyy-MM-dd HH:mm"):"无截止时间")+"  ·  "+(o.repeat=="daily"?"每天":o.repeat=="weekly"?"每周":o.repeat=="monthly"?"每月":"单次")+"\n"+o.tags);
+    if(o.repeat!="none"){const auto task=dept->task(o.taskId);if(task["countLimited"].toBool())meta->setText(meta->text()+QString("\n剩余 %1 次").arg(Recurrence::remaining(task)));}
     meta->setTextFormat(Qt::PlainText);meta->setProperty("role","muted");meta->setWordWrap(true);layout->addWidget(meta);
     auto note=new QTextEdit;note->setReadOnly(true);note->setPlainText(o.note);layout->addWidget(note);
     auto actions=new QHBoxLayout;bool editing=false;
@@ -162,6 +153,7 @@ void DeadlineWidget::edit(const TaskOccurrence *item) {
         if(choice.clickedButton()!=one&&choice.clickedButton()!=series) return;
         onlyThis=choice.clickedButton()==one;
     }
+    if(item&&task["countLimited"].toBool())task["remainingCount"]=Recurrence::remaining(task);
     if(item){task["title"]=item->title;task["note"]=item->note;task["tags"]=item->tags;}
     else {task["title"]=property("draftTitle").toString();task["note"]=property("draftNote").toString();}
     const QString draftKey=item?("calendar/"+item->taskId+"/"+item->key+"/"+(onlyThis?"one":"series")):"calendar/new";
@@ -189,11 +181,16 @@ void DeadlineWidget::edit(const TaskOccurrence *item) {
         if(draft["title"].toString().isEmpty())draft["title"]="未命名草稿";draft["repeat"]="none";draft["remind"]=false;
         if(!dept->save(draft)){emit saveFailed("草稿保存失败："+dept->error());}
     });
-    dialog.adjustSize();const auto screen=DialogLayout::fit(dialog,this,dialog.size());auto position=mapToGlobal(rect().center())-QPoint(dialog.width()/2,dialog.height()/2);
+    const auto screen=DialogLayout::fit(dialog,this,dialog.size());auto position=mapToGlobal(rect().center())-QPoint(dialog.width()/2,dialog.height()/2);
     position.setX(qBound(screen.left(),position.x(),qMax(screen.left(),screen.right()-dialog.width()+1)));position.setY(qBound(screen.top(),position.y(),qMax(screen.top(),screen.bottom()-dialog.height()+1)));
     dialog.move(position);
     PopupPolicy::exec(dialog);
     if(dialog.property("outsideDismiss").toBool()){
         if(!DraftStore::save(draftKey,dialog.values()))emit saveFailed("事务草稿保存失败");
     }else DraftStore::clear(draftKey);
+}
+
+void DeadlineWidget::toggleFilter(){
+    if(filter.active()){filter={};refresh();return;}
+    AdvancedFilter next;if(AdvancedFilterDialog::open(AdvancedFilterDialog::Calendar,filterButton,next)){filter=next;refresh();}
 }

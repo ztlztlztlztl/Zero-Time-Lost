@@ -54,32 +54,28 @@ NoteWidget::NoteWidget(NoteDepartment *department,QWidget *parent):QWidget(paren
     auto layout=new QVBoxLayout(this);layout->setContentsMargins(28,22,28,20);layout->setSpacing(18);
     addPageHeader(layout,"Note");
     auto bar=new QHBoxLayout;tabs=new QTabBar;tabs->setObjectName("noteTabs");tabs->setExpanding(false);for(const auto &name:{"纸条","书签","秘密"})tabs->addTab(name);
-    search=new QLineEdit;search->setObjectName("noteSearch");search->setPlaceholderText("搜索标题或内容");search->setMinimumWidth(80);search->setClearButtonEnabled(true);
-    tagFilter=new QComboBox;tagFilter->setObjectName("noteTagFilter");tagFilter->setMinimumWidth(110);tagFilter->addItem("全部标签",QString());
+    filterButton=new NoteStyle::Button("启用筛选",true);filterButton->setObjectName("noteFilter");
     add=new NoteStyle::Button("新增纸条");add->setObjectName("noteAdd");
     bar->addWidget(tabs);bar->addStretch();bar->addWidget(add);layout->addLayout(bar);
-    auto filters=new QHBoxLayout;filters->setSpacing(12);search->setMaximumWidth(400);filters->addWidget(search,1);filters->addWidget(tagFilter);
-    clearFilters=new NoteStyle::Button("清除筛选",true);clearFilters->setObjectName("noteClearFilters");clearFilters->hide();filters->addWidget(clearFilters);filters->addStretch();layout->addLayout(filters);
+    auto filters=new QHBoxLayout;filters->addWidget(filterButton);filters->addStretch();layout->addLayout(filters);
     notice=new QLabel;notice->setObjectName("noteMigrationNotice");notice->setWordWrap(true);notice->setProperty("role","muted");layout->addWidget(notice);
     scroll=new QScrollArea;scroll->setWidgetResizable(true);scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);scroll->setObjectName("noteScroll");
     canvas=new QWidget;canvas->setObjectName("noteCanvas");canvas->setAcceptDrops(true);canvas->installEventFilter(this);scroll->setWidget(canvas);scroll->viewport()->installEventFilter(this);layout->addWidget(scroll,1);
     emptyGroup=new QWidget(canvas);auto emptyLayout=new QVBoxLayout(emptyGroup);emptyLayout->setContentsMargins(16,26,16,26);emptyLayout->setSpacing(18);
     empty=new QLabel;empty->setObjectName("noteEmpty");empty->setAlignment(Qt::AlignCenter);empty->setWordWrap(true);emptyLayout->addWidget(empty);
     emptyAction=new NoteStyle::Button("新增纸条");emptyAction->setObjectName("noteEmptyAction");emptyLayout->addWidget(emptyAction,0,Qt::AlignHCenter);
-    connect(clearFilters,&QPushButton::clicked,this,[this]{search->clear();tagFilter->setCurrentIndex(0);});
-    connect(emptyAction,&QPushButton::clicked,this,[this]{if(!activeSearch.isEmpty()||!activeTag.isEmpty()){search->clear();tagFilter->setCurrentIndex(0);}else edit();});
+    connect(filterButton,&QPushButton::clicked,this,&NoteWidget::toggleFilter);
+    connect(emptyAction,&QPushButton::clicked,this,[this]{if(filter.active()){filter={};filterCards();}else edit();});
     connect(add,&QPushButton::clicked,this,[this]{edit();});
     connect(tabs,&QTabBar::currentChanged,this,[this](int index){
         if(!prepareLeave()){QSignalBlocker blocker(tabs);tabs->setCurrentIndex(activeTab);return;}
-        activeTab=index;tagFilter->setVisible(index!=2);add->setText(index==0?"新增纸条":index==1?"新增书签":"新增秘密");
-        search->setPlaceholderText(index==0?"搜索标题或内容":index==1?"搜索标题或目标":"搜索秘密标题");refresh();
+        activeTab=index;filter={};appliedFilter={};add->setText(index==0?"新增纸条":index==1?"新增书签":"新增秘密");
+        refresh();
     });
-    connect(search,&QLineEdit::textChanged,this,[this]{filterCards();});
-    connect(tagFilter,&QComboBox::currentIndexChanged,this,[this]{filterCards();});
     connect(dept,&NoteDepartment::changed,this,[this]{QTimer::singleShot(0,this,&NoteWidget::refresh);});
     connect(ConfigManager::getInstance(),&ConfigManager::noteTagsChanged,this,&NoteWidget::refresh);
     auto create=new QShortcut(QKeySequence("Ctrl+N"),this);create->setContext(Qt::WidgetWithChildrenShortcut);connect(create,&QShortcut::activated,this,[this]{edit();});
-    auto find=new QShortcut(QKeySequence::Find,this);find->setContext(Qt::WidgetWithChildrenShortcut);connect(find,&QShortcut::activated,search,qOverload<>(&QWidget::setFocus));
+    auto find=new QShortcut(QKeySequence::Find,this);find->setContext(Qt::WidgetWithChildrenShortcut);connect(find,&QShortcut::activated,this,&NoteWidget::openFilter);
     longPress.setSingleShot(true);longPress.setInterval(450);connect(&longPress,&QTimer::timeout,this,&NoteWidget::startCardDrag);
     dropMarker=new QFrame(canvas);dropMarker->setStyleSheet("background:#3caa70;");dropMarker->hide();
     qApp->installEventFilter(this);refresh();
@@ -108,7 +104,7 @@ bool NoteWidget::prepareLeave(){
 void NoteWidget::refresh(){
     if(refreshing)return;refreshing=true;
     auto records=dept->catalog();if(dept->needsMigration())records.append(QJsonObject{{"id","legacy-vault"},{"kind",0},{"title","旧版密库：双击解锁迁移"},{"legacy",true}});
-    QSet<QString> seen;ordered.clear();QStringList tags=ConfigManager::getInstance()->noteTags();
+    QSet<QString> seen;ordered.clear();
     for(auto value:records){
         const auto e=value.toObject();if(e["deleted"].toBool())continue;const auto id=e["id"].toString();seen.insert(id);
         auto card=cards.value(id);
@@ -133,7 +129,6 @@ void NoteWidget::refresh(){
             });
         }else if(!card->expanded())card->updateRecord(e);
         ordered.append(card);
-        for(const auto &tag:e["tags"].toString().split(',',Qt::SkipEmptyParts))if(!tags.contains(tag))tags.append(tag);
     }
     for(auto it=cards.begin();it!=cards.end();){if(!seen.contains(it.key())){it.value()->hide();it.value()->deleteLater();it=cards.erase(it);}else ++it;}
     std::stable_sort(ordered.begin(),ordered.end(),[](NoteCard *a,NoteCard *b){return a->entry()["createdAt"].toString()>b->entry()["createdAt"].toString();});
@@ -146,26 +141,25 @@ void NoteWidget::refresh(){
         });
         for(int i=0;i<positions.size();++i)ordered[positions[i]]=group[i];
     }
-    {QSignalBlocker blocker(tagFilter);auto selected=tagFilter->currentData().toString();tagFilter->clear();tagFilter->addItem("全部标签",QString());for(auto t:tags)tagFilter->addItem(t,t);tagFilter->setCurrentIndex(qMax(0,tagFilter->findData(selected)));}
     notice->setText(dept->migrationNotice().isEmpty()?dept->error():dept->migrationNotice());notice->setVisible(!notice->text().isEmpty());
     refreshing=false;filterCards();
 }
 bool NoteWidget::filterCards(){
     if(refreshing)return true;
-    const int kind=activeTab==0?2:activeTab==1?1:0;const auto keyword=search->text(),tag=activeTab==2?QString():tagFilter->currentData().toString();
+    const int kind=activeTab==0?2:activeTab==1?1:0;
     QList<QPair<NoteCard*,bool>> matches;
     for(auto c:ordered){
-        auto e=c->draft();QString hay=e["title"].toString();if(kind==2)hay+=' '+e["body"].toString();if(kind==1)hay+=' '+e["target"].toString();
-        bool match=e["kind"].toInt()==kind&&hay.contains(keyword,Qt::CaseInsensitive)&&(tag.isEmpty()||e["tags"].toString().split(',').contains(tag));
+        auto e=c->draft();
+        bool match=e["kind"].toInt()==kind&&filter.matchesTitle(e["title"].toString())&&(kind==0||filter.matchesTags(e["tags"].toString()))&&(kind!=1||filter.bookmarkType.isEmpty()||filter.bookmarkType==e["targetType"].toString());
         if(!match&&c->expanded()){
             if(!c->save()){
-                QSignalBlocker a(search),b(tagFilter);search->setText(activeSearch);tagFilter->setCurrentIndex(qMax(0,tagFilter->findData(activeTag)));return false;
+                filter=appliedFilter;return false;
             }
             c->collapse();
         }
         matches.append({c,match});
     }
-    activeSearch=keyword;activeTag=tag;for(auto pair:matches)pair.first->setVisible(pair.second);relayout();return true;
+    appliedFilter=filter;filterButton->setText(filter.active()?"关闭筛选":"启用筛选");for(auto pair:matches)pair.first->setVisible(pair.second);relayout();return true;
 }
 void NoteWidget::relayout(){
     // Monotonic cursor preserves order and leaves holes before a moved large card.
@@ -188,7 +182,7 @@ void NoteWidget::relayout(){
         card->setGeometry(column*(cell+gap),row*(cell+gap),cardWidth,heightSpan*cell+(heightSpan-1)*gap);
         bottom=qMax(bottom,card->geometry().bottom()+1);++cursor;
     }
-    const bool filtered=!activeSearch.isEmpty()||!activeTag.isEmpty();clearFilters->setVisible(filtered);
+    const bool filtered=filter.active();
     empty->setText(filtered?"没有匹配的条目，试试其他关键词或标签。":activeTab==0?"记下第一个值得留住的片段。":activeTab==1?"把常用网站、文件和文件夹收在这里。":dept->creationReady()?"秘密正文加密保存，每次查看时验证主密码。":"还没有秘密，请先到设置 → Note 初始化秘密加密。");
     emptyAction->setText(filtered?"清除筛选":activeTab==0?"新增纸条":activeTab==1?"新增书签":"新增秘密");
     emptyAction->setVisible(filtered||activeTab!=2||dept->creationReady());
@@ -260,7 +254,7 @@ void NoteWidget::edit(QJsonObject e){
     NoteStyle::placeDialog(dialog,this,QSize(550,kind==0?480:620),true);
     if(PopupPolicy::exec(dialog)==QDialog::Accepted){
         DraftStore::clear(draftKey);
-        search->clear();tagFilter->setCurrentIndex(0);refresh();
+        filter={};refresh();
     }else if(dialog.property("outsideDismiss").toBool()){
         if(!DraftStore::save(draftKey,fields.values()))emit saveFailed("新增 Note 草稿保存失败");
     }else DraftStore::clear(draftKey);
@@ -337,8 +331,9 @@ NoteCard *NoteWidget::dropTarget(const QPoint &point) const {
 }
 void NoteWidget::startCardDrag(){
     auto card=dragCandidate;dragCandidate=nullptr;if(!card||!card->isVisible()||!card->save())return;
+    card->setDragReady(true);card->repaint();
     QDrag drag(this);auto mime=new QMimeData;mime->setData("application/x-ztl-note",card->id().toUtf8());drag.setMimeData(mime);
-    drag.setPixmap(card->grab().scaled(180,180,Qt::KeepAspectRatio,Qt::SmoothTransformation));drag.exec(Qt::MoveAction);dropMarker->hide();
+    drag.setPixmap(card->grab().scaled(180,180,Qt::KeepAspectRatio,Qt::SmoothTransformation));drag.exec(Qt::MoveAction);if(card)card->setDragReady(false);dropMarker->hide();
 }
 bool NoteWidget::moveCard(const QString &source,const QString &target){
     auto a=cards.value(source),b=cards.value(target);if(!a||!b||a==b||a->entry()["kind"]!=b->entry()["kind"])return false;
@@ -347,4 +342,14 @@ bool NoteWidget::moveCard(const QString &source,const QString &target){
     const int from=visible.indexOf(source),to=visible.indexOf(target);if(from<0||to<0)return false;visible.move(from,to);
     for(int i=0;i<visibleSlots.size();++i)full[visibleSlots[i]]=visible[i];
     if(!dept->reorder(kind,full)){emit saveFailed(dept->error());return false;}refresh();return true;
+}
+
+void NoteWidget::toggleFilter(){
+    if(filter.active()){filter={};filterCards();return;}
+    openFilter();
+}
+void NoteWidget::openFilter(){
+    AdvancedFilter next;
+    const auto scope=activeTab==0?AdvancedFilterDialog::Paper:activeTab==1?AdvancedFilterDialog::Bookmark:AdvancedFilterDialog::Secret;
+    if(AdvancedFilterDialog::open(scope,filterButton,next)){filter=next;filterCards();}
 }

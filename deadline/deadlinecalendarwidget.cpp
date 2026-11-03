@@ -87,7 +87,8 @@ DeadlineCalendarWidget::DeadlineCalendarWidget(DDLDepartment *department,QWidget
 }
 void DeadlineCalendarWidget::setDate(const QDate &date){if(date.isValid()&&anchor!=date){grid->clearSelection();anchor=date;scrollPending=true;refresh();}}
 void DeadlineCalendarWidget::setMonthView(bool month){if(monthView!=month){grid->clearSelection();monthView=month;scrollPending=true;refresh();}}
-void DeadlineCalendarWidget::setFilter(const QString &text,const QString &selectedTag,int star){keyword=text.trimmed();tag=selectedTag;starred=star;refresh();}
+void DeadlineCalendarWidget::setFilter(const AdvancedFilter &value){filter=value;refresh();}
+void DeadlineCalendarWidget::setFilter(const QString &text,const QString &selectedTag,int star){AdvancedFilter value;value.keywords=text;if(!selectedTag.isEmpty())value.tags={selectedTag};value.starred=star;setFilter(value);}
 void DeadlineCalendarWidget::refresh(){
     QDate first=monthView?QDate(anchor.year(),anchor.month(),1):anchor;first=first.addDays(1-first.dayOfWeek());
     const auto start=QDate(anchor.year(),anchor.month(),1);
@@ -95,10 +96,8 @@ void DeadlineCalendarWidget::refresh(){
     const auto last=first.addDays(monthView?rows*7-1:6);QMap<QDate,QList<TaskOccurrence>> byDate;
     for(const auto &o:dept->occurrences(first,last)){
         if(o.done||o.deleted||!o.due.isValid())continue;
-        const auto date=o.due.toLocalTime().date();if(o.repeat!="none"&&date<QDate::currentDate())continue;
-        if(!(o.title+" "+o.note+" "+o.tags).contains(keyword,Qt::CaseInsensitive))continue;
-        if(!tag.isEmpty()&&!o.tags.split(',',Qt::SkipEmptyParts).contains(tag))continue;
-        if(starred>=0&&((o.priority>0)!=(starred==1)))continue;
+        const auto date=o.due.toLocalTime().date();if(!filter.limitDates&&o.repeat!="none"&&date<QDate::currentDate())continue;
+        if(!filter.matchesTitle(o.title)||!filter.matchesTags(o.tags)||!filter.matchesDate(o.due)||(filter.starred>=0&&((o.priority>0)!=(filter.starred==1))))continue;
         byDate[date].append(o);
     }
     const auto selected=grid->selectedItems();const auto selectedDate=selected.isEmpty()?QDate():selected.first()->data(DateRole).toDate();const int selectedRow=selected.isEmpty()?-1:selected.first()->row();

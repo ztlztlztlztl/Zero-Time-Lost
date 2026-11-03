@@ -8,6 +8,7 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets OpenGLWidgets Sql Network)
 qt_standard_project_setup()
 set(ZTL_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} app department repository security note home mail deadline setting manager help)
 qt_add_library(ztl_components STATIC
+    help/advancedfilter.cpp
     help/helpsqliteioengine.cpp
     mail/mailwidget.cpp
     mainwindow.cpp
@@ -135,6 +136,10 @@ if(BUILD_TESTING)
     if(WIN32)
         add_test(NAME uninstall COMMAND "${ZTL_POWERSHELL}" -NoProfile -ExecutionPolicy Bypass -File "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_uninstall.ps1")
     endif()
+    qt_add_executable(ztl_phase2_tests tests/test_phase2.cpp)
+    target_link_libraries(ztl_phase2_tests PRIVATE ztl_components Qt6::Test)
+    add_test(NAME phase2 COMMAND ztl_phase2_tests)
+    set_tests_properties(phase2 PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     qt_add_executable(ztl_phase1_tests tests/test_phase1.cpp)
     target_link_libraries(ztl_phase1_tests PRIVATE ztl_components Qt6::Test)
     add_test(NAME phase1 COMMAND ztl_phase1_tests)

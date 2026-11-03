@@ -61,7 +61,7 @@ private slots:
         for(int i=0;i<4;++i)QVERIFY(dept.save({{"id",QString::number(i)},{"kind",2},{"title",i%2?"hidden":"visible"},{"body","body"}}));
         QVERIFY(dept.reorder(2,{"0","1","2","3"}));NoteWidget page(&dept);page.resize(1000,700);page.show();QTest::qWait(30);
         auto a=card(page,"0"),b=card(page,"2");a->expand();auto fields=a->findChild<NoteFields*>();fields->body->setPlainText("keep expanded body");
-        page.findChild<QLineEdit*>("noteSearch")->setText("visible");
+        QVERIFY(applyTestFilter(page,"noteFilter","visible"));
         auto canvas=page.findChild<QWidget*>("noteCanvas");QMimeData mime;mime.setData("application/x-ztl-note","0");
         QDragEnterEvent enter(b->geometry().center(),Qt::MoveAction,&mime,Qt::LeftButton,Qt::NoModifier);QApplication::sendEvent(canvas,&enter);QVERIFY(enter.isAccepted());
         QDropEvent drop(b->geometry().center(),Qt::MoveAction,&mime,Qt::LeftButton,Qt::NoModifier);QApplication::sendEvent(canvas,&drop);QVERIFY(drop.isAccepted());

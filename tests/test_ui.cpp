@@ -57,7 +57,7 @@ private slots:
         QVERIFY(MailManager::getInstance()->saveBatch("fixture@example.test",{{"messages",messages}},false));
         MailSimpleDisplayWidget list;list.resize(1000,700);list.show();auto rows=list.findChild<QTreeWidget*>("mailRows");auto more=list.findChild<QPushButton*>("mailMore");
         QCOMPARE(rows->topLevelItemCount(),1000);QVERIFY(more->isEnabled());more->click();QCOMPARE(rows->topLevelItemCount(),1003);QVERIFY(!more->isEnabled());
-        list.findChild<QLineEdit*>("mailSearch")->setText("not-found-unique");QCOMPARE(rows->topLevelItemCount(),0);QVERIFY(!more->isEnabled());
+        QVERIFY(applyTestFilter(list,"mailFilter","not-found-unique"));QCOMPARE(rows->topLevelItemCount(),0);QVERIFY(!more->isEnabled());
         app.shutdown();
     }
     void mailReadingModes(){
@@ -190,7 +190,7 @@ private slots:
         QTimer::singleShot(30,[&]{auto d=modal("ddlDetail");QVERIFY(d);QVERIFY(!button(d,"撤销完成"));button(d,"删除")->click();});
         cardByTitle("未来待办")->click();QTRY_VERIFY(!cardByTitle("未来待办"));QCOMPARE(app.ddl.templates().size(),1);
         showDone->setChecked(false);snapshot("ddl");
-        tabs->setCurrentIndex(2);QVERIFY(ddl->findChild<QPushButton*>("ddlAdd")->isVisible());QVERIFY(ddl->findChild<QLineEdit*>("ddlSearch")->isVisible());
+        tabs->setCurrentIndex(2);QVERIFY(ddl->findChild<QPushButton*>("ddlAdd")->isVisible());QVERIFY(ddl->findChild<QPushButton*>("ddlFilter")->isVisible());
         auto calendar=ddl->findChild<DeadlineCalendarWidget*>();auto grid=calendar->findChild<QTableWidget*>("ddlCalendarGrid");QVERIFY(calendar&&grid);
         QCOMPARE(grid->columnCount(),7);QCOMPARE(grid->editTriggers(),QAbstractItemView::NoEditTriggers);QCOMPARE(grid->selectionMode(),QAbstractItemView::SingleSelection);
         QVERIFY(grid->selectedItems().isEmpty());
@@ -236,13 +236,11 @@ private slots:
         auto series=app.ddl.task("calendar-series");QVERIFY(series["instances"].toObject()["2030-07-03"].toObject()["done"].toBool());QVERIFY(!series["instances"].toObject()["2030-07-01"].toObject()["done"].toBool());
         tabs->setCurrentIndex(1);tabs->setCurrentIndex(0);seriesCards=0;for(auto card:agenda->findChildren<QAbstractButton*>("ddlAgendaCard"))if(card->property("title")=="每日阅读")++seriesCards;QCOMPARE(seriesCards,1);
         tabs->setCurrentIndex(2);calendar->setDate(calendarDay);
-        auto search=ddl->findChild<QLineEdit*>("ddlSearch");auto tagFilter=ddl->findChild<QComboBox*>("ddlCalendarTag");auto starFilter=ddl->findChild<QComboBox*>("ddlCalendarStar");
-        QVERIFY(app.ddl.save({{"id","filter-match"},{"title","日历筛选目标"},{"note","FILTERWORD"},{"tags","学习,生活"},{"priority",1},{"hasDue",true},{"repeat","none"},{"due",QDateTime(calendarDay,QTime(10,0)).toString(Qt::ISODate)}}));
-        search->setText("filterword");QCOMPARE(grid->item(0,0)->data(DeadlineCalendarWidget::CountRole).toInt(),1);
-        tagFilter->setCurrentIndex(tagFilter->findData("学习"));starFilter->setCurrentIndex(starFilter->findData(1));QCOMPARE(grid->item(0,0)->data(DeadlineCalendarWidget::CountRole).toInt(),1);
-        tabs->setCurrentIndex(0);QVERIFY(cardByTitle("日历筛选目标"));QVERIFY(!cardByTitle("零点任务"));QCOMPARE(search->text(),QString("filterword"));QCOMPARE(tagFilter->currentData().toString(),QString("学习"));
-        starFilter->setCurrentIndex(starFilter->findData(0));QVERIFY(!cardByTitle("日历筛选目标"));QVERIFY(agenda->findChild<QLabel*>("ddlDayEmpty"));
-        ddl->findChild<QPushButton*>("ddlClearFilters")->click();QVERIFY(cardByTitle("零点任务"));QCOMPARE(search->text(),QString());QCOMPARE(starFilter->currentIndex(),0);
+        QVERIFY(app.ddl.save({{"id","filter-match"},{"title","日历筛选目标 FILTERWORD"},{"note","备注"},{"tags","学习,生活"},{"priority",1},{"hasDue",true},{"repeat","none"},{"due",QDateTime(calendarDay,QTime(10,0)).toString(Qt::ISODate)}}));
+        QVERIFY(applyTestFilter(*ddl,"ddlFilter","filterword","学习",1));QCOMPARE(grid->item(0,0)->data(DeadlineCalendarWidget::CountRole).toInt(),1);
+        tabs->setCurrentIndex(0);QVERIFY(cardByTitle("日历筛选目标 FILTERWORD"));QVERIFY(!cardByTitle("零点任务"));
+        QVERIFY(applyTestFilter(*ddl,"ddlFilter","filterword","学习",0));QVERIFY(!cardByTitle("日历筛选目标 FILTERWORD"));QVERIFY(agenda->findChild<QLabel*>("ddlDayEmpty"));
+        ddl->findChild<QPushButton*>("ddlFilter")->click();QVERIFY(cardByTitle("零点任务"));
         tabs->setCurrentIndex(2);const auto today=QDate::currentDate();
         QVERIFY(app.ddl.save({{"id","past-repeat"},{"title","跨日循环"},{"hasDue",true},{"repeat","daily"},{"due",QDateTime(today.addDays(-5),QTime(0,0)).toString(Qt::ISODate)}}));
         QVERIFY(app.ddl.save({{"id","past-single"},{"title","过去单次"},{"hasDue",true},{"repeat","none"},{"due",QDateTime(today.addDays(-1),QTime(0,0)).toString(Qt::ISODate)}}));
@@ -333,8 +331,8 @@ private slots:
         MailBrief homeMail;homeMail.ownerEmail=sample.address;homeMail.uid="9:5500";homeMail.subject="首页计数测试";homeMail.sender="home@example.edu";homeMail.timestamp=QDateTime::currentSecsSinceEpoch();repository->addMail(homeMail);
         navigate(Qt::Key_H);auto home=window.findChild<HomeWidget*>();auto homeSummary=home->findChild<QLabel*>("homeSummary");QVERIFY(homeSummary);
         QVERIFY(homeSummary->text().contains(QString::number(repository->unreadCount())+" 封邮件"));
-        homeSummary->linkActivated("mail");QVERIFY(mail->isVisible());QCOMPARE(mailTabs->currentIndex(),1);QCOMPARE(mail->findChild<QLineEdit*>("mailSearch")->text(),QString());
-        navigate(Qt::Key_H);homeSummary->linkActivated("today");QVERIFY(ddl->isVisible());QCOMPARE(tabs->currentIndex(),0);QVERIFY(ddl->findChild<QLineEdit*>("ddlSearch")->text().isEmpty());
+        homeSummary->linkActivated("mail");QVERIFY(mail->isVisible());QCOMPARE(mailTabs->currentIndex(),1);QCOMPARE(mail->findChild<QPushButton*>("mailFilter")->text(),QString("启用筛选"));
+        navigate(Qt::Key_H);homeSummary->linkActivated("today");QVERIFY(ddl->isVisible());QCOMPARE(tabs->currentIndex(),0);QVERIFY(ddl->findChild<QPushButton*>("ddlFilter")->text()=="启用筛选");
         if(QGuiApplication::platformName()=="windows"){navigate(Qt::Key_H);QTest::qWait(200);snapshot("home");app.home.weatherUpdated("北京海淀","--","Key 平台不匹配，请使用 Web 服务 Key");QTest::qWait(100);snapshot("home-weather-error");navigate(Qt::Key_M);}
         qApp->removeEventFilter(&responder);app.shutdown();
     }
@@ -432,7 +430,7 @@ private slots:
         month->setValue(2);QCOMPARE(day->maximum(),29);year->setValue(2031);QCOMPARE(day->maximum(),28);
         QCOMPARE(editor.values()["weekdays"].toArray(),QJsonArray({1,3,5}));
         auto repeat=editor.findChild<QComboBox*>("ddlRepeat");repeat->setCurrentIndex(repeat->findData("monthly"));QCOMPARE(editor.values()["repeat"].toString(),QString("monthly"));
-        repeat->setCurrentIndex(repeat->findData("weekly"));QCOMPARE(editor.values()["weekdays"].toArray(),QJsonArray{QDate(2031,2,28).dayOfWeek()});
+        repeat->setCurrentIndex(repeat->findData("weekly"));QCOMPARE(editor.values()["weekdays"].toArray(),QJsonArray({1,3,5}));
         save->click();QCOMPARE(submitted.size(),1);QCOMPARE(editor.values()["hasDue"].toBool(),true);QCOMPARE(title->text(),QString("保留草稿"));
         if(!qEnvironmentVariable("ZTL_QA_DIR").isEmpty())editor.grab().save(qEnvironmentVariable("ZTL_QA_DIR")+"/ddl-editor.png");
         QTest::mouseClick(editor.windowHandle(),Qt::LeftButton,Qt::NoModifier,QPoint(-8,-8));QVERIFY(editor.isVisible());

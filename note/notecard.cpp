@@ -57,7 +57,8 @@ NoteFields::NoteFields(const QJsonObject &e,QWidget *parent):QWidget(parent),ori
         targetType->setCurrentIndex(qMax(0,targetType->findData(e["targetType"].toString())));layout->addWidget(targetType);
         auto row=new QHBoxLayout;target=new QLineEdit(e["target"].toString());target->setObjectName("noteTarget");target->installEventFilter(this);
         auto browse=new NoteStyle::Button("选择…",true);browse->setObjectName("noteBrowse");row->addWidget(target,1);row->addWidget(browse);layout->addLayout(row);
-        auto mode=[this,browse]{bool website=targetType->currentData()=="website";target->setReadOnly(!website);target->setPlaceholderText(website?"https://example.edu":"请选择本地目标");browse->setVisible(!website);};
+        auto browserLabel=new QLabel("浏览器");layout->addWidget(browserLabel);browser=new NoWheelComboBox;browser->setObjectName("noteBrowser");browser->addItem("默认浏览器","default");browser->addItem("Edge","edge");browser->addItem("Chrome","chrome");browser->setCurrentIndex(qMax(0,browser->findData(e["browser"].toString("default"))));layout->addWidget(browser);connect(browser,&QComboBox::currentIndexChanged,this,pending);
+        auto mode=[this,browse,browserLabel]{bool website=targetType->currentData()=="website";target->setReadOnly(!website);target->setPlaceholderText(website?"https://example.edu":"请选择本地目标");browse->setVisible(!website);browser->setVisible(website);browserLabel->setVisible(website);};
         connect(targetType,&QComboBox::currentIndexChanged,this,[mode,pending]{mode();pending();});mode();
         connect(target,&QLineEdit::textChanged,this,pending);
         connect(browse,&QPushButton::clicked,this,[this]{
@@ -83,12 +84,15 @@ QJsonObject NoteFields::values() const {
     auto e=original;e["title"]=title->text().trimmed();
     if(tags)e["tags"]=tags->selectedTags();else e.remove("tags");
     if(body)e["body"]=body->toPlainText();
-    if(target){e["targetType"]=targetType->currentData().toString();e["target"]=target->text().trimmed();e.remove("body");}
+    if(target){e["targetType"]=targetType->currentData().toString();e["target"]=target->text().trimmed();e.remove("body");if(targetType->currentData()=="website")e["browser"]=browser->currentData().toString();else e.remove("browser");}
     return e;
 }
 bool NoteFields::dirty() const {
     auto e=values(),baseline=original;
-    for(const auto &field:{"title","body","tags","target","targetType"})if(e[field].toString()!=baseline[field].toString())return true;
+    for(const auto &field:{"title","body","tags","target","targetType","browser"}){
+        const auto before=QString(field)=="browser"&&baseline["targetType"]=="website"?baseline[field].toString("default"):baseline[field].toString();
+        if(e[field].toString()!=before)return true;
+    }
     return false;
 }
 void NoteFields::setCreationMode(){status->hide();}
@@ -116,7 +120,7 @@ NoteCard::NoteCard(const QJsonObject &e,NoteDepartment *department,QWidget *pare
         auto actions=new QHBoxLayout;actions->setSpacing(4);
         auto open=new NoteStyle::Button("打开",true),locate=new NoteStyle::Button("定位",true),edit=new NoteStyle::Button("编辑",true);
         open->setObjectName("noteBookmarkOpen");locate->setObjectName("noteBookmarkLocate");edit->setObjectName("noteBookmarkEdit");
-        open->setToolTip("用默认程序打开目标");locate->setToolTip("在资源管理器中定位文件");
+        open->setToolTip("用所选浏览器或系统默认程序打开目标");locate->setToolTip("在资源管理器中定位文件");
         for(auto button:{open,locate,edit})actions->addWidget(button);content->addLayout(actions);
         connect(open,&QPushButton::clicked,this,[this]{emit activated(this);});
         connect(locate,&QPushButton::clicked,this,[this]{emit locateRequested(this);});
@@ -186,3 +190,9 @@ void NoteCard::focusOutEvent(QFocusEvent *event){
     QFrame::focusOutEvent(event);setProperty("keyboardFocus",false);style()->unpolish(this);style()->polish(this);
 }
 
+
+void NoteCard::setDragReady(bool ready){setProperty("dragReady",ready);update();emit dragReadyChanged(ready);}
+void NoteCard::paintEvent(QPaintEvent *event){
+    QFrame::paintEvent(event);
+    if(property("dragReady").toBool()){QPainter painter(this);painter.setRenderHint(QPainter::Antialiasing);painter.setPen(QPen(QColor("#64e9a2"),3));painter.drawLine(8,2,width()-8,2);}
+}

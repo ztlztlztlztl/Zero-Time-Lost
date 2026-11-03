@@ -18,6 +18,7 @@ public:
     DeadlineTagPicker *tags=nullptr;
     QComboBox *targetType=nullptr;
     QLineEdit *target=nullptr;
+    QComboBox *browser=nullptr;
 signals:
     void saveRequested();
 protected:
@@ -41,7 +42,9 @@ public:
     bool save();
     void collapse();
     void select(bool selected);
+    void setDragReady(bool ready);
 signals:
+    void dragReadyChanged(bool ready);
     void selected(NoteCard *card,bool toggle);
     void expansionRequested(NoteCard *card);
     void collapseRequested(NoteCard *card);
@@ -51,6 +54,7 @@ signals:
     void moveRequested(NoteCard *card,int direction);
     void saveFailed(const QString &message);
 protected:
+    void paintEvent(QPaintEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;

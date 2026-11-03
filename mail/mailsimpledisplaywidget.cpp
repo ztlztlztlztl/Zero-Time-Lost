@@ -49,9 +49,7 @@ MailSimpleDisplayWidget::MailSimpleDisplayWidget(QWidget *parent):QWidget(parent
     auto top=new QHBoxLayout;tabs=new QTabBar;tabs->setObjectName("mailTabs");for(const auto &label:{"全部","未读","收藏","已删除"})tabs->addTab(label);
     top->addWidget(tabs);top->addStretch();layout->addLayout(top);
     auto filters=new QHBoxLayout;filters->setSpacing(14);
-    account=new QComboBox;account->setObjectName("mailAccountFilter");account->setMinimumWidth(160);account->setMaximumWidth(240);
-    search=new QLineEdit;search->setObjectName("mailSearch");search->setPlaceholderText("搜索主题、发件人、正文");search->setClearButtonEnabled(true);
-    filters->addWidget(account);filters->addWidget(search,1);layout->addLayout(filters);
+    filterButton=new MailStyle::Button("启用筛选");filterButton->setObjectName("mailFilter");filters->addWidget(filterButton);filters->addStretch();layout->addLayout(filters);
     rows=new QTreeWidget;rows->setObjectName("mailRows");rows->setRootIsDecorated(false);rows->setAlternatingRowColors(true);rows->setMouseTracking(true);
     rows->setItemDelegate(new MailDelegate(rows));rows->setHeaderLabels({"邮件","时间","操作"});rows->setSelectionMode(QAbstractItemView::SingleSelection);
     rows->setSelectionBehavior(QAbstractItemView::SelectRows);rows->setEditTriggers(QAbstractItemView::NoEditTriggers);rows->setUniformRowHeights(true);
@@ -63,15 +61,10 @@ MailSimpleDisplayWidget::MailSimpleDisplayWidget(QWidget *parent):QWidget(parent
     more=new MailStyle::Button("显示更多");auto history=new MailStyle::Button("收取更早邮件");history->setObjectName("mailHistory");more->setObjectName("mailMore");
     actions->addWidget(refresh);actions->addWidget(history);actions->addStretch();actions->addWidget(more);layout->addLayout(actions);
     loaded=qBound(1,ConfigManager::getInstance()->getMailBasical().initialNumber,1000);
-    auto accountsChanged=[this]{
-        const auto current=account->currentData().toString();QSignalBlocker blocker(account);account->clear();account->addItem("所有账号",QString());
-        for(const auto &a:MailAccountManager::getInstance()->getMailAccounts())account->addItem(a.name,a.address);
-        account->setCurrentIndex(qMax(0,account->findData(current)));reload();
-    };
-    accountsChanged();connect(MailAccountManager::getInstance(),&MailAccountManager::mailAccountChanged,this,accountsChanged);
+    connect(MailAccountManager::getInstance(),&MailAccountManager::mailAccountChanged,this,&MailSimpleDisplayWidget::reload);
+    connect(filterButton,&QPushButton::clicked,this,&MailSimpleDisplayWidget::toggleFilter);
     connect(MailManager::getInstance(),&MailManager::changed,this,&MailSimpleDisplayWidget::reload);
-    connect(search,&QLineEdit::textChanged,this,[this]{loaded=qMax(loaded,100);reload();});
-    connect(account,&QComboBox::currentIndexChanged,this,&MailSimpleDisplayWidget::reload);connect(tabs,&QTabBar::currentChanged,this,&MailSimpleDisplayWidget::reload);
+    connect(tabs,&QTabBar::currentChanged,this,&MailSimpleDisplayWidget::reload);
     connect(refresh,&QPushButton::clicked,this,[this]{refresh->setEnabled(false);emit refreshRequest();});
     connect(history,&QPushButton::clicked,this,&MailSimpleDisplayWidget::historyRequest);
     connect(more,&QPushButton::clicked,this,[this]{loaded+=ConfigManager::getInstance()->getMailBasical().earlierNumber;reload();});
@@ -83,26 +76,27 @@ MailSimpleDisplayWidget::MailSimpleDisplayWidget(QWidget *parent):QWidget(parent
     };
     connect(rows,&QTreeWidget::itemDoubleClicked,this,open);
     for(const auto key:{Qt::Key_Return,Qt::Key_Enter}){auto enter=new QShortcut(QKeySequence(key),rows);enter->setContext(Qt::WidgetShortcut);connect(enter,&QShortcut::activated,this,[this,open]{open(rows->currentItem(),0);});}
-    auto find=new QShortcut(QKeySequence::Find,this);find->setContext(Qt::WidgetWithChildrenShortcut);connect(find,&QShortcut::activated,search,qOverload<>(&QWidget::setFocus));
+    auto find=new QShortcut(QKeySequence::Find,this);find->setContext(Qt::WidgetWithChildrenShortcut);connect(find,&QShortcut::activated,this,&MailSimpleDisplayWidget::openFilter);
+    reload();
 }
 void MailSimpleDisplayWidget::enablePollingBtn(){refresh->setEnabled(true);}
 void MailSimpleDisplayWidget::showUnread(){
-    {QSignalBlocker a(search),b(account),c(tabs);search->clear();account->setCurrentIndex(0);tabs->setCurrentIndex(1);}
+    {QSignalBlocker c(tabs);filter={};tabs->setCurrentIndex(1);}
     rows->clearSelection();rows->setCurrentItem(nullptr);reload();rows->setFocus();
 }
 void MailSimpleDisplayWidget::reload(){
     QString selection;if(rows->currentItem())selection=rows->currentItem()->data(0,Qt::UserRole).toString();
     const int scroll=rows->verticalScrollBar()->value();rows->clear();
     const bool trash=tabs->currentIndex()==3;rows->setColumnHidden(1,trash);rows->setColumnWidth(2,trash?124:232);
-    search->setPlaceholderText(trash?"搜索已删除邮件标题":"搜索主题、发件人、正文");
+    filterButton->setText(filter.active()?"关闭筛选":"启用筛选");
     visible.clear();
     // Keep SQL batches bounded while allowing the view to pass the old 1000-row ceiling.
     while(visible.size()<loaded){
         const int count=qMin(1000,loaded-int(visible.size()));
-        const auto batch=MailManager::getInstance()->query(search->text(),account->currentData().toString(),tabs->currentIndex(),count,int(visible.size()));
+        const auto batch=MailManager::getInstance()->queryFiltered(filter,tabs->currentIndex(),count,int(visible.size()));
         visible.append(batch);if(batch.size()<count)break;
     }
-    const bool hasMore=!MailManager::getInstance()->query(search->text(),account->currentData().toString(),tabs->currentIndex(),1,int(visible.size())).isEmpty();
+    const bool hasMore=!MailManager::getInstance()->queryFiltered(filter,tabs->currentIndex(),1,int(visible.size())).isEmpty();
     more->setEnabled(hasMore);more->setText(hasMore?"显示更多":"已显示全部");
     empty->setText(trash?"没有匹配的已删除邮件\n删除的邮件可在这里联网恢复。":"没有匹配的邮件\n可调整筛选条件，或点击下方收取新邮件。");
     rows->setVisible(!visible.isEmpty());empty->setVisible(visible.isEmpty());
@@ -129,3 +123,9 @@ void MailSimpleDisplayWidget::reload(){
     rows->verticalScrollBar()->setValue(scroll);
 }
 void MailSimpleDisplayWidget::restoreFinished(const QString &address,const QString &id,bool){pendingRestores.remove(address+"/"+id);reload();}
+
+void MailSimpleDisplayWidget::toggleFilter(){if(filter.active()){filter={};loaded=qBound(1,ConfigManager::getInstance()->getMailBasical().initialNumber,1000);reload();}else openFilter();}
+void MailSimpleDisplayWidget::openFilter(){
+    QStringList addresses;for(const auto &account:MailAccountManager::getInstance()->getMailAccounts())addresses.append(account.address);
+    AdvancedFilter next;if(AdvancedFilterDialog::open(AdvancedFilterDialog::Mail,filterButton,next,addresses)){filter=next;loaded=qBound(1,ConfigManager::getInstance()->getMailBasical().initialNumber,1000);reload();}
+}

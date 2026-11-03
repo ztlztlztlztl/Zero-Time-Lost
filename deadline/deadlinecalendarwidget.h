@@ -1,6 +1,7 @@
 #pragma once
 #include <QWidget>
 #include <QDate>
+#include "advancedfilter.h"
 class DDLDepartment;class QTableWidget;
 class DeadlineCalendarWidget:public QWidget {
     Q_OBJECT
@@ -9,6 +10,7 @@ public:
     explicit DeadlineCalendarWidget(DDLDepartment *department,QWidget *parent=nullptr);
     void refresh();
     void setDate(const QDate &date);
+    void setFilter(const AdvancedFilter &value);
     void setFilter(const QString &keyword,const QString &tag,int starred);
     void setMonthView(bool month);
     bool isMonthView() const {return monthView;}
@@ -19,7 +21,6 @@ private:
     DDLDepartment *dept;
     QDate anchor=QDate::currentDate();
     QTableWidget *grid;
-    QString keyword,tag;
-    int starred=-1;
+    AdvancedFilter filter;
     bool monthView=true,scrollPending=true;
 };

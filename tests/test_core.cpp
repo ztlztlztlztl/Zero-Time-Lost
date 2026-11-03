@@ -59,7 +59,8 @@ private slots:
     }
     void recurrenceAndReminder(){
         QTemporaryDir dir;TaskRepository repo(dir.filePath("tasks.db"));QVERIFY(repo.ready());DDLDepartment dept(&repo);dept.setQuiet(0,0);
-        const auto now=QDateTime::currentDateTime();const auto due=now.addSecs(120);
+        // Keep the three-day range stable even when this test runs near midnight.
+        const auto now=QDateTime(QDate(2036,5,6),QTime(12,0));const auto due=now.addSecs(120);
         QJsonObject task{{"title","daily test"},{"hasDue",true},{"due",due.toString(Qt::ISODate)},{"repeat","daily"},{"remind",true},{"advanceMinutes",5}};
         QVERIFY(dept.save(task));const auto all=dept.occurrences(now.date(),now.date().addDays(2));QCOMPARE(all.size(),3);
         QSignalSpy notifications(&dept,&DDLDepartment::reminder);

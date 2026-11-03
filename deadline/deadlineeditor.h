@@ -18,7 +18,7 @@ private:
 class DeadlineDateTimeInput:public QWidget {
     Q_OBJECT
 public:
-    explicit DeadlineDateTimeInput(const QDateTime &value,QWidget *parent=nullptr);
+    explicit DeadlineDateTimeInput(const QDateTime &value,QWidget *parent=nullptr,bool dateOnly=false);
     static QDateTime roundUp(const QDateTime &value);
     QDateTime dateTime() const;
 private:
@@ -41,6 +41,9 @@ private:
     DeadlineTagPicker *tags;
     DeadlineDateTimeInput *due;
     QComboBox *repeat,*star,*remind;
+    QCheckBox *repeatEnabled,*countLimited;
+    QSpinBox *remainingCount;
+    QListWidget *weekdays,*monthdays;
     QLabel *feedback;
-    bool weeklyReset=false,deciding=false;
+    bool deciding=false;
 };

@@ -13,5 +13,10 @@ signals:
     void detailRequested(const TaskOccurrence &item);
     void completeRequested(const TaskOccurrence &item);
 private:
+    void render();
+    QList<TaskOccurrence> allItems;
+    QDate selectedAnchor;
+    bool filtered=false;
+    int shown=200;
     QMap<QDate,QWidget*> dateAnchors;
 };

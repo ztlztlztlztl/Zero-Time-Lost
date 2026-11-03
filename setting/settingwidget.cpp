@@ -24,7 +24,7 @@ SettingWidget::SettingWidget(QWidget *parent):QWidget(parent){
         auto group=new QWidget;group->setObjectName("settingsGroup"+names[i]);SettingControls::applyTheme(group,accents[i]);auto section=new QVBoxLayout(group);
         section->setContentsMargins(0,0,0,0);section->setSpacing(16);section->setSizeConstraint(QLayout::SetMinAndMaxSize);
         auto heading=new QWidget;heading->setSizePolicy(QSizePolicy::Maximum,QSizePolicy::Preferred);auto header=new QVBoxLayout(heading);header->setContentsMargins(0,0,0,4);header->setSpacing(0);
-        auto title=new QLabel(i==4?"General":i==2?"Calendar":names[i]);title->setProperty("role","settingTitle");title->setProperty("afterBoundary",i>0);title->setObjectName("settingsTitle"+names[i]);title->setAlignment(Qt::AlignLeft|Qt::AlignVCenter);
+        auto title=new QLabel(i==4?"Advance":i==2?"Calendar":names[i]);title->setProperty("role","settingTitle");title->setProperty("afterBoundary",i>0);title->setObjectName("settingsTitle"+names[i]);title->setAlignment(Qt::AlignLeft|Qt::AlignVCenter);
         title->setIndent(0);title->setSizePolicy(QSizePolicy::Fixed,QSizePolicy::Preferred);
         auto band=new QFrame;band->setObjectName("settingsBand"+names[i]);band->setFixedHeight(4);
         band->setStyleSheet("border:0;background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 "+accents[i].name()+",stop:1 #101216);");

@@ -3,6 +3,8 @@
 #include <QUrl>
 #include <QFileInfo>
 #include <QDir>
+#include <QSettings>
+#include <QProcess>
 #ifdef Q_OS_WIN
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -14,6 +16,7 @@
 QString BookmarkTarget::validate(const QJsonObject &entry){
     const auto type=entry["targetType"].toString(),target=entry["target"].toString().trimmed();
     if(type=="website"){
+        if(!QStringList{"default","edge","chrome"}.contains(entry["browser"].toString("default")))return "浏览器选择无效";
         const QUrl url(target,QUrl::StrictMode);
         if(!url.isValid()||(url.scheme()!="http"&&url.scheme()!="https")||url.host().isEmpty()||!url.userInfo().isEmpty())return "请输入完整的 http / https 网址";
     }else if(type=="file"||type=="folder"){
@@ -25,8 +28,8 @@ bool BookmarkTarget::open(const QJsonObject &entry,QString *error,bool locate){
     *error=validate(entry);if(!error->isEmpty())return false;
     const auto type=entry["targetType"].toString(),target=entry["target"].toString();
     if(type=="website"){
-        if(QDesktopServices::openUrl(QUrl(target)))return true;
-        *error="无法打开默认浏览器";return false;
+        const auto browser=entry["browser"].toString("default");
+        return openWebsite(QUrl(target),browserCandidates(browser),error);
     }
     const QFileInfo info(target);
     if(!info.exists()){*error="目标不存在或当前无法访问：\n"+QDir::toNativeSeparators(target)+"\n请检查目标是否已移动、网络盘连接和路径权限，或编辑书签路径。";return false;}
@@ -53,4 +56,39 @@ bool BookmarkTarget::open(const QJsonObject &entry,QString *error,bool locate){
     if(QDesktopServices::openUrl(QUrl::fromLocalFile(!locate||type=="folder"?info.absoluteFilePath():info.absolutePath())))return true;
 #endif
     *error="无法打开资源管理器";return false;
+}
+
+bool BookmarkTarget::openWebsite(const QUrl &url,const QStringList &candidates,QString *error){
+    error->clear();
+    const auto executable=firstExecutable(candidates);
+    if(!executable.isEmpty()){
+        if(QProcess::startDetached(executable,{url.toString(QUrl::FullyEncoded)}))return true;
+        *error="无法启动所选浏览器，请检查安装状态。";return false;
+    }
+    if(QDesktopServices::openUrl(url))return true;
+    *error="无法打开默认浏览器";return false;
+}
+
+QStringList BookmarkTarget::browserCandidates(const QString &browser){
+    if(browser!="edge"&&browser!="chrome")return {};
+    const auto executable=browser=="edge"?QString("msedge.exe"):QString("chrome.exe");
+    QStringList paths;
+#ifdef Q_OS_WIN
+    for(const auto &root:{QString("HKEY_CURRENT_USER"),QString("HKEY_LOCAL_MACHINE")})
+        for(auto format:{QSettings::Registry64Format,QSettings::Registry32Format}){
+            QSettings settings(root+"\\Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\"+executable,format);
+            auto path=settings.value(".").toString().trimmed();
+            if(path.startsWith('"')&&path.endsWith('"'))path=path.mid(1,path.size()-2);
+            if(!path.isEmpty())paths.append(path);
+        }
+#endif
+    const auto suffix=browser=="edge"?"/Microsoft/Edge/Application/msedge.exe":"/Google/Chrome/Application/chrome.exe";
+    for(const auto &variable:{"LOCALAPPDATA","ProgramFiles","ProgramFiles(x86)"}){
+        const auto root=qEnvironmentVariable(variable);if(!root.isEmpty())paths.append(QDir::cleanPath(root+suffix));
+    }
+    paths.removeDuplicates();return paths;
+}
+QString BookmarkTarget::firstExecutable(const QStringList &candidates){
+    for(const auto &candidate:candidates){const QFileInfo info(candidate);if(info.isFile()&&info.isExecutable())return info.absoluteFilePath();}
+    return {};
 }

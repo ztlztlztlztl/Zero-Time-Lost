@@ -1,6 +1,7 @@
 #pragma once
 #include "notedepartment.h"
 #include "notecard.h"
+#include "advancedfilter.h"
 #include <QtWidgets>
 class NoteWidget:public QWidget {
     Q_OBJECT
@@ -30,17 +31,18 @@ private:
     void startCardDrag();
     NoteCard *dropTarget(const QPoint &point) const;
     NoteDepartment *dept;
-    QLineEdit *search;
+    AdvancedFilter filter,appliedFilter;
+    QPushButton *filterButton;
+    void toggleFilter();
+    void openFilter();
     QTabBar *tabs;
-    QComboBox *tagFilter;
     QScrollArea *scroll;
     QWidget *canvas;
     QLabel *empty,*notice;
     QWidget *emptyGroup;
-    QPushButton *add,*emptyAction,*clearFilters;
+    QPushButton *add,*emptyAction;
     QHash<QString,NoteCard*> cards;
     QList<NoteCard*> ordered;
     int activeTab=0;
-    QString activeSearch,activeTag;
     bool refreshing=false;
 };

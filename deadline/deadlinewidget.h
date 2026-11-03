@@ -1,5 +1,6 @@
 #pragma once
 #include "ddldepartment.h"
+#include "advancedfilter.h"
 #include <QWidget>
 class QLineEdit;class QTabBar;class QCheckBox;class QStackedWidget;class QComboBox;class QLabel;class QPushButton;class DeadlineCalendarWidget;class DeadlineAgendaWidget;
 class DeadlineWidget:public QWidget {
@@ -21,15 +22,15 @@ private:
     void navigate(int direction);
     void updateHeading();
     DDLDepartment *dept;
-    QLineEdit *search;
+    AdvancedFilter filter;
+    QPushButton *filterButton;
+    void toggleFilter();
     QTabBar *tabs;
     DeadlineAgendaWidget *agenda;
     QCheckBox *showCompleted;
     QStackedWidget *pages;
     DeadlineCalendarWidget *calendar;
-    QComboBox *calendarTag,*calendarStar;
     QLabel *heading;
-    QPushButton *clearFilters;
     QDate anchor=QDate::currentDate();
     bool focusedDayInstances=false,pendingFocus=false;
     bool refreshing=false;

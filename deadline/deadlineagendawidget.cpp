@@ -62,6 +62,12 @@ DeadlineAgendaWidget::DeadlineAgendaWidget(QWidget *parent):QScrollArea(parent){
     setStyleSheet("QScrollArea#ddlAgenda { border:0; background:#101216; }");
 }
 void DeadlineAgendaWidget::setOccurrences(const QList<TaskOccurrence> &items,const QDate &anchor,bool filtered){
+    bool same=allItems.size()==items.size()&&selectedAnchor==anchor&&this->filtered==filtered;
+    if(same)for(int i=0;i<items.size();++i){const auto &a=allItems[i],&b=items[i];if(a.taskId!=b.taskId||a.key!=b.key||a.due!=b.due||a.title!=b.title||a.note!=b.note||a.tags!=b.tags||a.done!=b.done||a.paused!=b.paused||a.priority!=b.priority){same=false;break;}}
+    if(!same)shown=200;allItems=items;selectedAnchor=anchor;this->filtered=filtered;render();
+}
+void DeadlineAgendaWidget::render(){
+    const auto items=allItems.mid(0,shown);const auto anchor=selectedAnchor;
     const int oldScroll=verticalScrollBar()->value();dateAnchors.clear();
     auto content=new QWidget;auto layout=new QVBoxLayout(content);layout->setContentsMargins(0,8,10,20);layout->setSpacing(22);
     const auto now=QDateTime::currentDateTime();QMap<QDate,QList<TaskOccurrence>> overdue,future;
@@ -114,7 +120,12 @@ void DeadlineAgendaWidget::setOccurrences(const QList<TaskOccurrence> &items,con
     };
     appendGroups(overdue);
     auto boundary=new QLabel("现在  "+now.toString("HH:mm"));boundary->setObjectName("ddlNowBoundary");boundary->setStyleSheet("color:#81868e;font-size:12px;border:0;border-bottom:1px solid #7f2636;padding:4px 0 10px 108px;");layout->addWidget(boundary);
-    appendGroups(future);layout->addStretch();setWidget(content);verticalScrollBar()->setValue(oldScroll);
+    appendGroups(future);
+    if(shown<allItems.size()){
+        auto more=new QPushButton(QString("显示更多（已显示 %1 / %2 项）").arg(shown).arg(allItems.size()));more->setObjectName("ddlAgendaMore");layout->addWidget(more);
+        connect(more,&QPushButton::clicked,this,[this]{shown+=200;render();});
+    }
+    layout->addStretch();setWidget(content);verticalScrollBar()->setValue(oldScroll);
 }
 void DeadlineAgendaWidget::focusDate(const QDate &date){
     const auto group=dateAnchors.value(date);if(!group)return;
