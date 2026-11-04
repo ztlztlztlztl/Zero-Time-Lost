@@ -238,7 +238,7 @@ void NoteWidget::addDraft(const QString &title,const QString &body){
 void NoteWidget::edit(QJsonObject e){
     for(auto dialog:findChildren<QDialog*>("noteEditor"))if(dialog->isVisible())return;
     const int kind=activeTab==0?2:activeTab==1?1:0;
-    if(kind==0&&!dept->creationReady()){QMessageBox::information(this,"先初始化秘密加密","请到设置 → Note → 初始化／升级秘密加密。完成一次设置后，新增无需密码，查看时才验证。");return;}
+    if(kind==0&&!dept->creationReady()){QMessageBox::information(this,"先初始化秘密加密","请到设置 → Note → 初始化。完成一次设置后，新增无需密码，查看时才验证。");return;}
     for(auto card:ordered)if(!card->save())return;
     e["kind"]=kind;e["id"]=QUuid::createUuid().toString(QUuid::WithoutBraces);
     if(kind==1){e["targetType"]="website";e["target"]="";}
@@ -294,8 +294,9 @@ void NoteWidget::secretEditor(QJsonObject e){
     connect(dept,&NoteDepartment::locked,&dialog,&QDialog::reject);
     NoteStyle::placeDialog(dialog,this,QSize(560,520),false);PopupPolicy::exec(dialog);disconnect(dept,nullptr,&dialog,nullptr);disconnect(&fields,nullptr,&dialog,nullptr);fields.body->clear();fields.title->clear();e={};dept->lock(false);
 }
-void NoteWidget::manage(const QString &name){
-    if(name=="初始化／升级秘密加密"){
+void NoteWidget::manage(const QString &action){
+    const auto name=action=="密码设置"?(dept->exists()?QString("修改密码"):QString("初始化")):action;
+    if(name=="初始化"){
         dept->lock();if(!ensureUnlocked())return;dept->lock();QMessageBox::information(this,"秘密加密已就绪","此后新增秘密无需密码；每次打开已有秘密仍需验证主密码。");return;
     }
     if(name=="备份"){

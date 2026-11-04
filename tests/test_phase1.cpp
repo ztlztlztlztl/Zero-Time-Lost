@@ -82,13 +82,15 @@ private slots:
         QSettings().setValue("idleMinutes",0);QSettings().setValue("closeToTray",true);
         AppContext app;app.clock.stop();
         {MainWindow window(&app);window.resize(700,600);window.move(20,20);window.show();QTest::qWait(30);QCOMPARE(window.windowTitle(),QString("Z.T.L"));
+            auto passwordAction=window.findChild<QPushButton*>("secretPasswordAction");QVERIFY(passwordAction);QCOMPARE(passwordAction->text(),QString("初始化"));
+            QVERIFY(app.notes.create("settings-master-password"));app.notes.lock();QCOMPARE(passwordAction->text(),QString("修改密码"));
             QAction *calendar=nullptr;for(auto a:window.actions()){QVERIFY(a->shortcut()!=QKeySequence("Alt+D"));if(a->shortcut()==QKeySequence("Alt+C"))calendar=a;}QVERIFY(calendar);calendar->trigger();QVERIFY(!window.findChild<HomeWidget*>()->isVisible());
             QCOMPARE(window.findChildren<QLabel*>("pageTitle").size(),4);
             window.showMaximized();window.saveWindowState();QVERIFY(QSettings().value("windowState").toInt()&Qt::WindowMaximized);
             window.showFullScreen();window.saveWindowState();QVERIFY(QSettings().value("windowState").toInt()&Qt::WindowFullScreen);
             window.showNormal();window.resize(700,600);window.saveWindowState();
             window.findChild<QSystemTrayIcon*>()->show();window.close();QVERIFY(!window.isVisible());QVERIFY(window.findChild<HomeWidget*>()->isVisibleTo(&window));window.openFromTray();QVERIFY(window.isVisible());}
-        {MainWindow restored(&app);restored.show();QTest::qWait(30);QCOMPARE(restored.size(),QSize(700,600));}
+        {MainWindow restored(&app);restored.show();QTest::qWait(30);QCOMPARE(restored.size(),QSize(700,600));QCOMPARE(restored.findChild<QPushButton*>("secretPasswordAction")->text(),QString("修改密码"));}
         app.shutdown();
     }
 };

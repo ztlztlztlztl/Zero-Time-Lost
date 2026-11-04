@@ -25,7 +25,6 @@ public:
     QStringList pendingSeen(const QString &address);
     bool acknowledgeSeen(const QString &address,const QStringList &ids);
     qint64 oldestUid(const QString &address,const QString &validity);
-    bool importLegacy(const QString &databasePath);
     void clearUp();
 signals:
     void changed();

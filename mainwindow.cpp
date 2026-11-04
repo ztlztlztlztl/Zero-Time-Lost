@@ -58,6 +58,8 @@ MainWindow::MainWindow(AppContext *context,QWidget *parent):QMainWindow(parent),
     connect(mail,&MailWidget::noteDraft,this,[this](const QString &title,const QString &body){navigate(3);if(stack->currentWidget()==notes)notes->addDraft(title,body);});
     connect(settings,&SettingWidget::generalSettingsChanged,this,[this]{app->reloadSettings();app->home.refresh(true);});
     connect(settings,&SettingWidget::noteAction,notes,&NoteWidget::manage);
+    auto refreshSecretAction=[settings=settings,notes=&app->notes]{settings->setSecretInitialized(notes->exists());};
+    connect(&app->notes,&NoteDepartment::changed,settings,refreshSecretAction);refreshSecretAction();
     connect(settings,&SettingWidget::saveStatus,this,[this](const QString &message){statusBar()->showMessage(message);});
     auto draftWarning=[this](const QString &message){QTimer::singleShot(0,this,[this,message]{statusBar()->showMessage(message);});};
     connect(ddl,&DeadlineWidget::saveFailed,this,draftWarning);

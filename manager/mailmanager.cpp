@@ -74,27 +74,6 @@ bool MailManager::saveBatch(const QString &address,const QJsonObject &data,bool 
 }
 void MailManager::clearUp(){delete m_mailEngine;m_mailEngine=nullptr;}
 
-bool MailManager::importLegacy(const QString &path){
-    const QString connection="legacy-import";bool success=false;
-    {
-        auto source=QSqlDatabase::addDatabase("QSQLITE",connection);source.setConnectOptions("QSQLITE_OPEN_READONLY");source.setDatabaseName(path);
-        if(source.open()){
-            QSqlQuery rows(source);
-            if(rows.exec("SELECT owner_email,uid,sender,subject,timestamp,isRead,body FROM mails")&&m_mailEngine->beginTransaction()){
-                success=true;
-                while(rows.next()){
-                    QString id=rows.value(1).toString();if(!id.startsWith("legacy:"))id="legacy:"+id;
-                    QVariantList params{rows.value(0),id,rows.value(2),rows.value(3),rows.value(4),rows.value(5),rows.value(6),rows.value(3).toString().toCaseFolded()};
-                    if(!m_mailEngine->executeNonQuery("INSERT OR IGNORE INTO mails(owner_email,uid,sender,subject,timestamp,isRead,body,subject_fold) VALUES(?,?,?,?,?,?,?,?)",params)){success=false;break;}
-                }
-                rows.finish();if(success)success=m_mailEngine->commitTransaction();if(!success)m_mailEngine->rollbackTransaction();
-            }
-        }
-        source.close();
-    }
-    QSqlDatabase::removeDatabase(connection);if(success)emit changed();return success;
-}
-
 qint64 MailManager::oldestUid(const QString &address,const QString &validity){
     auto q=m_mailEngine->executeQuery("SELECT min(CAST(substr(uid,instr(uid,':')+1) AS INTEGER)) FROM mails WHERE owner_email=? AND uid LIKE ?",{address,validity+":%"});
     return q.next()?q.value(0).toLongLong():0;

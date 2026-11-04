@@ -159,8 +159,10 @@ private slots:
     }
     void initializeInSettings(){
         QTemporaryDir dir;VaultRepository vault(dir.filePath("vault"));NoteDepartment dept(&vault);NoteWidget page(&dept);page.resize(900,740);page.show();page.findChild<QTabBar*>("noteTabs")->setCurrentIndex(2);int passwords=0;
-        QTimer responder;responder.setInterval(20);connect(&responder,&QTimer::timeout,this,[&]{if(auto password=qobject_cast<QInputDialog*>(activeTestDialog())){++passwords;password->setTextValue("test-master-password");password->accept();}else if(auto message=qobject_cast<QMessageBox*>(activeTestDialog()))message->accept();});
-        QTimer::singleShot(15000,&page,[]{qFatal("Initialization timed out");});responder.start();page.findChild<QPushButton*>("noteAdd")->click();QCOMPARE(passwords,0);QVERIFY(!dept.exists());page.manage("初始化／升级秘密加密");responder.stop();QCOMPARE(passwords,2);QVERIFY(dept.creationReady());QVERIFY(!dept.unlocked());
+        bool changing=false;QTimer responder;responder.setInterval(20);connect(&responder,&QTimer::timeout,this,[&]{if(auto password=qobject_cast<QInputDialog*>(activeTestDialog())){++passwords;password->setTextValue(changing&&password->windowTitle()!="解锁私人信息"?"updated-master-password":"test-master-password");password->accept();}else if(auto message=qobject_cast<QMessageBox*>(activeTestDialog()))message->accept();});
+        QTimer::singleShot(15000,&page,[]{qFatal("Initialization timed out");});responder.start();page.findChild<QPushButton*>("noteAdd")->click();QCOMPARE(passwords,0);QVERIFY(!dept.exists());page.manage("密码设置");responder.stop();QCOMPARE(passwords,2);QVERIFY(dept.creationReady());QVERIFY(!dept.unlocked());
+        changing=true;passwords=0;responder.start();page.manage("密码设置");responder.stop();QCOMPARE(passwords,3);QVERIFY(!dept.unlocked());
+        QVERIFY(!dept.unlock("test-master-password"));QVERIFY(dept.unlock("updated-master-password"));dept.lock();
     }
     void createSecretWithoutAuthentication(){
         QTemporaryDir dir;VaultRepository vault(dir.filePath("vault"));NoteDepartment dept(&vault);QVERIFY(dept.create("test-master-password"));dept.lock();

@@ -243,6 +243,9 @@ private slots:
     void settingGroups(){
         SettingWidget page;QStringList titles;for(auto label:page.findChildren<QLabel*>())if(label->property("role")=="settingTitle")titles.append(label->text());
         QCOMPARE(titles,QStringList({"Home","Mail","Calendar","Note","Advance"}));
+        auto password=page.findChild<QPushButton*>("secretPasswordAction");QVERIFY(password);
+        QSignalSpy actions(&page,&SettingWidget::noteAction);password->click();QCOMPARE(actions.takeFirst().first().toString(),QString("密码设置"));
+        for(auto button:page.findChildren<QPushButton*>())QVERIFY(!button->text().contains("导入"));
     }
     void cleanupTestCase(){MailManager::getInstance()->clearUp();}
 };

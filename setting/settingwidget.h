@@ -6,6 +6,7 @@ class SettingWidget:public QWidget {
 public:
     explicit SettingWidget(QWidget *parent=nullptr);
     void resetUI();
+    void setSecretInitialized(bool initialized);
 signals:
     void generalSettingsChanged();
     void noteAction(const QString &action);

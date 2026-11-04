@@ -45,6 +45,9 @@ SettingWidget::SettingWidget(QWidget *parent):QWidget(parent){
     groups->addStretch();scroll->setWidget(content);layout->addWidget(scroll);
 }
 void SettingWidget::resetUI(){m_homePage->resetUI();m_mailPage->resetUI();m_deadlinePage->resetUI();}
+void SettingWidget::setSecretInitialized(bool initialized){
+    findChild<QPushButton*>("secretPasswordAction")->setText(initialized?"修改密码":"初始化");
+}
 void SettingWidget::showEvent(QShowEvent *event){
     QWidget::showEvent(event);
     for(auto list:findChildren<QListWidget*>()){list->setCurrentRow(-1);list->clearSelection();}
