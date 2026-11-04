@@ -23,6 +23,7 @@ HomeWidget::HomeWidget(HomeDepartment *department,QWidget *parent):QWidget(paren
     footer->addWidget(weatherGroup,1,Qt::AlignBottom);footer->addStretch();footer->addWidget(summary,2,Qt::AlignBottom);layout->addLayout(footer);grid->addWidget(overlay,0,0);
     connect(department,&HomeDepartment::weatherUpdated,this,&HomeWidget::updateWeather);
     connect(background,&HomeBackgroundShader::flowTimeChanged,info,&HomeInfoWidget::setFlowTime);
+    connect(info,&HomeInfoWidget::itemRequested,this,&HomeWidget::calendarItemRequested);
     connect(info,&HomeInfoWidget::dayChanged,this,&HomeWidget::summaryRefreshRequested);
     connect(summary,&QLabel::linkHovered,this,[this](const QString &link){if(hoveredLink!=link){hoveredLink=link;updateSummaryText();}});
     connect(summary,&QLabel::linkActivated,this,[this](const QString &link){if(link=="mail")emit mailRequested();else emit ddlRequested(link=="tomorrow"?summaryDate.addDays(1):summaryDate);});
@@ -47,3 +48,7 @@ void HomeWidget::updateWeather(const QString &name,const QString &value,const QS
     location->setToolTip(description);weather->setToolTip(description);
 }
 void HomeWidget::showEvent(QShowEvent *event){QWidget::showEvent(event);setFocus(Qt::OtherFocusReason);info->refreshDateTime();emit summaryRefreshRequested();}
+
+void HomeWidget::setCalendarContext(const QStringList &labels,const QStringList &intervals){info->setCalendarContext(labels,intervals);}
+
+void HomeWidget::setCalendarItems(const QList<TaskOccurrence> &items){info->setCalendarItems(items);}

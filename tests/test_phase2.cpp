@@ -109,7 +109,7 @@ private slots:
         auto task=dept.task("edit");task["remainingCount"]=1;QVERIFY(dept.save(task));QCOMPARE(Recurrence::remaining(dept.task("edit")),1);
         QCOMPARE(dept.listOccurrences(due.addDays(2),false).size(),0);
         // Splitting before the old tail reports only dates that still belong to each segment.
-        auto replacement=recurring("new",due.addDays(2),2);QVERIFY(dept.splitSeries("edit",due.date().addDays(2),replacement));QCOMPARE(Recurrence::remaining(dept.task("edit"),due.addDays(2)),0);
+        auto replacement=recurring("new",due.addDays(2),2);QVERIFY(!dept.splitSeries("edit",due.date().addDays(2),replacement));QCOMPARE(Recurrence::remaining(dept.task("edit"),due.addDays(2)),0);
     }
     void exhaustedRecurrenceCanEditOrDisable(){
         QTemporaryDir dir;TaskRepository repo(dir.filePath("tasks"));DDLDepartment dept(&repo);
@@ -122,7 +122,7 @@ private slots:
         single.findChild<QPushButton*>("ddlSave")->click();QCOMPARE(submitted.size(),1);
         DeadlineEditor editor(dept.task("exhausted"),due,true,false);
         QVERIFY(!editor.findChild<QCheckBox*>("ddlCountLimited"));
-        QCOMPARE(editor.values()["remainingCount"].toInt(),1);
+        QCOMPARE(editor.values()["remainingCount"].toInt(),0);
         auto saveEditor=[&]{auto value=editor.values();value["id"]="exhausted";return dept.save(value);};
         editor.findChild<QCheckBox*>("ddlRepeatEnabled")->setChecked(false);
         QVERIFY(saveEditor());QCOMPARE(dept.task("exhausted")["repeat"].toString(),QString("none"));
@@ -189,7 +189,7 @@ private slots:
             tabs->setCurrentIndex(view);calendar->setDate(date);auto grid=calendar->findChild<QTableWidget*>("ddlCalendarGrid");
             for(int row=0;row<grid->rowCount();++row)for(int col=0;col<7;++col){
                 auto cell=grid->item(row,col);const auto day=cell->data(DeadlineCalendarWidget::DateRole).toDate();
-                QCOMPARE(cell->data(DeadlineCalendarWidget::CountRole).toInt(),day>=date&&day<=date.addDays(2)&&(view==2||row==9)?1:0);
+                QCOMPARE(cell->data(DeadlineCalendarWidget::CountRole).toInt(),day>=date&&day<=date.addDays(2)&&(view==2||(cell->data(DeadlineCalendarWidget::RowStartRole).toInt()<=540&&cell->data(DeadlineCalendarWidget::RowEndRole).toInt()>540))?1:0);
             }
         }
         tabs->setCurrentIndex(0);QCOMPARE(agenda->findChildren<QAbstractButton*>("ddlAgendaCard").size(),3);

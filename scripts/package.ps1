@@ -1,5 +1,6 @@
 param(
-    [string]$QtRoot = $(if ($env:QT_ROOT) { $env:QT_ROOT } else { 'D:\Qt\6.11.0\mingw_64' })
+    [string]$QtRoot = $(if ($env:QT_ROOT) { $env:QT_ROOT } else { 'D:\Qt\6.11.0\mingw_64' }),
+    [string]$Destination = ''
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot
@@ -7,7 +8,7 @@ $toolsRoot = Join-Path (Split-Path (Split-Path $QtRoot)) 'Tools'
 $cmake = Join-Path $toolsRoot 'CMake_64\bin\cmake.exe'
 $env:PATH = (Join-Path $toolsRoot 'mingw1310_64\bin') + ';' + (Join-Path $QtRoot 'bin') + ';' + $env:PATH
 $buildPath = Join-Path $projectRoot 'build\Sidekick'
-$destination = Join-Path $projectRoot 'build\ZTL-package'
+$destination = if ($Destination) { [IO.Path]::GetFullPath($Destination) } else { Join-Path $projectRoot 'build\ZTL-package' }
 # Python is an application dependency. Deployment must include it without user configuration.
 & (Join-Path $PSScriptRoot 'prepare_runtime.ps1') -Destination (Join-Path $buildPath 'runtime')
 & $cmake --install $buildPath --prefix $destination

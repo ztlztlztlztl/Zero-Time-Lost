@@ -21,8 +21,15 @@ public:
     explicit DeadlineDateTimeInput(const QDateTime &value,QWidget *parent=nullptr,bool dateOnly=false);
     static QDateTime roundUp(const QDateTime &value);
     QDateTime dateTime() const;
+    void setDate(const QDate &value);
+    void setTime(const QTime &value);
+    void setTimeOnly(bool enabled);
+signals:
+    void changed();
 private:
     QSpinBox *year,*month,*day,*hour,*minute;
+    int intendedDay=1,seconds=0,millis=0;
+    bool adjusting=false;
 };
 class DeadlineEditor:public QDialog {
     Q_OBJECT
@@ -39,11 +46,13 @@ private:
     QLineEdit *title;
     QTextEdit *note;
     DeadlineTagPicker *tags;
-    DeadlineDateTimeInput *due;
-    QComboBox *repeat,*star,*remind;
+    DeadlineDateTimeInput *due,*start,*labelDate;
+    QComboBox *repeat,*star,*remind,*type;
     QCheckBox *repeatEnabled;
     QSpinBox *remainingCount;
     QWidget *weekdays,*monthdays;
     QLabel *feedback;
     bool deciding=false;
+    bool endTimeEdited=false,adjustingInterval=false;
+    qint64 intervalDuration=3600;
 };

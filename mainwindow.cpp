@@ -22,12 +22,14 @@ MainWindow::MainWindow(AppContext *context,QWidget *parent):QMainWindow(parent),
     home=new HomeWidget(&app->home);settings=new SettingWidget;mail=new MailWidget(&app->mail);ddl=new DeadlineWidget(&app->ddl);notes=new NoteWidget(&app->notes);
     stack->addWidget(home);stack->addWidget(mail);stack->addWidget(ddl);stack->addWidget(notes);stack->addWidget(settings);
     connect(home,&HomeWidget::ddlRequested,this,[this](const QDate &date){navigate(2);ddl->showDay(date);});
+    connect(home,&HomeWidget::calendarItemRequested,this,[this](const QString &identity,const QDate &date){navigate(2);ddl->showItem(identity,date);});
     connect(home,&HomeWidget::mailRequested,this,[this]{navigate(1);mail->showUnread();});
     connect(home,&HomeWidget::summaryRefreshRequested,this,&MainWindow::refreshHomeSummary);
     connect(&app->ddl,&DDLDepartment::changed,this,&MainWindow::refreshHomeSummary);
+    connect(&app->ddl,&DDLDepartment::temporalChanged,this,&MainWindow::refreshHomeSummary);
     connect(MailManager::getInstance(),&MailManager::changed,this,&MainWindow::refreshHomeSummary);
     connect(qApp,&QGuiApplication::applicationStateChanged,this,[this](Qt::ApplicationState state){
-        if(state==Qt::ApplicationActive)refreshHomeSummary();
+        if(state==Qt::ApplicationActive){app->ddl.resyncTime();refreshHomeSummary();}
         else if(app->notes.unlocked())lock();
     });
     app->clock.every("home-summary",60,[this]{refreshHomeSummary();});refreshHomeSummary();
@@ -74,6 +76,7 @@ MainWindow::MainWindow(AppContext *context,QWidget *parent):QMainWindow(parent),
         const int minutes=QSettings().value("idleMinutes",5).toInt();
         if(minutes>0&&activity.elapsed()>minutes*60000&&app->notes.unlocked())lock();
     });
+    app->clock.every("calendar-resync",30,[this]{app->ddl.resyncTime();});
     app->clock.every("ddl-view",60,[this]{if(stack->currentWidget()==ddl)ddl->refresh();});
     auto geometry=QSettings().value("geometry").toByteArray();if(!geometry.isEmpty())restoreGeometry(geometry);
     setWindowState(Qt::WindowStates(QSettings().value("windowState",int(windowState())).toInt()) & (Qt::WindowMaximized|Qt::WindowFullScreen));
@@ -84,7 +87,7 @@ MainWindow::MainWindow(AppContext *context,QWidget *parent):QMainWindow(parent),
     if(!app->tasks.ready())QMessageBox::critical(this,"事务数据库不可用",app->tasks.lastError());
 }
 MainWindow::~MainWindow(){
-    qApp->removeEventFilter(this);qApp->removeNativeEventFilter(this);app->clock.remove("privacy");app->clock.remove("ddl-view");app->clock.remove("home-summary");
+    qApp->removeEventFilter(this);qApp->removeNativeEventFilter(this);app->clock.remove("privacy");app->clock.remove("ddl-view");app->clock.remove("home-summary");app->clock.remove("calendar-resync");
 #ifdef Q_OS_WIN
     WTSUnRegisterSessionNotification(reinterpret_cast<HWND>(winId()));
 #endif
@@ -97,6 +100,9 @@ void MainWindow::navigate(int page){
 }
 void MainWindow::refreshHomeSummary(){
     const auto today=QDate::currentDate();const auto counts=app->ddl.daySummary(today);
+    const auto now=QDateTime::currentDateTime();QList<TaskOccurrence> context;
+    for(const auto &o:app->ddl.occurrences(today,today))if(o.isLabel()||(o.isInterval()&&!o.paused&&o.issue.isEmpty()&&o.start<=now&&now<o.due))context.append(o);
+    home->setCalendarItems(context);
     home->setSummary(today,counts.today,counts.tomorrow,counts.overdue,MailManager::getInstance()->unreadCount(),counts.available);
 }
 void MainWindow::lock(){
@@ -109,6 +115,7 @@ bool MainWindow::eventFilter(QObject *object,QEvent *event){
 bool MainWindow::nativeEventFilter(const QByteArray &,void *message,qintptr *){
 #ifdef Q_OS_WIN
     auto msg=static_cast<MSG*>(message);
+    if(msg->message==WM_TIMECHANGE||msg->message==WM_SETTINGCHANGE||(msg->message==WM_POWERBROADCAST&&(msg->wParam==PBT_APMRESUMEAUTOMATIC||msg->wParam==PBT_APMRESUMESUSPEND)))QTimer::singleShot(0,this,[this]{app->ddl.resyncTime();});
     if(msg->message==WM_WTSSESSION_CHANGE&&msg->wParam==WTS_SESSION_LOCK)lock();
 #else
     Q_UNUSED(message)

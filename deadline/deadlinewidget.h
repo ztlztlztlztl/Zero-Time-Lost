@@ -2,14 +2,18 @@
 #include "ddldepartment.h"
 #include "advancedfilter.h"
 #include <QWidget>
+#include <atomic>
+#include <memory>
 class QLineEdit;class QTabBar;class QCheckBox;class QStackedWidget;class QComboBox;class QLabel;class QPushButton;class DeadlineCalendarWidget;class DeadlineAgendaWidget;
 class DeadlineWidget:public QWidget {
     Q_OBJECT
 public:
     explicit DeadlineWidget(DDLDepartment *department,QWidget *parent=nullptr);
+    ~DeadlineWidget() override;
     void addDraft(const QString &title,const QString &note);
     void refresh();
     void showDay(const QDate &date);
+    void showItem(const QString &identity,const QDate &date);
     void prepareLock(){emit locking();}
 signals:
     void locking();
@@ -35,4 +39,11 @@ private:
     bool focusedDayInstances=false,pendingFocus=false;
     bool refreshing=false;
     QList<TaskOccurrence> visible;
+    int requested=200;
+    quint64 queryVersion=0;
+    std::shared_ptr<std::atomic_bool> queryCancel;
+    QString queryKey;
+    bool followingToday=true;
+    QDate lastToday=QDate::currentDate();
+    void applyPage(const QList<TaskOccurrence> &items,bool more,bool filtered,bool final=true);
 };

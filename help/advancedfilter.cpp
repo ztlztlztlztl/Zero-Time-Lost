@@ -12,7 +12,7 @@ public:
     DeadlineTagPicker *tags=nullptr;
     QComboBox *star=nullptr,*read=nullptr,*type=nullptr;
     QListWidget *accounts=nullptr;
-    QCheckBox *dates=nullptr;
+    QCheckBox *dates=nullptr,*ddl=nullptr,*intervals=nullptr;
     DeadlineDateTimeInput *from=nullptr,*to=nullptr;
 };
 AdvancedFilterDialog::AdvancedFilterDialog(Scope scope,const QStringList &accounts,QWidget *parent)
@@ -25,6 +25,8 @@ AdvancedFilterDialog::AdvancedFilterDialog(Scope scope,const QStringList &accoun
     header->addWidget(close);header->addWidget(new QLabel("高级筛选"),1);layout->addLayout(header);
     connect(close,&QPushButton::clicked,this,&QDialog::reject);
     auto form=new QFormLayout;form->setVerticalSpacing(10);layout->addLayout(form);
+    if(scope==Calendar){auto classes=new QWidget;auto row=new QHBoxLayout(classes);row->setContentsMargins(0,0,0,0);
+        inputs->ddl=new QCheckBox("DDL");inputs->ddl->setObjectName("filterDDL");inputs->ddl->setChecked(true);inputs->intervals=new QCheckBox("事务");inputs->intervals->setObjectName("filterIntervals");inputs->intervals->setChecked(true);row->addWidget(inputs->ddl);row->addWidget(inputs->intervals);row->addStretch();form->addRow("筛选对象",classes);}
     inputs->words=new QLineEdit;inputs->words->setObjectName("filterKeywords");inputs->words->setPlaceholderText("多个关键词用空格分隔，全部匹配标题");form->addRow("关键词",inputs->words);
     if(scope!=Mail&&scope!=Secret){inputs->tags=new DeadlineTagPicker({},nullptr,scope!=Calendar);form->addRow("标签",inputs->tags);}
     auto tri=[&](const QString &name,const QString &yes,const QString &no){auto c=new NoWheelComboBox;c->setObjectName(name);c->addItem("不限",-1);c->addItem(yes,1);c->addItem(no,0);return c;};
@@ -46,11 +48,11 @@ AdvancedFilterDialog::AdvancedFilterDialog(Scope scope,const QStringList &accoun
     }
     auto feedback=new QLabel;feedback->setObjectName("filterError");feedback->setWordWrap(true);layout->addWidget(feedback);
     auto apply=new SettingButton("筛选");apply->setObjectName("filterApply");layout->addWidget(apply);
-    connect(apply,&QPushButton::clicked,this,[this,feedback]{const auto f=criteria();if(f.limitDates&&f.from>f.to){feedback->setText("结束日期不能早于起始日期");return;}accept();});
+    connect(apply,&QPushButton::clicked,this,[this,feedback]{const auto f=criteria();if(!f.calendarDDL&&!f.calendarIntervals){feedback->setText("请至少选择一种筛选对象");return;}if(f.limitDates&&f.from>f.to){feedback->setText("结束日期不能早于起始日期");return;}accept();});
     resize(620,sizeHint().height());
 }
 AdvancedFilter AdvancedFilterDialog::criteria() const {
-    AdvancedFilter f;f.keywords=inputs->words->text().trimmed();
+    AdvancedFilter f;if(inputs->ddl){f.calendarDDL=inputs->ddl->isChecked();f.calendarIntervals=inputs->intervals->isChecked();}f.keywords=inputs->words->text().trimmed();
     if(inputs->tags)f.tags=inputs->tags->selectedTags().split(',',Qt::SkipEmptyParts);
     if(inputs->type)f.bookmarkType=inputs->type->currentData().toString();
     if(inputs->star)f.starred=inputs->star->currentData().toInt();

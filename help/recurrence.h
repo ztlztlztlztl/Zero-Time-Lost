@@ -6,6 +6,22 @@
 namespace Recurrence {
 inline QTimeZone zone(const QJsonObject &t){const QTimeZone z(t["zone"].toString().toUtf8());return z.isValid()?z:QTimeZone::systemTimeZone();}
 inline QDateTime start(const QJsonObject &t){return QDateTime::fromString(t["due"].toString(),Qt::ISODate).toTimeZone(zone(t));}
+inline QJsonObject templateAt(const QJsonObject &task,const QDate &day){
+    auto effective=task;
+    for(const auto &entry:task["templateHistory"].toArray()){const auto h=entry.toObject(),fields=h["fields"].toObject();if(day<QDate::fromString(h["from"].toString(),Qt::ISODate))continue;
+        const auto originalEnd=QDateTime(day,QDateTime::fromString(fields["due"].toString(),Qt::ISODate).toTimeZone(zone(task)).time(),zone(task));
+        if(originalEnd>QDateTime::fromString(h["until"].toString(),Qt::ISODate))continue;
+        for(auto it=fields.begin();it!=fields.end();++it)effective[it.key()]=it.value();break;
+    }return effective;
+}
+inline QDateTime endAt(const QJsonObject &task,const QDate &day){
+    const auto t=templateAt(task,day);auto end=QDateTime(day,start(t).time(),zone(t));
+    if(t["type"]=="interval"){
+        const auto base=QDateTime::fromString(t["start"].toString(),Qt::ISODate).toTimeZone(zone(t));
+        const auto begin=QDateTime(day,base.time(),zone(t),QDateTime::TransitionResolution::PreferBefore);
+        if(begin.time()!=base.time()||end.time()!=start(t).time()||begin>=end)end=begin.addSecs(base.time().secsTo(start(t).time()));
+    }return end;
+}
 inline QList<int> days(const QJsonObject &t){
     QList<int> result;const bool weekly=t["repeat"]=="weekly";
     for(const auto &v:t[weekly?"weekdays":"monthdays"].toArray()){int n=v.toInt();if(n>=1&&n<=(weekly?7:31)&&!result.contains(n))result.append(n);}
@@ -65,14 +81,14 @@ inline bool scheduled(const QJsonObject &t,const QDate &date){
 inline int remaining(const QJsonObject &t,const QDateTime &now=QDateTime::currentDateTime()){
     if(!t["countLimited"].toBool()||t["repeat"]=="none")return 0;
     const int limit=qMin(t["countLimit"].toInt(),ordinal(t,last(t)));const auto initial=start(t),local=now.toTimeZone(zone(t));
-    QDate passed=local.date();if(QDateTime(passed,initial.time(),zone(t))>now)passed=passed.addDays(-1);
+    QDate passed=local.date();if(endAt(t,passed)>now)passed=passed.addDays(-1);
     passed=qMin(passed,last(t));int used=qMin(limit,ordinal(t,passed));
     QSet<QString> actions;for(const auto &key:t["excluded"].toArray())actions.insert(key.toString());
     for(const auto &key:t["consumed"].toArray())actions.insert(key.toString());
     const auto instances=t["instances"].toObject();
     for(auto it=instances.begin();it!=instances.end();++it){
         const auto date=QDate::fromString(it.key(),Qt::ISODate);if(!scheduled(t,date))continue;
-        const auto state=it.value().toObject();const auto nominal=QDateTime(date,initial.time(),zone(t));
+        const auto state=it.value().toObject();const auto nominal=endAt(t,date);
         const auto actual=state.contains("due")?QDateTime::fromString(state["due"].toString(),Qt::ISODate):nominal;
         const bool before=date<=passed,after=actual.isValid()&&actual<=now;
         if(before!=after)used+=after?1:-1;
@@ -80,7 +96,7 @@ inline int remaining(const QJsonObject &t,const QDateTime &now=QDateTime::curren
     }
     for(const auto &key:actions){
         const auto date=QDate::fromString(key,Qt::ISODate);if(!scheduled(t,date))continue;
-        auto actual=QDateTime(date,initial.time(),zone(t));const auto state=instances[key].toObject();
+        auto actual=endAt(t,date);const auto state=instances[key].toObject();
         if(state.contains("due"))actual=QDateTime::fromString(state["due"].toString(),Qt::ISODate);
         if(!actual.isValid()||actual>now)++used;
     }

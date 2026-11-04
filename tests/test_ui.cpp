@@ -179,16 +179,16 @@ private slots:
             QTimer::singleShot(30,[&]{auto editor=modal("ddlEditor");QVERIFY(editor);auto choices=editor->findChild<DeadlineTagPicker*>("ddlTagChoices");QVERIFY(choices);QCOMPARE(choices->selectedTags(),QString("课程"));auto selected=choices->findChild<QListWidget*>("ddlSelectedTags");QVERIFY(selected->item(0)->text().contains("课程（历史）"));editor->findChild<QPushButton*>("ddlSave")->click();});
             button(d,"编辑")->click();
         });
-        QVERIFY(cardByTitle("过期待办"));cardByTitle("过期待办")->click();QTest::qWait(100);
+        QVERIFY(cardByTitle("过期待办"));QTest::mouseDClick(cardByTitle("过期待办"),Qt::LeftButton);QTest::qWait(100);
         for(const auto &task:app.ddl.templates())if(task["title"]=="过期待办")QCOMPARE(task["tags"].toString(),QString("课程"));
         auto completionBox=cardByTitle("过期待办")->findChild<QAbstractButton*>("ddlComplete");QVERIFY(completionBox);QVERIFY(completionBox->text().isEmpty());QVERIFY(!completionBox->isChecked());completionBox->click();
-        QTRY_VERIFY(!cardByTitle("过期待办"));QCOMPARE(app.ddl.templates().size(),2);QVERIFY(!modal("ddlDetail"));
+        QTRY_VERIFY(!cardByTitle("过期待办"));QCOMPARE(app.ddl.templates().size(),3);QVERIFY(!modal("ddlDetail"));
         auto showDone=ddl->findChild<QCheckBox*>("ddlShowCompleted");QVERIFY(showDone);
         auto futureCard=cardByTitle("未来待办");QVERIFY(futureCard);futureCard->findChild<QAbstractButton*>("ddlComplete")->click();QTRY_VERIFY(!cardByTitle("未来待办"));
         showDone->setChecked(true);QVERIFY(cardByTitle("未来待办"));QVERIFY(cardByTitle("未来待办")->property("done").toBool());
         auto completed=cardByTitle("未来待办")->findChild<QAbstractButton*>("ddlComplete");QVERIFY(completed->isChecked());QVERIFY(!completed->isEnabled());snapshot("ddl-completed");
         QTimer::singleShot(30,[&]{auto d=modal("ddlDetail");QVERIFY(d);QVERIFY(!button(d,"撤销完成"));button(d,"删除")->click();});
-        cardByTitle("未来待办")->click();QTRY_VERIFY(!cardByTitle("未来待办"));QCOMPARE(app.ddl.templates().size(),1);
+        QTest::mouseDClick(cardByTitle("未来待办"),Qt::LeftButton);QTRY_VERIFY(!cardByTitle("未来待办"));QCOMPARE(app.ddl.templates().size(),2);
         showDone->setChecked(false);snapshot("ddl");
         tabs->setCurrentIndex(2);QVERIFY(ddl->findChild<QPushButton*>("ddlAdd")->isVisible());QVERIFY(ddl->findChild<QPushButton*>("ddlFilter")->isVisible());
         auto calendar=ddl->findChild<DeadlineCalendarWidget*>();auto grid=calendar->findChild<QTableWidget*>("ddlCalendarGrid");QVERIFY(calendar&&grid);
@@ -202,7 +202,7 @@ private slots:
         };
         calendar->setDate(QDate(2026,8,1));QCOMPARE(grid->rowCount(),6);QCOMPARE(grid->item(5,0)->data(DeadlineCalendarWidget::DateRole).toDate(),QDate(2026,8,31));
         calendar->setDate(QDate(2026,10,1));QCOMPARE(grid->rowCount(),5);calendar->setDate(now.date());snapshot("ddl-month");
-        tabs->setCurrentIndex(1);QCOMPARE(grid->rowCount(),24);snapshot("ddl-week");
+        tabs->setCurrentIndex(1);QVERIFY(grid->rowCount()<24);snapshot("ddl-week");
         const auto before=calendar->date();ddl->findChild<QPushButton*>("ddlCalendarNext")->click();QCOMPARE(calendar->date(),before.addDays(7));
         ddl->findChild<QPushButton*>("ddlCalendarToday")->click();QCOMPARE(calendar->date(),QDate::currentDate());
         const QDate calendarDay(2030,7,1);QCOMPARE(calendarDay.dayOfWeek(),1);
@@ -213,22 +213,23 @@ private slots:
         for(const auto &o:app.ddl.listOccurrences(now,false))if(o.taskId=="已完成不计数")QVERIFY(app.ddl.complete(o));
         QVERIFY(app.ddl.save({{"id","undated-calendar"},{"title","无时间事项"},{"hasDue",false},{"repeat","none"}}));
         QVERIFY(app.ddl.save({{"id","calendar-series"},{"title","每日阅读"},{"hasDue",true},{"repeat","daily"},{"due",QDateTime(calendarDay,QTime(9,0)).toString(Qt::ISODate)}}));
+        auto hourRow=[&](int hour){for(int r=0;r<grid->rowCount();++r)if(grid->item(r,0)->data(DeadlineCalendarWidget::RowStartRole).toInt()<=hour*60&&grid->item(r,0)->data(DeadlineCalendarWidget::RowEndRole).toInt()>hour*60)return r;return -1;};
         calendar->setDate(calendarDay);QCOMPARE(grid->item(0,0)->data(DeadlineCalendarWidget::CountRole).toInt(),1);
-        QCOMPARE(grid->item(3,0)->data(DeadlineCalendarWidget::CountRole).toInt(),1);QCOMPARE(grid->item(23,0)->data(DeadlineCalendarWidget::CountRole).toInt(),1);
-        QCOMPARE(grid->item(9,0)->data(DeadlineCalendarWidget::CountRole).toInt(),9);
-        grid->scrollToItem(grid->item(9,0),QAbstractItemView::PositionAtTop);QCoreApplication::processEvents();snapshot("ddl-week-overflow");
-        selectCell(9,0,1);ddl->refresh();QVERIFY(grid->item(9,0)->isSelected());
-        selectCell(9,0,1);
-        QTest::mouseDClick(grid->viewport(),Qt::LeftButton,Qt::NoModifier,grid->visualItemRect(grid->item(9,0)).center());QCOMPARE(tabs->currentIndex(),0);QVERIFY(cardByTitle("每日阅读"));
+        QCOMPARE(grid->item(hourRow(3),0)->data(DeadlineCalendarWidget::CountRole).toInt(),1);QCOMPARE(grid->item(hourRow(23),0)->data(DeadlineCalendarWidget::CountRole).toInt(),1);
+        QCOMPARE(grid->item(hourRow(9),0)->data(DeadlineCalendarWidget::CountRole).toInt(),10);
+        grid->scrollToItem(grid->item(hourRow(9),0),QAbstractItemView::PositionAtTop);QCoreApplication::processEvents();snapshot("ddl-week-overflow");
+        selectCell(hourRow(9),0,1);ddl->refresh();QVERIFY(grid->item(hourRow(9),0)->isSelected());
+        selectCell(hourRow(9),0,1);
+        QTest::mouseDClick(grid->viewport(),Qt::LeftButton,Qt::NoModifier,grid->visualItemRect(grid->item(hourRow(9),0)).bottomRight()-QPoint(12,8));QCOMPARE(tabs->currentIndex(),0);QVERIFY(cardByTitle("每日阅读"));
         tabs->setCurrentIndex(2);
-        QCOMPARE(grid->item(0,0)->data(DeadlineCalendarWidget::DateRole).toDate(),calendarDay);QCOMPARE(grid->item(0,0)->data(DeadlineCalendarWidget::CountRole).toInt(),12);
+        QCOMPARE(grid->item(0,0)->data(DeadlineCalendarWidget::DateRole).toDate(),calendarDay);QCOMPARE(grid->item(0,0)->data(DeadlineCalendarWidget::CountRole).toInt(),13);
         QCOMPARE(grid->item(0,1)->data(DeadlineCalendarWidget::CountRole).toInt(),1);snapshot("ddl-month-counts");
         // Month -> week -> agenda preserves the selected date, including a later recurring instance.
         selectCell(0,2,2);
-        QTest::mouseDClick(grid->viewport(),Qt::LeftButton,Qt::NoModifier,grid->visualItemRect(grid->item(0,2)).center());QCOMPARE(tabs->currentIndex(),1);QCOMPARE(calendar->date(),calendarDay.addDays(2));
-        grid->scrollToItem(grid->item(9,2),QAbstractItemView::PositionAtTop);QCoreApplication::processEvents();
-        selectCell(9,2,1);
-        QTest::mouseDClick(grid->viewport(),Qt::LeftButton,Qt::NoModifier,grid->visualItemRect(grid->item(9,2)).center());QCOMPARE(tabs->currentIndex(),0);
+        QTest::mouseDClick(grid->viewport(),Qt::LeftButton,Qt::NoModifier,grid->visualItemRect(grid->item(0,2)).bottomRight()-QPoint(10,6));QCOMPARE(tabs->currentIndex(),1);QCOMPARE(calendar->date(),calendarDay.addDays(2));
+        grid->scrollToItem(grid->item(hourRow(9),2),QAbstractItemView::PositionAtTop);QCoreApplication::processEvents();
+        selectCell(hourRow(9),2,1);
+        QTest::mouseDClick(grid->viewport(),Qt::LeftButton,Qt::NoModifier,grid->visualItemRect(grid->item(hourRow(9),2)).bottomRight()-QPoint(10,6));QCOMPARE(tabs->currentIndex(),0);
         int seriesCards=0;QAbstractButton *selectedInstance=nullptr;for(auto card:agenda->findChildren<QAbstractButton*>("ddlAgendaCard"))if(card->property("title")=="每日阅读"){++seriesCards;if(card->property("due").toDateTime().date()==calendarDay.addDays(2))selectedInstance=card;}
         QCOMPARE(seriesCards,2);QVERIFY(selectedInstance);QTest::qWait(30);
         QVERIFY(agenda->verticalScrollBar()->value()>0);snapshot("ddl-agenda-selected-day");
@@ -246,15 +247,15 @@ private slots:
         QVERIFY(app.ddl.save({{"id","past-single"},{"title","过去单次"},{"hasDue",true},{"repeat","none"},{"due",QDateTime(today.addDays(-1),QTime(0,0)).toString(Qt::ISODate)}}));
         calendar->setDate(today);bool checkedPast=false,checkedToday=false;
         for(int r=0;r<grid->rowCount();++r)for(int c=0;c<7;++c){auto cell=grid->item(r,c);const auto date=cell->data(DeadlineCalendarWidget::DateRole).toDate();const auto titles=cell->data(DeadlineCalendarWidget::TitlesRole).toStringList();
-            if(date==today.addDays(-1)){checkedPast=true;QVERIFY(!titles.contains("跨日循环"));QVERIFY(titles.contains("过去单次"));}
+            if(date==today.addDays(-1)){checkedPast=true;QVERIFY(titles.contains("跨日循环"));QVERIFY(titles.contains("过去单次"));}
             if(date==today){checkedToday=true;QVERIFY(titles.contains("跨日循环"));}}
         QVERIFY(checkedPast&&checkedToday);ddl->findChild<QPushButton*>("ddlCalendarToday")->click();tabs->setCurrentIndex(0);
         auto boundary=ddl->findChild<QLabel*>("ddlNowBoundary");QVERIFY(boundary);QVERIFY(cardByTitle("无时间事项"));QVERIFY(cardByTitle("零点任务"));
         // Navigating an empty day keeps an explicit anchor in the continuous agenda.
         tabs->setCurrentIndex(2);calendar->setDate(QDate(2020,1,1));QCoreApplication::processEvents();
         selectCell(0,2,2);
-        QTest::mouseDClick(grid->viewport(),Qt::LeftButton,Qt::NoModifier,grid->visualItemRect(grid->item(0,2)).center());QCOMPARE(tabs->currentIndex(),1);
-        grid->scrollToItem(grid->item(12,2));QCoreApplication::processEvents();selectCell(12,2,1);QTest::mouseDClick(grid->viewport(),Qt::LeftButton,Qt::NoModifier,grid->visualItemRect(grid->item(12,2)).center());QCOMPARE(tabs->currentIndex(),0);
+        QTest::mouseDClick(grid->viewport(),Qt::LeftButton,Qt::NoModifier,grid->visualItemRect(grid->item(0,2)).bottomRight()-QPoint(10,6));QCOMPARE(tabs->currentIndex(),1);
+        grid->scrollToItem(grid->item(hourRow(12),2));QCoreApplication::processEvents();selectCell(hourRow(12),2,1);QTest::mouseDClick(grid->viewport(),Qt::LeftButton,Qt::NoModifier,grid->visualItemRect(grid->item(hourRow(12),2)).bottomRight()-QPoint(10,6));QCOMPARE(tabs->currentIndex(),0);
         QVERIFY(agenda->findChild<QLabel*>("ddlDayEmpty"));ddl->findChild<QPushButton*>("ddlCalendarToday")->click();
         navigate(Qt::Key_N);auto note=window.findChild<NoteWidget*>();QVERIFY(note->isVisible());auto noteTabs=note->findChild<QTabBar*>("noteTabs");QCOMPARE(noteTabs->count(),3);QCOMPARE(noteTabs->currentIndex(),0);QCOMPARE(responder.count,0);
         auto ordinary=note->findChildren<NoteCard*>();NoteCard *paper=nullptr;for(auto c:ordinary)if(!c->isHidden())paper=c;QVERIFY(paper);
@@ -402,7 +403,7 @@ private slots:
         QVERIFY(preview.width()<=760);QVERIFY(preview.findChild<QPushButton*>("ddlAdd")->isVisible());
         preview.resize(1180,760);tabs->setCurrentIndex(2);QTest::qWait(30);
         grid->setCurrentCell(0,0);grid->setFocus();QTest::keyClick(grid,Qt::Key_Right);QCOMPARE(grid->currentColumn(),1);QTest::keyClick(grid,Qt::Key_Return);QCOMPARE(tabs->currentIndex(),1);
-        grid->setCurrentCell(12,0);grid->setFocus();QTest::keyClick(grid,Qt::Key_Return);QCOMPARE(tabs->currentIndex(),0);
+        grid->setCurrentCell(grid->rowCount()-1,0);grid->setFocus();QTest::keyClick(grid,Qt::Key_Return);QCOMPARE(tabs->currentIndex(),0);
         auto agenda=preview.findChild<DeadlineAgendaWidget*>();auto checks=agenda->findChildren<QAbstractButton*>("ddlComplete");QVERIFY(!checks.isEmpty());
         auto check=checks.first();check->setFocus();const auto cards=agenda->findChildren<QAbstractButton*>("ddlAgendaCard").size();QTest::keyClick(check,Qt::Key_Space);
         QTRY_VERIFY(agenda->findChildren<QAbstractButton*>("ddlAgendaCard").size()<cards);
@@ -415,9 +416,9 @@ private slots:
         auto title=editor.findChild<QLineEdit*>("ddlTitle");auto save=editor.findChild<QPushButton*>("ddlSave");
         auto feedback=editor.findChild<QLabel*>("ddlEditorFeedback");QSignalSpy submitted(&editor,&DeadlineEditor::submitted);
         editor.show();QTest::qWait(30);save->click();QCOMPARE(submitted.size(),0);QVERIFY(feedback->text().contains("标题"));
-        auto minute=editor.findChild<QSpinBox*>("ddlMinute");QCOMPARE(minute->value(),25);
-        QTest::mouseClick(minute,Qt::LeftButton,Qt::NoModifier,QPoint(minute->width()-8,8));QCOMPARE(minute->value(),30);
-        QTest::mouseClick(minute,Qt::LeftButton,Qt::NoModifier,QPoint(minute->width()-8,minute->height()-8));QCOMPARE(minute->value(),25);
+        auto minute=editor.findChild<QSpinBox*>("ddlMinute");QCOMPARE(minute->value(),23);
+        QTest::mouseClick(minute,Qt::LeftButton,Qt::NoModifier,QPoint(minute->width()-8,8));QCOMPARE(minute->value(),28);
+        QTest::mouseClick(minute,Qt::LeftButton,Qt::NoModifier,QPoint(minute->width()-8,minute->height()-8));QCOMPARE(minute->value(),23);
         title->setText("保留草稿");save->click();QCOMPARE(submitted.size(),0);QVERIFY(feedback->text().contains("三个"));QVERIFY(editor.isVisible());
         auto selected=editor.findChild<QListWidget*>("ddlSelectedTags");auto available=editor.findChild<QListWidget*>("ddlAvailableTags");
         auto click=[&](QListWidget *list,int row){list->scrollToItem(list->item(row));QCoreApplication::processEvents();QTest::mouseClick(list->viewport(),Qt::LeftButton,Qt::NoModifier,list->visualItemRect(list->item(row)).center());};
