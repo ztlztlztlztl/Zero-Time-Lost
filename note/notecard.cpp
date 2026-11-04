@@ -57,7 +57,8 @@ NoteFields::NoteFields(const QJsonObject &e,QWidget *parent):QWidget(parent),ori
         targetType->setCurrentIndex(qMax(0,targetType->findData(e["targetType"].toString())));layout->addWidget(targetType);
         auto row=new QHBoxLayout;target=new QLineEdit(e["target"].toString());target->setObjectName("noteTarget");target->installEventFilter(this);
         auto browse=new NoteStyle::Button("选择…",true);browse->setObjectName("noteBrowse");row->addWidget(target,1);row->addWidget(browse);layout->addLayout(row);
-        auto mode=[this,browse]{bool website=targetType->currentData()=="website";target->setReadOnly(!website);target->setPlaceholderText(website?"https://example.edu":"请选择本地目标");browse->setVisible(!website);};
+        auto browserLabel=new QLabel("浏览器");layout->addWidget(browserLabel);browser=new NoWheelComboBox;browser->setObjectName("noteBrowser");browser->addItem("默认浏览器","default");browser->addItem("Edge","edge");browser->addItem("Chrome","chrome");browser->setCurrentIndex(qMax(0,browser->findData(e["browser"].toString("default"))));layout->addWidget(browser);connect(browser,&QComboBox::currentIndexChanged,this,pending);
+        auto mode=[this,browse,browserLabel]{bool website=targetType->currentData()=="website";target->setReadOnly(!website);target->setPlaceholderText(website?"https://example.edu":"请选择本地目标");browse->setVisible(!website);browser->setVisible(website);browserLabel->setVisible(website);};
         connect(targetType,&QComboBox::currentIndexChanged,this,[mode,pending]{mode();pending();});mode();
         connect(target,&QLineEdit::textChanged,this,pending);
         connect(browse,&QPushButton::clicked,this,[this]{
@@ -69,7 +70,7 @@ NoteFields::NoteFields(const QJsonObject &e,QWidget *parent):QWidget(parent),ori
         connect(body,&QTextEdit::textChanged,this,pending);
     }
     if(e["kind"].toInt()!=0){
-        label("标签");tags=new DeadlineTagPicker(e["tags"].toString());tags->setObjectName("noteTagChoices");
+        label("标签");tags=new DeadlineTagPicker(e["tags"].toString(),nullptr,true);tags->setObjectName("noteTagChoices");
         tags->setStyleSheet("QListWidget {border:1px solid #343841;background:#14171d;outline:0;} QListWidget::item {height:24px;padding:2px 8px;border:1px solid transparent;} QListWidget::item:hover,QListWidget::item:selected {border:1px solid #176a39;background:transparent;} QListWidget::item:disabled {color:#555b64;}");
         layout->addWidget(tags);tags->findChild<QListWidget*>("ddlSelectedTags")->setObjectName("noteSelectedTags");tags->findChild<QListWidget*>("ddlAvailableTags")->setObjectName("noteAvailableTags");
         connect(tags,&DeadlineTagPicker::selectionChanged,this,[this]{autosave.stop();status->setText("保存中…");emit saveRequested();});
@@ -83,12 +84,15 @@ QJsonObject NoteFields::values() const {
     auto e=original;e["title"]=title->text().trimmed();
     if(tags)e["tags"]=tags->selectedTags();else e.remove("tags");
     if(body)e["body"]=body->toPlainText();
-    if(target){e["targetType"]=targetType->currentData().toString();e["target"]=target->text().trimmed();e.remove("body");}
+    if(target){e["targetType"]=targetType->currentData().toString();e["target"]=target->text().trimmed();e.remove("body");if(targetType->currentData()=="website")e["browser"]=browser->currentData().toString();else e.remove("browser");}
     return e;
 }
 bool NoteFields::dirty() const {
     auto e=values(),baseline=original;
-    for(const auto &field:{"title","body","tags","target","targetType"})if(e[field].toString()!=baseline[field].toString())return true;
+    for(const auto &field:{"title","body","tags","target","targetType","browser"}){
+        const auto before=QString(field)=="browser"&&baseline["targetType"]=="website"?baseline[field].toString("default"):baseline[field].toString();
+        if(e[field].toString()!=before)return true;
+    }
     return false;
 }
 void NoteFields::setCreationMode(){status->hide();}
@@ -111,11 +115,21 @@ NoteCard::NoteCard(const QJsonObject &e,NoteDepartment *department,QWidget *pare
     preview=new SummaryLabel(e["kind"].toInt()==2?3:1,14,QColor("#929a9f"));preview->setObjectName("noteCardPreview");content->addWidget(preview);
     content->addStretch();
     meta=new SummaryLabel(1,12,QColor("#789183"));meta->setObjectName("noteCardTags");content->addWidget(meta);
-    if(e["kind"].toInt()==1){auto edit=new NoteStyle::Button("编辑",true);edit->setObjectName("noteBookmarkEdit");content->addWidget(edit,0,Qt::AlignRight);connect(edit,&QPushButton::clicked,this,[this]{emit selected(this,false);emit expansionRequested(this);});}
     if(e["kind"].toInt()==0)content->addWidget(new LockMark,0,Qt::AlignRight);
+    if(e["kind"].toInt()==1){
+        auto actions=new QHBoxLayout;actions->setSpacing(4);
+        auto open=new NoteStyle::Button("打开",true),locate=new NoteStyle::Button("定位",true),edit=new NoteStyle::Button("编辑",true);
+        open->setObjectName("noteBookmarkOpen");locate->setObjectName("noteBookmarkLocate");edit->setObjectName("noteBookmarkEdit");
+        open->setToolTip("用所选浏览器或系统默认程序打开目标");locate->setToolTip("在资源管理器中定位文件");
+        for(auto button:{open,locate,edit})actions->addWidget(button);content->addLayout(actions);
+        connect(open,&QPushButton::clicked,this,[this]{emit activated(this);});
+        connect(locate,&QPushButton::clicked,this,[this]{emit locateRequested(this);});
+        connect(edit,&QPushButton::clicked,this,[this]{emit selected(this,false);emit expansionRequested(this);});
+    }
     layout->addWidget(small);updateRecord(e);
 }
 void NoteCard::updateRecord(const QJsonObject &e){
+    if(auto locate=findChild<QPushButton*>("noteBookmarkLocate"))locate->setVisible(e["targetType"]=="file");
     record=e;heading->setText(e["title"].toString());heading->setToolTip(e["title"].toString());setAccessibleName(e["title"].toString());
     const int kind=e["kind"].toInt();type->setVisible(kind==1);preview->setVisible(kind!=0);meta->setVisible(kind!=0&&!e["tags"].toString().isEmpty());
     meta->setText(e["tags"].toString().replace(",","   "));meta->setToolTip(e["tags"].toString());
@@ -137,6 +151,7 @@ void NoteCard::expand(){
     small->hide();auto scroller=new QScrollArea;scroller->setObjectName("noteInlineScroll");scroller->viewport()->setObjectName("noteInlineViewport");scroller->setWidgetResizable(true);scroller->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);scroller->setMinimumSize(0,0);large=scroller;
     auto inner=new QWidget;inner->setObjectName("noteCardEditor");scroller->setWidget(inner);auto content=new QVBoxLayout(inner);content->setContentsMargins(0,0,4,0);content->setSpacing(16);
     auto bar=new QHBoxLayout;auto hint=new QLabel(record["kind"].toInt()==1?"编辑书签":"编辑纸条");hint->setProperty("noteRole","field");bar->addWidget(hint);bar->addStretch();
+    hint->setObjectName("noteDragHandle");hint->setToolTip("长按拖动排序");
     auto close=new NoteStyle::Button("收起",true),remove=new NoteStyle::Button("删除",true);close->setObjectName("noteCollapse");remove->setObjectName("noteDelete");remove->setProperty("danger",true);
     bar->addWidget(close);bar->addWidget(remove);content->addLayout(bar);
     editor=new NoteFields(record);content->addWidget(editor,1);layout->addWidget(large);
@@ -162,6 +177,7 @@ void NoteCard::mouseDoubleClickEvent(QMouseEvent *event){
     QFrame::mouseDoubleClickEvent(event);
 }
 void NoteCard::keyPressEvent(QKeyEvent *event){
+    if(event->modifiers()==Qt::AltModifier&&(event->key()==Qt::Key_Up||event->key()==Qt::Key_Down)){emit moveRequested(this,event->key()==Qt::Key_Up?-1:1);return;}
     if(expanded()){QFrame::keyPressEvent(event);return;}
     if(event->key()==Qt::Key_Space){emit selected(this,true);event->accept();return;}
     if(event->key()==Qt::Key_Return||event->key()==Qt::Key_Enter){emit selected(this,false);if(record["kind"].toInt()==2)emit expansionRequested(this);else emit activated(this);return;}
@@ -174,3 +190,9 @@ void NoteCard::focusOutEvent(QFocusEvent *event){
     QFrame::focusOutEvent(event);setProperty("keyboardFocus",false);style()->unpolish(this);style()->polish(this);
 }
 
+
+void NoteCard::setDragReady(bool ready){setProperty("dragReady",ready);update();emit dragReadyChanged(ready);}
+void NoteCard::paintEvent(QPaintEvent *event){
+    QFrame::paintEvent(event);
+    if(property("dragReady").toBool()){QPainter painter(this);painter.setRenderHint(QPainter::Antialiasing);painter.setPen(QPen(QColor("#64e9a2"),3));painter.drawLine(8,2,width()-8,2);}
+}

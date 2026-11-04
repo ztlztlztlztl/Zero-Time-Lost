@@ -10,7 +10,8 @@ SettingMailPage::SettingMailPage(QWidget *parent):QWidget(parent){
     for(const auto &item:ZTL::Setting::mailpage::intervals)polling->addItem(item.first,item.second);
     for(const auto &item:ZTL::Setting::mailpage::initNumbers)initial->addItem(item.first,item.second);
     for(const auto &item:ZTL::Setting::mailpage::pollNumbers)earlier->addItem(item.first,item.second);
-    form->addRow(SettingControls::label("轮询间隔"),polling);form->addRow(SettingControls::label("开机读取邮件数"),initial);form->addRow(SettingControls::label("本地每次多显示数"),earlier);
+    initial->setToolTip("控制列表初始显示数量；收取新邮件和更早邮件也使用此批量，服务器单批限制在 10–100 封。");
+    form->addRow(SettingControls::label("轮询间隔"),polling);form->addRow(SettingControls::label("初始显示邮件数"),initial);form->addRow(SettingControls::label("本地每次多显示数"),earlier);
     storage=new QLineEdit;storage->setObjectName("mailStorageLimit");storage->setValidator(new QIntValidator(1,100000,storage));
     storage->setToolTip("1–100000，回车或移开焦点后应用");form->addRow(SettingControls::label("正文缓存保留数"),storage);layout->addWidget(fields);
     layout->addWidget(SettingControls::label("邮箱账号"));accounts=new SettingsListWidget;accounts->setObjectName("savedMailAccounts");SettingControls::configureList(accounts);layout->addWidget(accounts);
@@ -41,7 +42,9 @@ void SettingMailPage::resetUI(){
 }
 void SettingMailPage::editAccount(bool creating){
     if(!creating&&!accounts->currentItem())return;
-    auto popup=SettingControls::popup(this,creating?"添加邮箱":"修改邮箱","accountPopup");
+    const auto draftKey=creating?QString("new"):accounts->currentItem()->data(Qt::UserRole).toString();
+    for(auto draft:findChildren<QDialog*>("accountPopup",Qt::FindDirectChildrenOnly))if(draft->property("draftKey").toString()==draftKey){SettingControls::showPopup(draft,accounts);return;}
+    auto popup=SettingControls::popup(this,creating?"添加邮箱":"修改邮箱","accountPopup");popup->setProperty("draftKey",draftKey);
     auto editor=new SettingMailAccountsWidget(popup);if(!creating)editor->setAccount(MailAccountManager::getInstance()->getMailAcc(accounts->currentItem()->data(Qt::UserRole).toString()));
     popup->layout()->addWidget(editor);connect(editor,&SettingMailAccountsWidget::cancel,popup,&QDialog::close);
     popup->setMinimumWidth(520);SettingControls::showPopup(popup,accounts);

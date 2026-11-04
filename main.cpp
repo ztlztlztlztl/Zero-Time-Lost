@@ -7,18 +7,21 @@
 #include <QLockFile>
 #include <QMessageBox>
 #include <QSurfaceFormat>
+#include <QSystemTrayIcon>
 int main(int argc,char *argv[]){
-    QCoreApplication::setOrganizationName("ZTL");QCoreApplication::setApplicationName("Sidekick");
+    QCoreApplication::setOrganizationName("ZTL");QCoreApplication::setApplicationName("Z.T.L");
     QSurfaceFormat format;format.setVersion(3,3);format.setProfile(QSurfaceFormat::CoreProfile);QSurfaceFormat::setDefaultFormat(format);
     QApplication application(argc,argv);
     application.setFont(QFont("Microsoft YaHei UI",10));
-    QSettings::setPath(QSettings::IniFormat,QSettings::UserScope,Paths::root());
+    Paths::initialize();
+    QSettings::setPath(QSettings::IniFormat,QSettings::UserScope,Paths::data("config"));
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QLockFile single(Paths::data("application.lock"));single.setStaleLockTime(30000);
-    if(!single.tryLock(100)){QMessageBox::information(nullptr,"副手","已有一个副手实例在运行，或数据目录被其他进程锁定。");return 1;}
+    if(!single.tryLock(100)){QMessageBox::information(nullptr,"Z.T.L","已有一个 Z.T.L 实例在运行，或数据目录被其他进程锁定。");return 1;}
     qInstallMessageHandler(ztlMessageOutput);
     AppContext launcher;
     MainWindow window(&launcher);
+    QObject::connect(&application,&QCoreApplication::aboutToQuit,&window,&MainWindow::saveWindowState);
     QObject::connect(&application,&QCoreApplication::aboutToQuit,&launcher,&AppContext::shutdown);
     ProcessWorker mailCheck;
     if(application.arguments().contains("--self-check-mail")){
@@ -33,6 +36,6 @@ int main(int argc,char *argv[]){
     }else if(application.arguments().contains("--self-check")){
         launcher.clock.stop();
         QTimer::singleShot(0,&application,[&]{application.exit(launcher.tasks.ready()?0:2);});
-    }else window.show();
+    }else if(!application.arguments().contains("--autostart")||!QSystemTrayIcon::isSystemTrayAvailable())window.show();
     return application.exec();
 }

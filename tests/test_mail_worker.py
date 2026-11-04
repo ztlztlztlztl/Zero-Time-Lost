@@ -14,12 +14,15 @@ class FakeIMAP:
     def login(self, *args): pass
     def capability(self): return "OK", [b"IMAP4rev1"]
     def select(self, *args, **kwargs):
-        assert kwargs["readonly"] is True
+        self.readonly = kwargs["readonly"]
         return "OK", []
     def response(self, *args): return "UIDVALIDITY", [b"9"]
     def logout(self): pass
     def uid(self, command, *args):
         self.commands.append((command, args))
+        if command == "store":
+            assert not self.readonly
+            return "OK", []
         if command == "search": return "OK", [b"1 2 3 4"]
         if args[1] == "(RFC822.SIZE)": return "OK", [b"1 (RFC822.SIZE 200)"]
         return "OK", [(b"", RAW)]
@@ -28,6 +31,24 @@ class MailTests(unittest.TestCase):
     def setUp(self): FakeIMAP.commands = []
     def request(self, **extra):
         return {"account": {"address":"a@example.com","code":"x","server":"imap.example.com","port":"993"}, **extra}
+    def test_mark_seen_is_explicit_and_writable(self):
+        result = worker.execute(self.request(command="markSeen", ids=["9:3", "9:4"]), FakeIMAP)
+        self.assertEqual(result, {"acknowledged": ["9:3", "9:4"]})
+        self.assertEqual(FakeIMAP.commands, [("store", ("3,4", "+FLAGS.SILENT", r"(\Seen)"))])
+    def test_mark_seen_retires_stale_validity_without_touching_new_mail(self):
+        result = worker.execute(self.request(command="markSeen", ids=["8:3"]), FakeIMAP)
+        self.assertEqual(result["acknowledged"], ["8:3"])
+        self.assertFalse(FakeIMAP.commands)
+    def test_mark_seen_rejects_invalid_ids(self):
+        for ids in ([], ["9:0"], ["9:1,2"], ["9:１"], ["9:1"] * 101):
+            with self.assertRaises(ValueError):
+                worker.execute(self.request(command="markSeen", ids=ids), FakeIMAP)
+        self.assertFalse(FakeIMAP.commands)
+    def test_mark_seen_failure_is_retriable(self):
+        class Refused(FakeIMAP):
+            def uid(self, *args): return "NO", [b"permission denied"]
+        with self.assertRaises(worker.MailAccessError):
+            worker.execute(self.request(command="markSeen", ids=["9:3"]), Refused)
     def test_initial_limit_and_true_identity(self):
         result = worker.execute(self.request(limit=2), FakeIMAP)
         self.assertEqual([m["id"] for m in result["messages"]], ["9:3","9:4"])
@@ -44,7 +65,7 @@ class MailTests(unittest.TestCase):
                 return "OK", [b"IMAP4rev1 ID"]
             def xatom(self, command, values):
                 self_outer.assertEqual(command, "ID")
-                self_outer.assertIn('"name" "ZTL Sidekick"', values)
+                self_outer.assertIn('"name" "Z.T.L"', values)
                 self_outer.assertNotIn("a@example.com", values)
                 self.identified = True
                 return "OK", [b"ID completed"]

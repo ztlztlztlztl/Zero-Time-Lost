@@ -2,10 +2,13 @@ cmake_minimum_required(VERSION 3.19)
 project(Zero-Time-Lost-tobedone VERSION 0.2.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets OpenGLWidgets Sql Network)
+set(CMAKE_INSTALL_BINDIR "." CACHE PATH "Z.T.L executables and runtime DLLs" FORCE)
+set(CMAKE_INSTALL_LIBDIR "." CACHE PATH "Z.T.L libraries" FORCE)
+find_package(Qt6 6.7 REQUIRED COMPONENTS Core Widgets OpenGLWidgets Sql Network)
 qt_standard_project_setup()
 set(ZTL_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} app department repository security note home mail deadline setting manager help)
 qt_add_library(ztl_components STATIC
+    help/advancedfilter.cpp
     help/helpsqliteioengine.cpp
     mail/mailwidget.cpp
     mainwindow.cpp
@@ -33,6 +36,7 @@ qt_add_library(ztl_components STATIC
     manager/mailaccountmanager.cpp
     mail/mailgetservice.cpp
     mail/mailsimpledisplaywidget.cpp
+    app/autostart.cpp
     app/paths.cpp
     app/businessclock.cpp
     app/processworker.cpp
@@ -104,6 +108,7 @@ if(WIN32)
 endif()
 qt_add_executable(Zero-Time-Lost-tobedone WIN32 main.cpp)
 target_link_libraries(Zero-Time-Lost-tobedone PRIVATE ztl_components)
+set_target_properties(Zero-Time-Lost-tobedone PROPERTIES OUTPUT_NAME "Z.T.L")
 if(WIN32)
     find_program(ZTL_POWERSHELL NAMES pwsh powershell
         PATHS "$ENV{SystemRoot}/System32/WindowsPowerShell/v1.0" REQUIRED)
@@ -118,15 +123,35 @@ if(WIN32)
         COMMENT "Preparing bundled mail runtime" VERBATIM)
     add_dependencies(Zero-Time-Lost-tobedone ztl_mail_runtime)
 endif()
-install(TARGETS Zero-Time-Lost-tobedone RUNTIME DESTINATION bin)
-install(FILES scripts/mail_worker.py DESTINATION bin/scripts)
+install(TARGETS Zero-Time-Lost-tobedone RUNTIME DESTINATION .)
+install(FILES scripts/mail_worker.py DESTINATION scripts)
 install(FILES instruct.md DESTINATION .)
-install(DIRECTORY "$<TARGET_FILE_DIR:Zero-Time-Lost-tobedone>/runtime/" DESTINATION bin/runtime)
+install(FILES scripts/uninstall.ps1 DESTINATION .)
+install(DIRECTORY "$<TARGET_FILE_DIR:Zero-Time-Lost-tobedone>/runtime/" DESTINATION runtime)
 qt_generate_deploy_app_script(TARGET Zero-Time-Lost-tobedone OUTPUT_SCRIPT deploy_script NO_UNSUPPORTED_PLATFORM_ERROR)
 install(SCRIPT ${deploy_script})
 include(CTest)
 if(BUILD_TESTING)
     find_package(Qt6 REQUIRED COMPONENTS Test)
+    qt_add_executable(ztl_calendar_robustness_tests tests/test_calendar_robustness.cpp)
+    target_link_libraries(ztl_calendar_robustness_tests PRIVATE ztl_components Qt6::Test)
+    add_test(NAME calendar_robustness COMMAND ztl_calendar_robustness_tests)
+    set_tests_properties(calendar_robustness PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 90)
+    qt_add_executable(ztl_phase3_tests tests/test_phase3.cpp)
+    target_link_libraries(ztl_phase3_tests PRIVATE ztl_components Qt6::Test)
+    add_test(NAME phase3 COMMAND ztl_phase3_tests)
+    set_tests_properties(phase3 PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    if(WIN32)
+        add_test(NAME uninstall COMMAND "${ZTL_POWERSHELL}" -NoProfile -ExecutionPolicy Bypass -File "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_uninstall.ps1")
+    endif()
+    qt_add_executable(ztl_phase2_tests tests/test_phase2.cpp)
+    target_link_libraries(ztl_phase2_tests PRIVATE ztl_components Qt6::Test)
+    add_test(NAME phase2 COMMAND ztl_phase2_tests)
+    set_tests_properties(phase2 PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    qt_add_executable(ztl_phase1_tests tests/test_phase1.cpp)
+    target_link_libraries(ztl_phase1_tests PRIVATE ztl_components Qt6::Test)
+    add_test(NAME phase1 COMMAND ztl_phase1_tests)
+    set_tests_properties(phase1 PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     qt_add_executable(ztl_vault_tests tests/test_vault.cpp)
     target_link_libraries(ztl_vault_tests PRIVATE ztl_components Qt6::Test)
     add_test(NAME vault COMMAND ztl_vault_tests)

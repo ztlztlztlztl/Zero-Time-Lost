@@ -1,3 +1,4 @@
+#include "pageheader.h"
 #include "settingwidget.h"
 #include "settinghomepage.h"
 #include "settingmailpage.h"
@@ -10,6 +11,7 @@ SettingWidget::SettingWidget(QWidget *parent):QWidget(parent){
     setAttribute(Qt::WA_StyledBackground,true);setObjectName("settingPage");setStyleSheet(UiStyle::sheet);
     setFocusPolicy(Qt::StrongFocus);
     auto layout=new QVBoxLayout(this);layout->setContentsMargins(24,16,24,16);
+    addPageHeader(layout,"设置");
     auto scroll=new QScrollArea;scroll->setObjectName("settingsScroll");scroll->setWidgetResizable(true);
     scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);auto content=new QWidget;
     auto groups=new QVBoxLayout(content);groups->setSpacing(0);groups->setContentsMargins(0,0,12,20);groups->setSizeConstraint(QLayout::SetMinAndMaxSize);
@@ -22,7 +24,7 @@ SettingWidget::SettingWidget(QWidget *parent):QWidget(parent){
         auto group=new QWidget;group->setObjectName("settingsGroup"+names[i]);SettingControls::applyTheme(group,accents[i]);auto section=new QVBoxLayout(group);
         section->setContentsMargins(0,0,0,0);section->setSpacing(16);section->setSizeConstraint(QLayout::SetMinAndMaxSize);
         auto heading=new QWidget;heading->setSizePolicy(QSizePolicy::Maximum,QSizePolicy::Preferred);auto header=new QVBoxLayout(heading);header->setContentsMargins(0,0,0,4);header->setSpacing(0);
-        auto title=new QLabel(i==4?"General":names[i]);title->setProperty("role","settingTitle");title->setProperty("afterBoundary",i>0);title->setObjectName("settingsTitle"+names[i]);title->setAlignment(Qt::AlignLeft|Qt::AlignVCenter);
+        auto title=new QLabel(i==4?"Advance":i==2?"Calendar":names[i]);title->setProperty("role","settingTitle");title->setProperty("afterBoundary",i>0);title->setObjectName("settingsTitle"+names[i]);title->setAlignment(Qt::AlignLeft|Qt::AlignVCenter);
         title->setIndent(0);title->setSizePolicy(QSizePolicy::Fixed,QSizePolicy::Preferred);
         auto band=new QFrame;band->setObjectName("settingsBand"+names[i]);band->setFixedHeight(4);
         band->setStyleSheet("border:0;background:qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 "+accents[i].name()+",stop:1 #101216);");
@@ -37,11 +39,15 @@ SettingWidget::SettingWidget(QWidget *parent):QWidget(parent){
             auto page=existing[i];
             page->layout()->setSizeConstraint(QLayout::SetMinAndMaxSize);section->addWidget(page);
         }
+        if(i==3)section->addWidget(new SettingDeadlinePage(group,true));
         groups->addWidget(group);
     }
     groups->addStretch();scroll->setWidget(content);layout->addWidget(scroll);
 }
 void SettingWidget::resetUI(){m_homePage->resetUI();m_mailPage->resetUI();m_deadlinePage->resetUI();}
+void SettingWidget::setSecretInitialized(bool initialized){
+    findChild<QPushButton*>("secretPasswordAction")->setText(initialized?"修改密码":"初始化");
+}
 void SettingWidget::showEvent(QShowEvent *event){
     QWidget::showEvent(event);
     for(auto list:findChildren<QListWidget*>()){list->setCurrentRow(-1);list->clearSelection();}

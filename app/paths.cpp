@@ -5,7 +5,7 @@
 #include <QStandardPaths>
 QString Paths::root() {
     const QString overridePath = qEnvironmentVariable("ZTL_DATA_DIR");
-    const QString path = overridePath.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) : overridePath;
+    const QString path = overridePath.isEmpty() ? QCoreApplication::applicationDirPath()+"/data" : overridePath;
     QDir().mkpath(path);
     return path;
 }
@@ -17,6 +17,11 @@ QString Paths::data(const QString &relative) {
 QString Paths::scripts() {
     const QString configured = qEnvironmentVariable("ZTL_SCRIPTS_DIR");
     return configured.isEmpty() ? QCoreApplication::applicationDirPath() + "/scripts" : configured;
+}
+void Paths::initialize(){
+    for(const auto &name:{"config","database","cache","logs","backups","tmp","crash","update-cache"})QDir().mkpath(data(name));
+    const auto temp=QDir::toNativeSeparators(data("tmp")).toUtf8();
+    qputenv("TMP",temp);qputenv("TEMP",temp);qputenv("TMPDIR",temp);
 }
 QString Paths::python() {
     // Explicit overrides remain for developer tests; end users always receive the bundled runtime.

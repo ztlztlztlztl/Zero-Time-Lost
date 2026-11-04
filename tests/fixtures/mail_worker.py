@@ -3,6 +3,8 @@ import importlib.util
 import json
 import pathlib
 import sys
+import os
+import sqlite3
 
 source = pathlib.Path(__file__).resolve().parents[2] / 'scripts' / 'mail_worker.py'
 spec = importlib.util.spec_from_file_location('production_mail_worker', source)
@@ -16,6 +18,7 @@ RAW = (b'From: sender@example.test\r\nSubject: Integration mail\r\n'
 
 class FakeIMAP:
     def __init__(self, *args, **kwargs):
+        self.host = args[0]
         if args and args[0] == 'offline.invalid':
             raise OSError('Fixture connection unavailable')
 
@@ -28,13 +31,14 @@ class FakeIMAP:
         return 'OK', [b'IMAP4rev1 ID']
 
     def xatom(self, command, values):
-        assert command == 'ID' and 'ZTL Sidekick' in values
+        assert command == 'ID' and 'Z.T.L' in values
         self.identified = True
         return 'OK', [b'ID completed']
 
     def select(self, folder, readonly=False):
         assert self.identified
-        assert folder == 'INBOX' and readonly
+        assert folder == 'INBOX'
+        self.readonly = readonly
         return 'OK', [b'4']
 
     def response(self, name):
@@ -44,6 +48,19 @@ class FakeIMAP:
     def uid(self, command, *args):
         if command == 'search':
             return 'OK', [b'1 2 3 4']
+        if command == 'store':
+            assert not self.readonly
+            root = pathlib.Path(os.environ['ZTL_DATA_DIR'])
+            # The real process boundary must never mark an unsaved summary read.
+            with sqlite3.connect(root / 'database' / 'mail.db') as db:
+                for uid in args[0].split(','):
+                    assert db.execute('SELECT 1 FROM mails WHERE uid=?', ('9:' + uid,)).fetchone()
+            if self.host == 'fail-seen-once.test':
+                marker = root / 'seen-attempt'
+                if not marker.exists():
+                    marker.write_text('failed', encoding='utf-8')
+                    return 'NO', []
+            return 'OK', []
         assert command == 'fetch'
         if args[0] == '99':
             return 'OK', [None]

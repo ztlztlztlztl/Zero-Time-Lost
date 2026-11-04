@@ -18,4 +18,6 @@ public:
 private:
     QSqlDatabase db;
     QString connection, error;
+    mutable QList<QJsonObject> snapshot;
+    mutable bool snapshotValid=false;
 };

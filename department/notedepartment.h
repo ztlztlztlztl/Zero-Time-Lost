@@ -21,6 +21,8 @@ public:
     bool needsMigration() const {return exists()&&!creationReady()&&!publicRepo.indexed();}
     bool save(QJsonObject entry);
     bool remove(const QString &id);
+    QStringList order(int kind) const { return publicRepo.order(kind); }
+    bool reorder(int kind,const QStringList &ids);
     bool preserveDraft(const QJsonObject &entry);
     QJsonObject recoveryDraft(const QString &id);
     QString migrationNotice() const {return migrationMessage;}

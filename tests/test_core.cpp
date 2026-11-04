@@ -51,7 +51,7 @@ private slots:
         QCOMPARE(d.listOccurrences(due,false).first().key,QString("2032-03-31"));
         QVERIFY(d.removeOccurrence(moved.first()));QVERIFY(d.occurrences(QDate(2032,2,10),QDate(2032,2,10)).isEmpty());
         QSignalSpy notices(&d,&DDLDepartment::reminder);d.checkReminders(due.addSecs(-60).toSecsSinceEpoch());QCOMPARE(notices.size(),1);
-        QVERIFY(d.complete(all.first()));QVERIFY(d.purgeExpired(due));QVERIFY(d.task("monthly")["excluded"].toArray().contains("2032-01-31"));
+        QVERIFY(d.complete(all.first()));QVERIFY(d.purgeExpired(due));QVERIFY(d.task("monthly")["instances"].toObject()["2032-01-31"].toObject()["done"].toBool());
         auto replacement=d.task("monthly");replacement["due"]=QDateTime(QDate(2032,1,29),QTime(9,0)).toString(Qt::ISODate);replacement["instances"]=QJsonObject();replacement["excluded"]=QJsonArray();
         QVERIFY(d.save(replacement));all=d.occurrences(QDate(2032,2,1),QDate(2032,2,29));QCOMPARE(all.size(),1);QCOMPARE(all.first().due.date(),QDate(2032,2,29));
         QVERIFY(d.occurrences(QDate(2033,2,1),QDate(2033,2,28)).isEmpty());
@@ -59,7 +59,8 @@ private slots:
     }
     void recurrenceAndReminder(){
         QTemporaryDir dir;TaskRepository repo(dir.filePath("tasks.db"));QVERIFY(repo.ready());DDLDepartment dept(&repo);dept.setQuiet(0,0);
-        const auto now=QDateTime::currentDateTime();const auto due=now.addSecs(120);
+        // Keep the three-day range stable even when this test runs near midnight.
+        const auto now=QDateTime(QDate(2036,5,6),QTime(12,0));const auto due=now.addSecs(120);
         QJsonObject task{{"title","daily test"},{"hasDue",true},{"due",due.toString(Qt::ISODate)},{"repeat","daily"},{"remind",true},{"advanceMinutes",5}};
         QVERIFY(dept.save(task));const auto all=dept.occurrences(now.date(),now.date().addDays(2));QCOMPARE(all.size(),3);
         QSignalSpy notifications(&dept,&DDLDepartment::reminder);
@@ -94,19 +95,19 @@ private slots:
             QVERIFY(d.listOccurrences(QDateTime::currentDateTime(),true).first().done);
             edited=d.task("single");edited["due"]=due.toString(Qt::ISODate);QVERIFY(d.save(edited));
             QVERIFY(d.purgeExpired(due.addSecs(-1)));QVERIFY(!d.task("single").isEmpty());
-            QVERIFY(d.purgeExpired(due));QVERIFY(d.task("single").isEmpty());
+            QVERIFY(d.purgeExpired(due));QVERIFY(!d.task("single").isEmpty());QVERIFY(d.listOccurrences(due,true).isEmpty());
             QVERIFY(d.save({{"id","undated"},{"title","undated"},{"repeat","none"},{"hasDue",false}}));
             QVERIFY(d.complete(d.listOccurrences(QDateTime::currentDateTime(),false).first()));QVERIFY(d.purgeExpired(due.addDays(300)));QVERIFY(!d.task("undated").isEmpty());
             QVERIFY(d.save({{"id","recurring"},{"title","daily"},{"repeat","daily"},{"hasDue",true},{"due",due.toString(Qt::ISODate)}}));
             auto series=d.occurrences(due.date(),due.date()).first();seriesId=series.taskId;removedKey=series.key;
             QVERIFY(d.setOccurrence(seriesId,removedKey,{{"note","discard-this-content"},{"done",true}}));
-            QVERIFY(d.purgeExpired(due));QVERIFY(!d.task(seriesId)["instances"].toObject().contains(removedKey));QVERIFY(d.task(seriesId)["excluded"].toArray().contains(removedKey));
-            QVERIFY(!d.setOccurrence(seriesId,removedKey,{{"deleted",false}}));
+            QVERIFY(d.purgeExpired(due));QVERIFY(d.task(seriesId)["instances"].toObject()[removedKey].toObject()["done"].toBool());QVERIFY(!d.task(seriesId)["excluded"].toArray().contains(removedKey));
+            QVERIFY(d.setOccurrence(seriesId,removedKey,{{"note","retained-history"}}));
             auto next=d.listOccurrences(due,false).first();QVERIFY(next.due>due);QVERIFY(d.removeOccurrence(next));QVERIFY(!d.setOccurrence(seriesId,next.key,{{"done",false}}));
             QVERIFY(repo.save({{"id","old-trash"},{"title","old trash content"},{"repeat","none"},{"deleted",true}}));QVERIFY(d.purgeExpired(due));QVERIFY(d.task("old-trash").isEmpty());
         }
         TaskRepository repo(path);DDLDepartment d(&repo);QVERIFY(!d.task(seriesId).isEmpty());
-        const auto all=d.occurrences(due.date(),due.date().addDays(3));for(const auto &o:all)QVERIFY(o.key!=removedKey);
+        const auto all=d.occurrences(due.date(),due.date().addDays(3));bool retained=false;for(const auto &o:all)if(o.taskId==seriesId&&o.key==removedKey){retained=true;QVERIFY(o.done);QCOMPARE(o.note,QString("retained-history"));}QVERIFY(retained);
         QVERIFY(d.setDeleted(seriesId,true));QVERIFY(d.task(seriesId).isEmpty());QVERIFY(!d.setDeleted(seriesId,false));
     }
     void overdueSnoozeOutsideCalendarRange(){

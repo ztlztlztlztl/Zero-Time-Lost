@@ -1,3 +1,4 @@
+#include "pageheader.h"
 #include "mailwidget.h"
 #include "mailmanager.h"
 #include "mailstyle.h"
@@ -5,6 +6,7 @@
 MailWidget::MailWidget(MailGetService *department,QWidget *parent):QWidget(parent),m_mailGetService(department){
     setAttribute(Qt::WA_StyledBackground,true);setObjectName("mailPage");setStyleSheet(MailStyle::sheet);
     auto layout=new QVBoxLayout(this);layout->setContentsMargins(24,16,24,14);layout->setSpacing(12);
+    addPageHeader(layout,"Mail");
     pages=new QStackedWidget;pages->setObjectName("mailPages");layout->addWidget(pages,1);
     m_mailSimpleDisplay=new MailSimpleDisplayWidget;pages->addWidget(m_mailSimpleDisplay);
     auto reading=new QWidget;reading->setObjectName("mailReadingPage");auto right=new QVBoxLayout(reading);right->setContentsMargins(0,0,0,0);right->setSpacing(12);

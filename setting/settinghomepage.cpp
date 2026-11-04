@@ -37,7 +37,9 @@ void SettingHomePage::resetUI(){
 void SettingHomePage::editCity(bool creating){
     const auto config=ConfigManager::getInstance()->getHomeweather();const int row=cities->currentRow();if(!creating&&(row<0||row>=config.savedCities.size()))return;
     const auto original=creating?weatherCity{}:config.savedCities[row];
-    auto popup=SettingControls::popup(this,creating?"添加城市":"修改城市","cityPopup");auto layout=qobject_cast<QVBoxLayout*>(popup->layout());
+    const auto draftKey=creating?QString("new"):original.code;
+    for(auto draft:findChildren<QDialog*>("cityPopup",Qt::FindDirectChildrenOnly))if(draft->property("draftKey").toString()==draftKey){SettingControls::showPopup(draft,cities);return;}
+    auto popup=SettingControls::popup(this,creating?"添加城市":"修改城市","cityPopup");popup->setProperty("draftKey",draftKey);auto layout=qobject_cast<QVBoxLayout*>(popup->layout());
     auto fields=new QWidget;auto form=SettingControls::form(fields);auto name=new QLineEdit(original.name);name->setObjectName("cityName");
     auto code=new QLineEdit(original.code);code->setObjectName("cityCode");code->setPlaceholderText("6 位高德城市编码");code->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]{6}"),code));
     form->addRow(SettingControls::label("城市名"),name);form->addRow(SettingControls::label("城市编码"),code);layout->addWidget(fields);

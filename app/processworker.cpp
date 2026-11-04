@@ -1,6 +1,7 @@
 #include "processworker.h"
 #include "paths.h"
 #include <QProcess>
+#include <QProcessEnvironment>
 #include <QTimer>
 #include <QJsonDocument>
 #include <QFileInfo>
@@ -21,6 +22,9 @@ void ProcessWorker::run(const QJsonObject &request, Callback callback) {
         callback({},"缺少邮件脚本，请重新构建项目或使用完整部署包");return;
     }
     auto p = new QProcess(this);
+    auto env=QProcessEnvironment::systemEnvironment();
+    for(const auto &key:{"TEMP","TMP","TMPDIR"})env.insert(key,Paths::data("tmp"));
+    env.insert("PYTHONDONTWRITEBYTECODE","1");p->setProcessEnvironment(env);p->setWorkingDirectory(Paths::root());
     running.insert(p);
     auto output = std::make_shared<QByteArray>();
     auto finished = std::make_shared<bool>(false);
@@ -63,5 +67,5 @@ void ProcessWorker::run(const QJsonObject &request, Callback callback) {
         finish(obj, obj["ok"].toBool() ? QString() : obj["error"].toString("请求失败"));
     });
     timeout->start(45000);
-    p->start(Paths::python(), {"-u", Paths::scripts() + "/mail_worker.py"});
+    p->start(Paths::python(), {"-B", "-u", Paths::scripts() + "/mail_worker.py"});
 }

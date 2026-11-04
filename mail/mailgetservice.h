@@ -21,6 +21,7 @@ signals:
     void restoreFinished(const QString &address,const QString &id,bool success);
 private:
     void nextAccount();
+    void markPendingSeen(const MailAccount &account);
     ProcessWorker worker;
     QList<MailAccount> accounts;
     int index=0;

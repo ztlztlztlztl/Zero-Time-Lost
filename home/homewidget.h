@@ -1,13 +1,17 @@
 #pragma once
 #include <QWidget>
 #include <QDate>
+#include "calendarrules.h"
 class HomeDepartment;class HomeBackgroundShader;class HomeInfoWidget;class QLabel;
 class HomeWidget:public QWidget {
     Q_OBJECT
 public:
     explicit HomeWidget(HomeDepartment *department,QWidget *parent=nullptr);
     void setSummary(const QDate &date,int today,int tomorrow,int overdue,qint64 unread,bool available=true);
+    void setCalendarContext(const QStringList &labels,const QStringList &intervals);
+    void setCalendarItems(const QList<TaskOccurrence> &items);
 signals:
+    void calendarItemRequested(const QString &identity,const QDate &date);
     void ddlRequested(const QDate &date);
     void mailRequested();
     void summaryRefreshRequested();

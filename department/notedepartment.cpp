@@ -1,4 +1,5 @@
 #include "notedepartment.h"
+#include "tagrules.h"
 #include "cryptotool.h"
 #include "vaultcodec.h"
 #include <QJsonDocument>
@@ -173,6 +174,7 @@ bool NoteDepartment::save(QJsonObject e){
     if(e["title"].toString().trimmed().isEmpty()){message="请输入标题";return false;}
     e["title"]=e["title"].toString().trimmed();
     if(kind!=0){
+        message=TagRules::selectionError(e["tags"].toString());if(!message.isEmpty())return false;
         auto tags=e["tags"].toString().split(',',Qt::SkipEmptyParts);for(auto &tag:tags)tag=tag.trimmed();tags.removeAll("");tags.removeDuplicates();if(tags.size()>3){message="最多选择三个标签";return false;}e["tags"]=tags.join(',');
         if(kind==1){if(!e.contains("targetType")){e["targetType"]="website";e["target"]=e["body"].toString().trimmed();}message=BookmarkTarget::validate(e);if(!message.isEmpty())return false;e.remove("body");}
     }
@@ -244,4 +246,11 @@ void NoteDepartment::copySecret(const QString &text) {
         if(clipboardFingerprint==expected&&QCryptographicHash::hash(cb->text().toUtf8(),QCryptographicHash::Sha256)==expected) cb->clear();
         if(clipboardFingerprint==expected) clipboardFingerprint.clear();
     });
+}
+
+bool NoteDepartment::reorder(int kind,const QStringList &ids){
+    QSet<QString> allowed,seen;for(auto v:catalog()){auto e=v.toObject();if(e["kind"].toInt()==kind)allowed.insert(e["id"].toString());}
+    for(const auto &id:ids){if(!allowed.contains(id)||seen.contains(id)){message="排序包含无效或重复条目";return false;}seen.insert(id);}
+    if(!publicRepo.saveOrder(kind,ids)){message=publicRepo.error();return false;}
+    message.clear();emit changed();return true;
 }

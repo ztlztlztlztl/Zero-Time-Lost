@@ -1,5 +1,6 @@
 #pragma once
 #include "datatype.h"
+#include "advancedfilter.h"
 #include "mailaccountmanager.h"
 #include <QWidget>
 #include <QSet>
@@ -21,8 +22,10 @@ private:
     QTreeWidget *rows;
     QTabBar *tabs;
     QPushButton *refresh,*more;
-    QLineEdit *search;
-    QComboBox *account;
+    AdvancedFilter filter;
+    QPushButton *filterButton;
+    void toggleFilter();
+    void openFilter();
     QLabel *empty;
     QList<MailBrief> visible;
     int loaded=10;

@@ -9,6 +9,8 @@ public:
     explicit MainWindow(AppContext *context,QWidget *parent=nullptr);
     ~MainWindow() override;
     void lock();
+    void openFromTray();
+    void saveWindowState();
 protected:
     void closeEvent(QCloseEvent *event) override;
     bool eventFilter(QObject *object,QEvent *event) override;

@@ -1,4 +1,5 @@
 #include "configmanager.h"
+#include "tagrules.h"
 
 ConfigManager* ConfigManager::getInstance()
 {
@@ -35,7 +36,7 @@ void ConfigManager::loadFromFile(){
         qWarning() << "[ConfigManager] ./settings.json JSON 格式损坏或空。";
         m_homeWeather = HomeWeatherConfig();
         m_mailBasical = MailBasicalConfig();
-        m_deadlineBasical = DeadlineBasicalConfig();
+        m_deadlineBasical = DeadlineBasicalConfig();m_noteTags.clear();
         return;
     }
     QJsonObject homeObj = settingObj["home"].toObject();
@@ -47,6 +48,7 @@ void ConfigManager::loadFromFile(){
     m_mailBasical.normalize();
     QJsonObject deadlineObj = settingObj["deadline"].toObject();
     m_deadlineBasical = DeadlineBasicalConfig(deadlineObj);
+    m_noteTags.clear();for(auto v:settingObj["noteTags"].toArray())m_noteTags.append(v.toString());
 
 }
 
@@ -59,6 +61,7 @@ void ConfigManager::saveSetting(){
     settingObj["home"] = homeObj; // home
     settingObj["mail"] = m_mailBasical.toJson(); // mail
     settingObj["deadline"] = m_deadlineBasical.toJson();
+    QJsonArray noteTags;for(const auto &tag:m_noteTags)noteTags.append(tag);settingObj["noteTags"]=noteTags;
     // 打包保存
     m_settingEngine->lazyWrite(settingObj);
 }
@@ -99,17 +102,8 @@ void ConfigManager::setDeadlineBasical(const DeadlineBasicalConfig& newconfig){
 }
 
 void ConfigManager::setCommonTags(const QStringList &tags){
-    auto config=m_deadlineBasical;config.commonTags.clear();
-    for(const auto &value:tags){const auto tag=value.trimmed();
-        if(!tag.isEmpty()&&tag.size()<=32&&!tag.contains(',')&&!tag.contains("，")&&!config.commonTags.contains(tag))config.commonTags.append(tag);
-    }
-    setDeadlineBasical(config);
+    auto config=m_deadlineBasical;config.commonTags=TagRules::normalize(tags);setDeadlineBasical(config);
 }
-
-
-
-
-
-
-
-
+void ConfigManager::setNoteTags(const QStringList &tags){
+    m_noteTags=TagRules::normalize(tags);saveSetting();emit noteTagsChanged();
+}
