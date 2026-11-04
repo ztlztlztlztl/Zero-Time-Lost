@@ -6,7 +6,7 @@ Z.T.L 是一个给个人使用的桌面副手。它把时间、天气、邮件�
 
 ## 当前版本
 
-当前分支 `v2.0-phase2` 完成阶段二，修改与验证记录见 [report-phase2.md](report-phase2.md)；阶段一记录见 [report-phase1.md](report-phase1.md)。当前包含：
+当前分支 `v2.0-phase2` 已完成阶段一、二，完成目标、修改、验证与后续交接见 [阶段一、二开发报告](report-phase1-phase2.md)。当前包含：
 
 - Home：本地时间、天气、动态背景、今日和明日事务、未读邮件摘要。
 - Mail：多账号 IMAP 同步、邮件列表、正文按需获取、搜索、收藏、本地删除与恢复。
@@ -15,7 +15,7 @@ Z.T.L 是一个给个人使用的桌面副手。它把时间、天气、邮件�
 - 设置：天气、邮件、Calendar、Note、独立标签组、开机启动、托盘行为和数据目录。
 - 测试：vault、note、core、UI、邮件同步和 Python 邮件适配器测试。
 
-详细使用方法见 [instruct.md](instruct.md)，v2.0 需求原文见 [require.md](require.md)，现状评估见 [report.md](report.md)。
+详细使用方法见 [instruct.md](instruct.md)，v2.0 需求原文见 [require.md](require.md)，开发前的 v1.0 需求评估见 [report.md](report.md)，当前实现与已确认规则见合并阶段报告。
 
 ## v2.0 目标
 
@@ -98,7 +98,7 @@ D:\ZTL\
 
 ### 阶段二：简单功能扩展
 
-本阶段按 [require-phase2.md](require-phase2.md) 和本轮确认的规则实现，记录见 [report-phase2.md](report-phase2.md)。
+本阶段按 [require-phase2.md](require-phase2.md) 和本轮确认的规则实现，记录见 [阶段一、二开发报告](report-phase1-phase2.md)。
 
 - Calendar、Note、Mail 使用高级筛选弹窗，取代原有快捷搜索和标签控件。多个标题关键词和标签须全部匹配。
 - Calendar 支持标星与可选日期范围；指定范围时展开其中全部匹配循环实例。大量结果分批绘制。
@@ -242,7 +242,7 @@ master      v1.0 当前源码与文档基线
 .\scripts\package.ps1
 ```
 
-部署包输出到 `build/ZTL-package/`，直接运行其中的 `Z.T.L.exe`。
+当前保留的部署包位于 `build/ZTL-package-recurrence/`，直接运行其中的 `Z.T.L.exe`。清理后再次执行打包脚本，会按默认设置生成 `build/ZTL-package/`。
 
 Qt 路径可以通过 `-QtRoot` 或 `QT_ROOT` 指定。开发测试可以设置 `ZTL_DATA_DIR` 使用独立数据目录，生产运行不设置该变量。
 
@@ -252,4 +252,4 @@ Qt 路径可以通过 `-QtRoot` 或 `QT_ROOT` 指定。开发测试可以设置 
 - 模型请求是否全部经过个人云端转发，还是客户端直接调用 DeepSeek。
 - v2.0 的视觉稿和图标方案。
 
-阶段二实现与测试见 [report-phase2.md](report-phase2.md)。下一步讨论阶段三的 Calendar 数据模型，以及模型、云端和前端整体升级。
+阶段二实现与测试见 [阶段一、二开发报告](report-phase1-phase2.md)。下一步讨论阶段三的 Calendar 数据模型，以及模型、云端和前端整体升级。
