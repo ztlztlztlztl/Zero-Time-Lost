@@ -111,7 +111,7 @@ private slots:
         // Splitting before the old tail reports only dates that still belong to each segment.
         auto replacement=recurring("new",due.addDays(2),2);QVERIFY(dept.splitSeries("edit",due.date().addDays(2),replacement));QCOMPARE(Recurrence::remaining(dept.task("edit"),due.addDays(2)),0);
     }
-    void exhaustedRecurrenceCanDisableLimit(){
+    void exhaustedRecurrenceCanEditOrDisable(){
         QTemporaryDir dir;TaskRepository repo(dir.filePath("tasks"));DDLDepartment dept(&repo);
         const auto due=QDateTime(QDate::currentDate().addDays(-2),QTime(9,0));
         QVERIFY(dept.save(recurring("exhausted",due,1)));
@@ -121,13 +121,10 @@ private slots:
         QSignalSpy submitted(&single,&DeadlineEditor::submitted);
         single.findChild<QPushButton*>("ddlSave")->click();QCOMPARE(submitted.size(),1);
         DeadlineEditor editor(dept.task("exhausted"),due,true,false);
-        auto limited=editor.findChild<QCheckBox*>("ddlCountLimited");
-        QCOMPARE(editor.values()["remainingCount"].toInt(),0);
+        QVERIFY(!editor.findChild<QCheckBox*>("ddlCountLimited"));
+        QCOMPARE(editor.values()["remainingCount"].toInt(),1);
         auto saveEditor=[&]{auto value=editor.values();value["id"]="exhausted";return dept.save(value);};
-        limited->setChecked(false);QVERIFY(saveEditor());
-        QVERIFY(!dept.task("exhausted")["countLimited"].toBool());
-        QCOMPARE(dept.listOccurrences(QDateTime::currentDateTime(),false).size(),1);
-        limited->setChecked(true);editor.findChild<QCheckBox*>("ddlRepeatEnabled")->setChecked(false);
+        editor.findChild<QCheckBox*>("ddlRepeatEnabled")->setChecked(false);
         QVERIFY(saveEditor());QCOMPARE(dept.task("exhausted")["repeat"].toString(),QString("none"));
     }
     void splitCancelsOldSnoozedInstance(){
@@ -149,13 +146,30 @@ private slots:
         QWidget owner;owner.resize(920,900);owner.show();
         const auto due=QDateTime(QDate::currentDate().addDays(2),QTime(9,0));
         DeadlineEditor editor({},due,false,false,&owner);editor.show();
-        auto enabled=editor.findChild<QCheckBox*>("ddlRepeatEnabled"),limited=editor.findChild<QCheckBox*>("ddlCountLimited");
+        auto enabled=editor.findChild<QCheckBox*>("ddlRepeatEnabled");
         QVERIFY(!enabled->isChecked());QCOMPARE(editor.values()["repeat"].toString(),QString("none"));enabled->setChecked(true);
-        QTRY_VERIFY(editor.findChild<QWidget*>("ddlRecurrence")->isVisible());auto count=editor.findChild<QSpinBox*>("ddlRemainingCount");QVERIFY(!count->isEnabled());limited->setChecked(true);QVERIFY(count->isEnabled());count->setValue(7);
+        QVERIFY(!editor.findChild<QCheckBox*>("ddlCountLimited"));
+        QTRY_VERIFY(editor.findChild<QWidget*>("ddlRecurrence")->isVisible());auto count=editor.findChild<QSpinBox*>("ddlRemainingCount");QVERIFY(count->isEnabled());QCOMPARE(count->minimum(),1);count->setValue(0);QCOMPARE(count->value(),1);count->setValue(7);
+        QVERIFY(editor.values()["countLimited"].toBool());
         auto repeat=editor.findChild<QComboBox*>("ddlRepeat");repeat->setCurrentIndex(repeat->findData("weekly"));
-        auto days=editor.findChild<QListWidget*>("ddlWeekdays");for(int i=0;i<7;++i)days->item(i)->setCheckState(i==0||i==4?Qt::Checked:Qt::Unchecked);
+        auto days=editor.findChild<QWidget*>("ddlWeekdays");auto buttons=days->findChildren<QPushButton*>();QCOMPARE(buttons.size(),7);
+        for(auto button:buttons)button->setChecked(false);
+        QTest::mouseClick(buttons[0],Qt::LeftButton);QTest::mouseClick(buttons[4],Qt::LeftButton);
+        for(auto button:buttons)QCOMPARE(button->y(),buttons[0]->y());
         QCOMPARE(editor.values()["weekdays"].toArray(),QJsonArray({1,5}));QCOMPARE(editor.values()["remainingCount"].toInt(),7);
-        snapshot(editor,"phase2-recurrence");enabled->setChecked(false);QVERIFY(editor.findChild<QWidget*>("ddlRecurrence")->isHidden());QCOMPARE(editor.values()["repeat"].toString(),QString("none"));QVERIFY(!editor.values()["countLimited"].toBool());
+        QTest::qWait(20);snapshot(editor,"phase2-recurrence-weekly");
+        repeat->setCurrentIndex(repeat->findData("monthly"));QTest::qWait(20);
+        auto month=editor.findChild<QWidget*>("ddlMonthdays");auto grid=qobject_cast<QGridLayout*>(month->layout());QCOMPARE(grid->rowCount(),5);QCOMPARE(grid->columnCount(),7);
+        auto monthButtons=month->findChildren<QPushButton*>();QCOMPARE(monthButtons.size(),35);
+        for(auto button:monthButtons)button->setChecked(false);
+        QTest::mouseClick(monthButtons[0],Qt::LeftButton);QTest::mouseClick(monthButtons[30],Qt::LeftButton);
+        for(int i=31;i<35;++i){QVERIFY(!monthButtons[i]->isEnabled());QVERIFY(monthButtons[i]->text().isEmpty());}
+        QCOMPARE(editor.values()["monthdays"].toArray(),QJsonArray({1,31}));
+        auto scroll=editor.findChild<QScrollArea*>("ddlEditorScroll");scroll->ensureWidgetVisible(monthButtons[30]);QTest::qWait(20);snapshot(editor,"phase2-recurrence-monthly");
+        QVERIFY(scroll->viewport()->rect().contains(monthButtons[30]->mapTo(scroll->viewport(),monthButtons[30]->rect().center())));
+        repeat->setCurrentIndex(repeat->findData("daily"));QTest::qWait(20);snapshot(editor,"phase2-recurrence-daily");
+        QCOMPARE(editor.values()["weekdays"].toArray(),QJsonArray({1,5}));
+        enabled->setChecked(false);QVERIFY(editor.findChild<QWidget*>("ddlRecurrence")->isHidden());QCOMPARE(editor.values()["repeat"].toString(),QString("none"));QVERIFY(!editor.values()["countLimited"].toBool());
     }
     void calendarRangeExpandsAll(){
         QTemporaryDir dir;TaskRepository repo(dir.filePath("tasks"));DDLDepartment dept(&repo);const auto date=QDate::currentDate().addDays(10);

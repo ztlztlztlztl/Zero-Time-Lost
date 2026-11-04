@@ -77,7 +77,7 @@ DeadlineEditor::DeadlineEditor(const QJsonObject &task,const QDateTime &date,boo
     auto header=new QHBoxLayout;auto heading=new QLabel(windowTitle());heading->setProperty("role","settingLabel");auto close=new SettingButton("×");close->setObjectName("popupClose");close->setFixedWidth(38);
     header->addWidget(close);header->addWidget(heading,1);layout->addLayout(header);connect(close,&QPushButton::clicked,this,&QDialog::reject);
     auto scroll=new QScrollArea;scroll->setObjectName("ddlEditorScroll");scroll->setWidgetResizable(true);scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);scroll->setMinimumHeight(280);
-    auto content=new QWidget;auto form=new QFormLayout(content);form->setHorizontalSpacing(20);form->setVerticalSpacing(10);form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);scroll->setWidget(content);layout->addWidget(scroll,1);
+    auto content=new QWidget;auto form=new QFormLayout(content);form->setHorizontalSpacing(20);form->setVerticalSpacing(10);form->setFormAlignment(Qt::AlignTop);form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);scroll->setWidget(content);layout->addWidget(scroll,1);
     title=new QLineEdit(task["title"].toString());title->setObjectName("ddlTitle");
     note=new QTextEdit;note->setObjectName("ddlNote");note->setPlainText(task["note"].toString());note->setFixedHeight(66);
     tags=new DeadlineTagPicker(task["tags"].toString());due=new DeadlineDateTimeInput(date);
@@ -85,32 +85,44 @@ DeadlineEditor::DeadlineEditor(const QJsonObject &task,const QDateTime &date,boo
     auto yesNo=[&](const QString &name,bool enabled){auto combo=new NoWheelComboBox;combo->setObjectName(name);combo->addItem("否",false);combo->addItem("是",true);combo->setCurrentIndex(enabled?1:0);return combo;};
     star=yesNo("ddlStar",task["priority"].toInt()>0);remind=yesNo("ddlRemind",task["remind"].toBool(ConfigManager::getInstance()->getDeadlineBasical().remindTime!=-1));
     form->addRow("标题",title);form->addRow("备注",note);form->addRow("标签",tags);form->addRow("截止时间",due);form->addRow("是否标星",star);form->addRow("是否提醒",remind);
-    repeatEnabled=new QCheckBox("启用循环");repeatEnabled->setObjectName("ddlRepeatEnabled");repeatEnabled->setChecked(task["repeat"]!="none"&&!task["repeat"].toString().isEmpty());form->addRow(repeatEnabled);
-    auto advanced=new QWidget;advanced->setObjectName("ddlRecurrence");auto recurring=new QFormLayout(advanced);recurring->setContentsMargins(0,0,0,0);
-    countLimited=new QCheckBox("循环次数有限");countLimited->setObjectName("ddlCountLimited");countLimited->setChecked(task["countLimited"].toBool());
-    remainingCount=new NoWheelSpinBox;remainingCount->setObjectName("ddlRemainingCount");const int left=task.contains("remainingCount")?task["remainingCount"].toInt():Recurrence::remaining(task);remainingCount->setRange(task["countLimited"].toBool()&&left==0?0:1,1000000);remainingCount->setValue(task["countLimited"].toBool()?left:1);
-    remainingCount->setEnabled(countLimited->isChecked());recurring->addRow(countLimited);recurring->addRow("剩余次数",remainingCount);
-    auto rules=new QHBoxLayout;rules->addWidget(repeat);auto choices=new QStackedWidget;rules->addWidget(choices,1);recurring->addRow("循环规则",rules);
+    repeatEnabled=new QCheckBox("是否启用循环");repeatEnabled->setObjectName("ddlRepeatEnabled");repeatEnabled->setChecked(task["repeat"]!="none"&&!task["repeat"].toString().isEmpty());form->addRow("循环",repeatEnabled);
+    auto advanced=new QWidget;advanced->setObjectName("ddlRecurrence");auto recurring=new QFormLayout(advanced);recurring->setContentsMargins(0,0,0,0);recurring->setHorizontalSpacing(20);recurring->setVerticalSpacing(10);recurring->setFormAlignment(Qt::AlignTop);recurring->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    remainingCount=new NoWheelSpinBox;remainingCount->setObjectName("ddlRemainingCount");const int left=task.contains("remainingCount")?task["remainingCount"].toInt():Recurrence::remaining(task);remainingCount->setRange(1,1000000);remainingCount->setValue(qMax(1,left));recurring->addRow("剩余次数",remainingCount);
+    auto rules=new QHBoxLayout;repeat->setFixedWidth(112);rules->addWidget(repeat);rules->addStretch();recurring->addRow("循环规则",rules);
+    auto choices=new QStackedWidget;choices->setObjectName("ddlRecurrenceChoices");recurring->addRow(QString(),choices);
     auto none=new QLabel("每天发生一次");choices->addWidget(none);
     auto choose=[&](const QString &name,int maximum,const QJsonArray &selected,int fallback){
-        auto list=new QListWidget;list->setObjectName(name);list->setFixedHeight(156);
+        auto group=new QWidget;group->setObjectName(name);auto grid=new QGridLayout(group);grid->setContentsMargins(0,0,0,0);grid->setSpacing(6);
+        group->setStyleSheet(R"qss(
+QPushButton { background:#14171d; color:#cbd0d8; border:1px solid #343841; border-radius:3px; padding:7px 2px; min-width:0; min-height:22px; }
+QPushButton:hover { background:#24202a; border-color:#b8445d; }
+QPushButton:checked,QPushButton:checked:hover,QPushButton:checked:pressed { background:#a23750; border:1px solid #e87993; color:#ffffff; font-weight:600; }
+QPushButton:focus { border:1px solid #f2adc0; }
+QPushButton:disabled { color:#737a86; }
+QPushButton[emptyDay="true"] { background:transparent; border:1px solid transparent; }
+)qss");
         const QStringList names{"周一","周二","周三","周四","周五","周六","周日"};
-        for(int n=1;n<=maximum;++n){auto item=new QListWidgetItem(maximum==7?names[n-1]:QString("%1 日").arg(n),list);item->setData(Qt::UserRole,n);item->setFlags(item->flags()|Qt::ItemIsUserCheckable);item->setCheckState((selected.isEmpty()?n==fallback:selected.contains(n))?Qt::Checked:Qt::Unchecked);}
-        return list;
+        for(int n=1;n<=(maximum==7?7:35);++n){
+            auto button=new QPushButton(n>maximum?QString():maximum==7?names[n-1]:QString::number(n));button->setAutoDefault(false);button->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Fixed);
+            if(n<=maximum){button->setObjectName(name+QString::number(n));button->setProperty("day",n);button->setCheckable(true);button->setChecked(selected.isEmpty()?n==fallback:selected.contains(n));button->setAccessibleName(maximum==7?names[n-1]:QString("每月 %1 日").arg(n));connect(button,&QPushButton::toggled,group,[group]{group->setProperty("chosenByUser",true);});}
+            else{button->setProperty("emptyDay",true);button->setEnabled(false);}
+            grid->addWidget(button,(n-1)/7,(n-1)%7);
+        }
+        for(int col=0;col<7;++col)grid->setColumnStretch(col,1);
+        return group;
     };
     weekdays=choose("ddlWeekdays",7,task["weekdays"].toArray(),due->dateTime().date().dayOfWeek());weekdays->setProperty("chosenByUser",!task["weekdays"].toArray().isEmpty());
     monthdays=choose("ddlMonthdays",31,task["monthdays"].toArray(),due->dateTime().date().day());monthdays->setProperty("chosenByUser",!task["monthdays"].toArray().isEmpty());choices->addWidget(weekdays);choices->addWidget(monthdays);
-    choices->setCurrentIndex(repeat->currentIndex());connect(repeat,&QComboBox::currentIndexChanged,choices,&QStackedWidget::setCurrentIndex);
+    auto changeRule=[choices](int index){choices->setCurrentIndex(index);choices->setFixedHeight(choices->currentWidget()->sizeHint().height());};
+    changeRule(repeat->currentIndex());connect(repeat,&QComboBox::currentIndexChanged,choices,changeRule);
     // Defaults follow the due date until the user explicitly chooses days.
-    for(auto list:{weekdays,monthdays})connect(list,&QListWidget::itemChanged,list,[list]{list->setProperty("chosenByUser",true);});
     for(const auto &name:{"ddlYear","ddlMonth","ddlDay"})connect(due->findChild<QSpinBox*>(name),&QSpinBox::valueChanged,this,[this]{
         for(auto list:{weekdays,monthdays})if(!list->property("chosenByUser").toBool()){
-            QSignalBlocker block(list);int selected=list==weekdays?due->dateTime().date().dayOfWeek():due->dateTime().date().day();
-            for(int n=0;n<list->count();++n)list->item(n)->setCheckState(n+1==selected?Qt::Checked:Qt::Unchecked);
+            int selected=list==weekdays?due->dateTime().date().dayOfWeek():due->dateTime().date().day();
+            for(auto button:list->findChildren<QPushButton*>()){QSignalBlocker block(button);button->setChecked(button->property("day").toInt()==selected);}
         }
     });
     form->addRow(advanced);advanced->setVisible(repeatEnabled->isChecked());
-    connect(countLimited,&QCheckBox::toggled,remainingCount,&QWidget::setEnabled);
     connect(repeatEnabled,&QCheckBox::toggled,this,[this,advanced](bool enabled){
         advanced->setVisible(enabled);if(isVisible()){const auto bounds=DialogLayout::fit(*this,parentWidget()?parentWidget():this,QSize(660,enabled?880:620).boundedTo(screen()->availableGeometry().size()-QSize(24,24)));move(DialogLayout::clamp(pos(),size(),bounds));}
     });
@@ -141,10 +153,10 @@ void DeadlineEditor::done(int result){
 void DeadlineEditor::setError(const QString &message){feedback->setText(message);feedback->show();}
 QJsonObject DeadlineEditor::values() const {
     const auto date=due->dateTime();const auto rule=repeatEnabled->isChecked()?repeat->currentData().toString():QString("none");QJsonArray selectedWeekdays,selectedMonthdays;
-    for(int n=0;n<weekdays->count();++n)if(weekdays->item(n)->checkState()==Qt::Checked)selectedWeekdays.append(n+1);
-    for(int n=0;n<monthdays->count();++n)if(monthdays->item(n)->checkState()==Qt::Checked)selectedMonthdays.append(n+1);
+    for(auto button:weekdays->findChildren<QPushButton*>())if(button->isChecked())selectedWeekdays.append(button->property("day").toInt());
+    for(auto button:monthdays->findChildren<QPushButton*>())if(button->isChecked())selectedMonthdays.append(button->property("day").toInt());
     return {{"title",title->text().trimmed()},{"note",note->toPlainText()},{"tags",tags->selectedTags()},{"hasDue",true},{"due",date.toString(Qt::ISODate)},
         {"zone",QString::fromUtf8(QTimeZone::systemTimeZoneId())},{"repeat",rule},{"weekdays",selectedWeekdays},{"monthdays",selectedMonthdays},
-        {"countLimited",repeatEnabled->isChecked()&&countLimited->isChecked()},{"remainingCount",remainingCount->value()},{"priority",star->currentData().toBool()?1:0},
+        {"countLimited",repeatEnabled->isChecked()},{"remainingCount",remainingCount->value()},{"priority",star->currentData().toBool()?1:0},
         {"remind",remind->currentData().toBool()},{"advanceMinutes",original["advanceMinutes"].toInt(qBound<qint64>(0LL,ConfigManager::getInstance()->getDeadlineBasical().remindTime/60,10080LL))}};
 }

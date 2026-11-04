@@ -41,9 +41,9 @@ private:
     DeadlineTagPicker *tags;
     DeadlineDateTimeInput *due;
     QComboBox *repeat,*star,*remind;
-    QCheckBox *repeatEnabled,*countLimited;
+    QCheckBox *repeatEnabled;
     QSpinBox *remainingCount;
-    QListWidget *weekdays,*monthdays;
+    QWidget *weekdays,*monthdays;
     QLabel *feedback;
     bool deciding=false;
 };
