@@ -12,6 +12,15 @@
 #include <QCryptographicHash>
 
 CloudConnection *CloudConnection::instance(){static CloudConnection object;return &object;}
+void CloudConnection::notifySettingsChanged(){
+    ++generation;
+    // Qt's pooled HTTP connection retains its original TLS trust configuration.
+    // Swap managers before aborting old requests so callbacks cannot reuse that pool.
+    auto previous=network;network=new QNetworkAccessManager(this);
+    const auto pending=activeReplies;
+    for(auto reply:pending)reply->abort();
+    previous->deleteLater();emit settingsChanged();
+}
 bool CloudConnection::enabled(){return QSettings().value("cloud/enabled",false).toBool();}
 QString CloudConnection::identity(){
     QSettings s;return s.value("cloud/host").toString()+":"+s.value("cloud/port",443).toString()+":"+s.value("cloud/token").toString()+":"+s.value("cloud/ca").toString()+":"+s.value("cloud/enabled").toString();
@@ -37,11 +46,13 @@ void CloudConnection::request(const QString &path,const QJsonObject &body,Callba
         if(certs.isEmpty()){fail("云端证书文件无效或不存在，请重新选择");return;}
         auto ssl=req.sslConfiguration();auto trusted=ssl.caCertificates();trusted.append(certs);ssl.setCaCertificates(trusted);req.setSslConfiguration(ssl);
     }
-    const auto expected=identity();
-    auto reply=post?network.post(req,QJsonDocument(body).toJson(QJsonDocument::Compact)):network.get(req);
-    connect(reply,&QNetworkReply::finished,this,[reply,callback,expected]{
+    const auto expected=identity();const auto expectedGeneration=generation;
+    auto reply=post?network->post(req,QJsonDocument(body).toJson(QJsonDocument::Compact)):network->get(req);
+    activeReplies.insert(reply);
+    connect(reply,&QNetworkReply::finished,this,[this,reply,callback,expected,expectedGeneration]{
+        activeReplies.remove(reply);
         reply->deleteLater();
-        if(expected!=identity()){callback({},"云端配置已改变，本次响应未应用");return;}
+        if(expected!=identity()||expectedGeneration!=generation){callback({},"云端配置已改变，本次响应未应用");return;}
         const int http=reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         if(reply->error()!=QNetworkReply::NoError||http!=200){
             QString message;

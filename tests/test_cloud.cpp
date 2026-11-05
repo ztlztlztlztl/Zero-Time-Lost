@@ -3,6 +3,7 @@
 #include <QSettings>
 #include <QJsonDocument>
 #include <QFontDatabase>
+#include <QSslSocket>
 #include "cloudsync.h"
 #include "cloudconnection.h"
 #include "configmanager.h"
@@ -22,6 +23,8 @@ class CloudTests:public QObject {
     static QJsonObject remote(QJsonObject payload,int rev=1,bool deleted=false){return {{"kind","calendar"},{"id",payload["id"]},{"payload",deleted?QJsonObject():payload},{"rev",rev},{"deleted",deleted}};}
 private slots:
     void initTestCase(){
+        if(!qEnvironmentVariable("ZTL_TEST_TLS_BACKEND").isEmpty())QVERIFY(QSslSocket::setActiveBackend(qEnvironmentVariable("ZTL_TEST_TLS_BACKEND")));
+        if(qEnvironmentVariableIsSet("ZTL_REQUIRE_PACKAGED_TLS"))QVERIFY(!QSslSocket::availableBackends().contains("openssl"));
         QFontDatabase::addApplicationFont("C:/Windows/Fonts/msyh.ttc");
         qApp->setFont(QFont("Microsoft YaHei UI",10));
         qputenv("ZTL_DATA_DIR",root.path().toUtf8());Paths::initialize();
@@ -136,6 +139,21 @@ private slots:
         settings.setValue("cloud/token",CryptoTool::protect("intentionally-invalid-test-token"));result={};failure.clear();
         CloudConnection::instance()->request("/health",{},[&](const QJsonObject &r,const QString &error){result=r;failure=error;loop.quit();});
         loop.exec();QVERIFY(failure.contains("令牌"));settings.setValue("cloud/enabled",false);
+    }
+    void certificateAddedAfterFailedConnection(){
+        const auto configPath=qEnvironmentVariable("ZTL_CLOUD_TEST_CONFIG").isEmpty()?qEnvironmentVariable("ZTL_DEPLOYED_CLOUD_CONFIG"):qEnvironmentVariable("ZTL_CLOUD_TEST_CONFIG");
+        if(configPath.isEmpty())QSKIP("HTTPS fixture not provided");
+        QFile file(configPath);QVERIFY(file.open(QIODevice::ReadOnly));const auto config=QJsonDocument::fromJson(file.readAll()).object();
+        QSettings settings;settings.setValue("cloud/host",config["host"].toString("127.0.0.1"));settings.setValue("cloud/port",config["port"].toInt());settings.setValue("cloud/token",CryptoTool::protect(config["token"].toString()));settings.remove("cloud/ca");
+        auto connection=CloudConnection::instance();connection->notifySettingsChanged();
+        QEventLoop loop;QString failure;QJsonObject result;
+        auto request=[&]{result={};failure.clear();connection->request("/health",{},[&](const QJsonObject &r,const QString &error){result=r;failure=error;loop.quit();});QTimer::singleShot(20000,&loop,&QEventLoop::quit);loop.exec();};
+        request();QVERIFY(failure.contains("HTTPS"));
+        auto destination=Paths::data("cloud/server-ca.crt");QDir().mkpath(QFileInfo(destination).absolutePath());QVERIFY(QFile::copy(config["ca"].toString(),destination));
+        settings.setValue("cloud/ca","cloud/server-ca.crt");connection->notifySettingsChanged();
+        request();QVERIFY2(failure.isEmpty(),qPrintable(failure));QCOMPARE(result["protocol"].toInt(),1);
+        // Replacing a certificate at the same configured path must reset the pool too.
+        connection->notifySettingsChanged();request();QVERIFY2(failure.isEmpty(),qPrintable(failure));QCOMPARE(result["protocol"].toInt(),1);
     }
     void cleanupTestCase(){MailManager::getInstance()->clearUp();QSettings().setValue("cloud/enabled",false);}
 };

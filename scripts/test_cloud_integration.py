@@ -43,6 +43,8 @@ def main():
         config = directory / "config.json"
         config.write_text(json.dumps(dict(port=port, token=token, ca=str(pem))), encoding="utf-8")
         env = os.environ.copy()
+        if os.name == "nt":
+            env.setdefault("ZTL_TEST_TLS_BACKEND", "schannel")
         env.update(ZTL_DB=str(directory / "test.sqlite"), ZTL_TOKEN=token,
                    ZTL_CLOUD_TEST_CONFIG=str(config), QT_QPA_PLATFORM="offscreen",
                    ZTL_CLOUD_QA_IMAGE=str(ROOT / "build/cloud-settings.png"))

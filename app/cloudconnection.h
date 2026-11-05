@@ -2,6 +2,7 @@
 #include <QObject>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
+#include <QSet>
 #include <functional>
 
 class CloudConnection : public QObject {
@@ -12,13 +13,15 @@ public:
     static bool enabled();
     static QString identity();
     void request(const QString &path,const QJsonObject &body,Callback callback,bool post=false);
-    void notifySettingsChanged(){emit settingsChanged();}
+    void notifySettingsChanged();
 signals:
     void settingsChanged();
     void syncRequested();
     void conflictsRequested();
     void status(const QString &message);
 private:
-    explicit CloudConnection(QObject *parent=nullptr):QObject(parent),network(this){}
-    QNetworkAccessManager network;
+    explicit CloudConnection(QObject *parent=nullptr):QObject(parent),network(new QNetworkAccessManager(this)){}
+    QNetworkAccessManager *network;
+    QSet<QNetworkReply*> activeReplies;
+    quint64 generation=0;
 };
