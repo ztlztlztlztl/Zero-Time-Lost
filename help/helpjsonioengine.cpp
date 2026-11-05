@@ -8,9 +8,10 @@ HelpJsonIOEngine::HelpJsonIOEngine(const QString &folder,const QString &name,int
 }
 HelpJsonIOEngine::~HelpJsonIOEngine(){forceWrite();}
 QJsonObject HelpJsonIOEngine::read(){
-    QFile f(m_filePath);if(!f.open(QIODevice::ReadOnly))return {};
+    QFile f(m_filePath);if(!f.open(QIODevice::ReadOnly)){m_readValid=!f.exists();return {};}
     QJsonParseError e;auto doc=QJsonDocument::fromJson(f.readAll(),&e);
-    if(e.error!=QJsonParseError::NoError){qWarning()<<"Invalid configuration"<<m_fileName;return {};}return doc.object();
+    m_readValid=e.error==QJsonParseError::NoError&&doc.isObject();
+    if(!m_readValid){qWarning()<<"Invalid configuration"<<m_fileName;return {};}return doc.object();
 }
 void HelpJsonIOEngine::lazyWrite(const QJsonObject &obj){m_cacheBuffer=obj;m_isDirty=true;m_saveTimer->start();}
 void HelpJsonIOEngine::forceWrite(){if(m_isDirty){m_saveTimer->stop();writeToDisk(m_cacheBuffer);}}
@@ -18,7 +19,7 @@ void HelpJsonIOEngine::endWrite(const QJsonObject &obj){m_cacheBuffer=obj;m_isDi
 void HelpJsonIOEngine::writeToDisk(const QJsonObject &obj){
     ensureDirExists();QSaveFile f(m_filePath);auto bytes=QJsonDocument(obj).toJson();
     if(f.open(QIODevice::WriteOnly)&&f.write(bytes)==bytes.size()&&f.commit()){
-        m_isDirty=false;m_cacheBuffer={};
+        m_isDirty=false;m_cacheBuffer={};m_readValid=true;
         if(m_writeFailed){m_writeFailed=false;emit writeRecovered(m_fileName+" 已保存");}
     }else {
         qWarning()<<"Configuration write failed"<<m_fileName;m_saveTimer->start(5000);

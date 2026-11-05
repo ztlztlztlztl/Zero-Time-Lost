@@ -4,6 +4,7 @@
 #include "settingmailpage.h"
 #include "settingdeadlinepage.h"
 #include "generalsettings.h"
+#include "cloudsettings.h"
 #include "settingcontrols.h"
 #include "uistyle.h"
 #include <QtWidgets>
@@ -40,6 +41,7 @@ SettingWidget::SettingWidget(QWidget *parent):QWidget(parent){
             page->layout()->setSizeConstraint(QLayout::SetMinAndMaxSize);section->addWidget(page);
         }
         if(i==3)section->addWidget(new SettingDeadlinePage(group,true));
+        if(i==4)section->addWidget(new CloudSettings(group));
         groups->addWidget(group);
     }
     groups->addStretch();scroll->setWidget(content);layout->addWidget(scroll);

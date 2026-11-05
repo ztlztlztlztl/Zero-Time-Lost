@@ -1,0 +1,7 @@
+*
+!server/
+!server/*.py
+!server/requirements.txt
+!server/Dockerfile
+!scripts/
+!scripts/mail_worker.py

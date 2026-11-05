@@ -6,6 +6,7 @@
 #include "notedepartment.h"
 #include "mailgetservice.h"
 #include "homedepartment.h"
+#include "cloudsync.h"
 class AppContext:public QObject {
     Q_OBJECT
 public:
@@ -20,6 +21,7 @@ public:
     NoteDepartment notes;
     MailGetService mail;
     HomeDepartment home;
+    CloudSync *cloud=nullptr;
 private:
     bool stopped=false;
 };

@@ -34,6 +34,7 @@ public:
     int suffixRemaining(const QString &id,const QDate &from) const;
     TaskOccurrence resolve(const QString &id,const QString &key) const;
     void resyncTime();
+    void refreshFromSync(){undoEntries.clear();scheduleBoundary();emit changed();emit temporalChanged();}
     bool undo();
     QString undoText() const;
     void checkReminders(qint64 now);

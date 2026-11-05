@@ -1,0 +1,30 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+      args:
+        PYTHON_IMAGE: '${ZTL_PYTHON_IMAGE:-python:3.12-slim}'
+    env_file: .env
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+  https:
+    image: '${ZTL_NGINX_IMAGE:-nginx:1.28-alpine}'
+    ports:
+      - '${ZTL_PORT:-443}:443'
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/certs:ro
+    restart: unless-stopped
+    depends_on: [api]
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'

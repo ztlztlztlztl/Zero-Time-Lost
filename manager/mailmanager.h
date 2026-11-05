@@ -26,6 +26,8 @@ public:
     bool acknowledgeSeen(const QString &address,const QStringList &ids);
     qint64 oldestUid(const QString &address,const QString &validity);
     void clearUp();
+    QJsonArray cloudFlags(bool *ok=nullptr) const;
+    bool applyCloudFlags(const QJsonObject &flags,bool notify=true);
 signals:
     void changed();
 private:

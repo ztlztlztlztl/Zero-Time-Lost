@@ -17,7 +17,8 @@ public:
     bool recordReminder(const QString &key);
 private:
     QSqlDatabase db;
-    QString connection, error;
+    QString connection;
+    mutable QString error;
     mutable QList<QJsonObject> snapshot;
     mutable bool snapshotValid=false;
 };

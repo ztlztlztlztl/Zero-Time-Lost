@@ -4,8 +4,11 @@
 #include <QNetworkReply>
 #include <QUrlQuery>
 #include <QSettings>
+#include "cloudconnection.h"
+#include <QPointer>
 HomeWeatherService::HomeWeatherService(QObject *parent,const QUrl &url):QObject(parent),network(this),endpoint(url){
     connect(ConfigManager::getInstance(),&ConfigManager::homeWeatherChanged,this,[this]{updateWeather(true);});
+    connect(CloudConnection::instance(),&CloudConnection::settingsChanged,this,[this]{++cloudGeneration;updateWeather(true);});
 }
 void HomeWeatherService::updateWeather(bool force){
     if(force&&pending){pending->disconnect(this);pending->abort();pending->deleteLater();pending.clear();active.clear();}
@@ -14,6 +17,25 @@ void HomeWeatherService::updateWeather(bool force){
     const auto city=config.savedCities[config.currentCityIndex];
     const auto cached=CacheManager::getInstance()->getCityWeatherInfo(city.code);
     if(!force&&QDateTime::currentSecsSinceEpoch()-cached.timestamp<1200){emit updateWeatherRequest(city.name,cached.temperature,cached.weather);return;}
+    if(CloudConnection::enabled()){
+        if(pending){pending->disconnect(this);pending->abort();pending->deleteLater();pending.clear();active.clear();}
+        const auto generation=++cloudGeneration;QPointer<HomeWeatherService> guard(this);
+        CloudConnection::instance()->request("/v1/weather/"+city.code+(force?"?refresh=true":""),{},[this,guard,city,generation](const QJsonObject &r,const QString &error){
+            if(!guard||generation!=cloudGeneration)return;
+            const auto config=ConfigManager::getInstance()->getHomeweather();
+            if(config.currentCityIndex<0||config.currentCityIndex>=config.savedCities.size()||config.savedCities[config.currentCityIndex].code!=city.code)return;
+            const auto failure=!error.isEmpty()?error:r["error"].toString();
+            if(r["temperature"].isString()&&r["weather"].isString()){
+                CityWeatherInfo info;info.cityCode=city.code;info.temperature=r["temperature"].toString();
+                info.weather=r["weather"].toString()+" · "+QDateTime::fromSecsSinceEpoch(r["updated"].toInteger()).toString("MM-dd HH:mm");
+                if(!failure.isEmpty())info.weather+="（缓存；"+failure+"）";
+                info.timestamp=r["updated"].toInteger();CacheManager::getInstance()->updateWeatherCache(info);emit updateWeatherRequest(city.name,info.temperature,info.weather);
+            }else{
+                const auto old=CacheManager::getInstance()->getCityWeatherInfo(city.code);
+                emit updateWeatherRequest(city.name,old.timestamp>0?old.temperature:"--",failure.isEmpty()?"云端暂无天气数据":failure);
+            }
+        });return;
+    }
     const auto key=QSettings().value("weatherKey").toString().trimmed();
     if(key.isEmpty()){emit updateWeatherRequest(city.name,"--","未设置天气 Key，请在 Home 设置填写 Web 服务 Key");return;}
     if(pending){if(active==city.code)return;pending->disconnect(this);pending->abort();pending->deleteLater();pending.clear();}

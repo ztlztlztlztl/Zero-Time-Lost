@@ -6,13 +6,14 @@ Z.T.L 是一个给个人使用的桌面副手。它把时间、天气、邮件�
 
 ## 当前版本
 
-当前版本已完成阶段一、二及阶段三的 Calendar 扩展，并完成后续边界修复和优化。前两阶段见 [阶段一、二开发报告](report-phase1-phase2.md)，Calendar 初版见 [开发报告](report-phase3-calendar.md)，后续修复与验收见 [Calendar 稳定性报告](report-calendar-robustness.md) 和 [界面调整报告](report-calendar-layout.md)。当前包含：
+当前版本已完成阶段一、二及阶段三的 Calendar 扩展，随后增加个人云端同步、后台邮件与天气缓存。前两阶段见 [阶段一、二开发报告](report-phase1-phase2.md)，Calendar 初版见 [开发报告](report-phase3-calendar.md)，后续修复与验收见 [Calendar 稳定性报告](report-calendar-robustness.md) 和 [界面调整报告](report-calendar-layout.md)。当前包含：
 
 - Home：本地时间、天气、动态背景、今日全天标签、进行中的区间事务、今日和明日 DDL、未读邮件摘要。
 - Mail：多账号 IMAP 同步、邮件列表、正文按需获取、搜索、收藏、本地删除与恢复。
 - Calendar：DDL、全天标签、同日区间事务，日程节点高亮、历史周/月操作、类别筛选和周空闲时间压缩。
 - Note：纸条、网站/文件/文件夹书签、加密秘密、备份、恢复、主密码和恢复草稿。
 - 设置：天气、邮件、Calendar、Note、独立标签组、开机启动、托盘行为和数据目录。
+- 云端：单用户 HTTPS 服务、离线同步队列、冲突选择、后台 IMAP 轮询、天气缓存及自动备份；详见 [使用与运维](docs/cloud/使用与运维.md)。
 - 测试：vault、note、core、UI、邮件同步和 Python 邮件适配器测试。
 
 详细使用方法见 [instruct.md](instruct.md)，v2.0 需求原文见 [require.md](require.md)，开发前的 v1.0 需求评估见 [report.md](report.md)，当前实现与已确认规则见合并阶段报告。
@@ -137,20 +138,19 @@ D:\ZTL\
 
 - 定时获取天气并缓存。
 - 定时轮询 IMAP，保存邮件摘要并标记服务器已读。
-- 同步 Calendar、普通 Note、设置和设备状态。
+- 同步 Calendar、普通纸条、网站书签、排序、共享设置及邮件状态；设备专属设置保留本机。
 - 提供手动同步、上次同步时间、失败原因和本地离线状态。
 
-建议使用 HTTP JSON API，客户端保留本地数据，服务器提供定时任务和增量变更。秘密密库继续由客户端加密，云端保存密文文件或密文记录。个人项目可以使用单用户令牌和固定设备列表，暂不设计多人权限系统。
+已实现 HTTPS JSON API，客户端保留本地数据及持久化待上传队列，服务器提供定时任务和增量变更。同一记录发生冲突时保留双方内容供选择。服务采用单用户令牌；秘密密库、设备文件书签和设备设置不参与本轮同步。
 
 首批接口：
 
 ```text
-GET  /api/health
-POST /api/auth/pair
-GET  /api/sync/pull?cursor=<cursor>
-POST /api/sync/push
-POST /api/jobs/mail/run
-POST /api/jobs/weather/run
+GET  /health
+GET  /v1/changes?cursor=<cursor>
+POST /v1/mutate
+POST /v1/mail
+GET  /v1/weather/{city}?refresh=false
 ```
 
 #### 模型接口
@@ -242,8 +242,12 @@ Qt 路径可以通过 `-QtRoot` 或 `QT_ROOT` 指定。开发测试可以设置 
 
 ## 当前待办决策
 
-- 云端同步的最小数据范围和同步冲突处理方式。
 - 模型请求是否全部经过个人云端转发，还是客户端直接调用 DeepSeek。
 - v2.0 的视觉稿和图标方案。
 
-Calendar 实现与测试见 [Calendar 开发报告](report-phase3-calendar.md)。后续继续讨论模型、云端和前端整体升级。
+Calendar 实现与测试见 [Calendar 开发报告](report-phase3-calendar.md)。后续继续讨论模型和前端整体升级。
+## 个人云端扩展
+
+已增加个人服务器同步、离线队列、冲突选择、云端邮件任务和天气缓存。客户端在设置 → Advance 填写连接信息；服务器由部署脚本安装，客户端不负责初始化服务器。
+
+使用及运维：[docs/cloud/使用与运维.md](docs/cloud/使用与运维.md)。协议：[docs/cloud/接口.md](docs/cloud/接口.md)。真实连接信息留在本机 `cloud-connection.local.md`，不提交 Git。

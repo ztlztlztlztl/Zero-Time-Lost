@@ -44,7 +44,7 @@ MainWindow::MainWindow(AppContext *context,QWidget *parent):QMainWindow(parent),
     auto help=new QAction(this);help->setShortcut(QKeySequence::HelpContents);addAction(help);connect(help,&QAction::triggered,this,&MainWindow::showHelp);
     tray=new QSystemTrayIcon(style()->standardIcon(QStyle::SP_ComputerIcon),this);tray->setToolTip("Z.T.L");
     auto trayMenu=new QMenu(this);auto open=trayMenu->addAction("打开");connect(open,&QAction::triggered,this,[this]{openFromTray();});
-    auto sync=trayMenu->addAction("立即收信");connect(sync,&QAction::triggered,&app->mail,&MailGetService::mailPolling);
+    auto sync=trayMenu->addAction("立即收信");connect(sync,&QAction::triggered,&app->mail,[this]{app->mail.mailPolling(true);});
     auto privacy=trayMenu->addAction("立即锁定秘密");connect(privacy,&QAction::triggered,this,&MainWindow::lock);
     auto exit=trayMenu->addAction("退出");connect(exit,&QAction::triggered,this,[this]{quitting=true;close();});tray->setContextMenu(trayMenu);
     connect(tray,&QSystemTrayIcon::activated,this,[this](auto reason){if(reason==QSystemTrayIcon::DoubleClick){openFromTray();}});

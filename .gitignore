@@ -84,3 +84,10 @@ CMakeLists.txt.user*
 /data/
 /runtime/
 /.qtcreator/
+/info.md
+/server/.env
+/server/data/
+/server/certs/
+/cloud-connection.local.md
+/server/data/ztl.sqlite*
+/server/backups/

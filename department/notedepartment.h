@@ -7,6 +7,10 @@
 class NoteDepartment : public QObject {
     Q_OBJECT
 public:
+    QJsonArray cloudEntries() const;
+    bool cloudReady() const {return publicRepo.ready();}
+    bool applyCloudEntry(const QString &id,const QJsonObject &entry,bool deleted);
+    bool applyCloudOrder(int kind,const QStringList &ids);
     explicit NoteDepartment(VaultRepository *repository,QObject *parent=nullptr);
     ~NoteDepartment() override;
     bool exists() const { return repo->exists(); }

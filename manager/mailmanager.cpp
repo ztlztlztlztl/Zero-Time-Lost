@@ -1,5 +1,6 @@
 #include "mailmanager.h"
 #include <QJsonArray>
+#include <QJsonDocument>
 #include "configmanager.h"
 MailManager *MailManager::getInstance() {static MailManager instance;return &instance;}
 void MailManager::initialize() {
@@ -7,6 +8,7 @@ void MailManager::initialize() {
     m_mailEngine=new HelpSQLiteIOEngine("./database","mail.db","ZTL_Mail_Conn",this);
     m_mailEngine->createTable("CREATE TABLE IF NOT EXISTS mails(owner_email TEXT,uid TEXT,sender TEXT,subject TEXT,subject_fold TEXT,timestamp INTEGER,isRead INTEGER,body TEXT,hidden INTEGER DEFAULT 0,starred INTEGER DEFAULT 0,PRIMARY KEY(owner_email,uid))");
     m_mailEngine->createTable("CREATE TABLE IF NOT EXISTS pending_seen(address TEXT,uid TEXT,PRIMARY KEY(address,uid))");
+    m_mailEngine->createTable("CREATE TABLE IF NOT EXISTS cloud_flags(address TEXT,uid TEXT,payload TEXT,PRIMARY KEY(address,uid))");
     // Existing databases predate hidden/starred columns.
     auto columns=m_mailEngine->executeQuery("PRAGMA table_info(mails)");
     QStringList names;while(columns.next()) names<<columns.value("name").toString();columns.finish();
@@ -65,6 +67,11 @@ bool MailManager::saveBatch(const QString &address,const QJsonObject &data,bool 
     }
     if(updateSync)ok=ok&&m_mailEngine->executeNonQuery("INSERT INTO sync_state(address,validity,cursor) VALUES(?,?,?) ON CONFLICT(address) DO UPDATE SET validity=excluded.validity,cursor=excluded.cursor",
                                      {address,data["validity"].toString(),data["cursor"].toVariant().toLongLong()});
+    for(auto v:data["messages"].toArray()){
+        const auto uid=v.toObject()["id"].toString();auto q=m_mailEngine->executeQuery("SELECT payload FROM cloud_flags WHERE address=? AND uid=?",{address,uid});
+        QJsonObject flags;if(q.next())flags=QJsonDocument::fromJson(q.value(0).toByteArray()).object();q.finish();
+        if(!flags.isEmpty())ok=ok&&applyCloudFlags(flags,false);
+    }
     if(!ok){m_mailEngine->rollbackTransaction();return false;}
     if(!m_mailEngine->commitTransaction()){m_mailEngine->rollbackTransaction();return false;}
     // Retention applies to re-downloadable bodies, never identity/tombstones or sources.
@@ -91,6 +98,29 @@ qint64 MailManager::oldestUid(const QString &address,const QString &validity){
 
 QStringList MailManager::pendingSeen(const QString &address){
     QStringList ids;auto q=m_mailEngine->executeQuery("SELECT uid FROM pending_seen WHERE address=? ORDER BY uid LIMIT 100",{address});while(q.next())ids.append(q.value(0).toString());return ids;
+}
+
+QJsonArray MailManager::cloudFlags(bool *ok) const {
+    if(ok)*ok=false;QJsonArray result;if(!m_mailEngine)return result;
+    auto q=m_mailEngine->executeQuery("SELECT owner_email,uid,isRead,starred,hidden,subject,sender,timestamp FROM mails WHERE uid NOT LIKE 'legacy:%'");
+    while(q.next())result.append(QJsonObject{{"address",q.value(0).toString()},{"uid",q.value(1).toString()},
+        {"read",q.value(2).toBool()},{"starred",q.value(3).toBool()},{"hidden",q.value(4).toBool()},{"subject",q.value(5).toString()},
+        {"sender",q.value(6).toString()},{"timestamp",q.value(7).toLongLong()}});
+    if(!q.isActive()||q.lastError().isValid())return {};q.finish();
+    auto pending=m_mailEngine->executeQuery("SELECT payload FROM cloud_flags WHERE NOT EXISTS (SELECT 1 FROM mails WHERE owner_email=address AND mails.uid=cloud_flags.uid)");
+    while(pending.next())result.append(QJsonDocument::fromJson(pending.value(0).toByteArray()).object());
+    if(!pending.isActive()||pending.lastError().isValid())return {};if(ok)*ok=true;return result;
+}
+bool MailManager::applyCloudFlags(const QJsonObject &flags,bool notify){
+    const auto address=flags["address"].toString(),uid=flags["uid"].toString();
+    if(address.isEmpty()||uid.isEmpty()||!m_mailEngine)return false;
+    if(notify&&!m_mailEngine->beginTransaction())return false;
+    bool ok=m_mailEngine->executeNonQuery("INSERT OR REPLACE INTO cloud_flags VALUES(?,?,?)",{address,uid,QJsonDocument(flags).toJson(QJsonDocument::Compact)});
+    if(flags["hidden"].toBool())ok=ok&&m_mailEngine->executeNonQuery("UPDATE mails SET hidden=1,sender='',timestamp=0,isRead=0,body='',starred=0 WHERE owner_email=? AND uid=?",{address,uid});
+    else ok=ok&&m_mailEngine->executeNonQuery("UPDATE mails SET hidden=0,isRead=?,starred=?,subject=?,subject_fold=?,sender=?,timestamp=? WHERE owner_email=? AND uid=?",
+        {flags["read"].toBool(),flags["starred"].toBool(),flags["subject"].toString(),flags["subject"].toString().toCaseFolded(),flags["sender"].toString(),flags["timestamp"].toInteger(),address,uid});
+    ok=ok&&m_mailEngine->executeNonQuery("DELETE FROM cloud_flags WHERE address=? AND uid=? AND EXISTS(SELECT 1 FROM mails WHERE owner_email=? AND uid=?)",{address,uid,address,uid});
+    if(notify){if(ok)ok=m_mailEngine->commitTransaction();if(!ok)m_mailEngine->rollbackTransaction();if(ok)emit changed();}return ok;
 }
 bool MailManager::acknowledgeSeen(const QString &address,const QStringList &ids){
     if(!m_mailEngine->beginTransaction())return false;

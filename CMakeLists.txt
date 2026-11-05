@@ -8,6 +8,12 @@ find_package(Qt6 6.7 REQUIRED COMPONENTS Core Widgets OpenGLWidgets Sql Network)
 qt_standard_project_setup()
 set(ZTL_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} app department repository security note home mail deadline setting manager help)
 qt_add_library(ztl_components STATIC
+    app/cloudconnection.cpp
+    app/cloudconnection.h
+    app/cloudsync.cpp
+    app/cloudsync.h
+    setting/cloudsettings.cpp
+    setting/cloudsettings.h
     help/advancedfilter.cpp
     help/helpsqliteioengine.cpp
     mail/mailwidget.cpp
@@ -126,6 +132,7 @@ endif()
 install(TARGETS Zero-Time-Lost-tobedone RUNTIME DESTINATION .)
 install(FILES scripts/mail_worker.py DESTINATION scripts)
 install(FILES instruct.md DESTINATION .)
+install(FILES docs/cloud/使用与运维.md DESTINATION docs)
 install(FILES scripts/uninstall.ps1 DESTINATION .)
 install(DIRECTORY "$<TARGET_FILE_DIR:Zero-Time-Lost-tobedone>/runtime/" DESTINATION runtime)
 qt_generate_deploy_app_script(TARGET Zero-Time-Lost-tobedone OUTPUT_SCRIPT deploy_script NO_UNSUPPORTED_PLATFORM_ERROR)
@@ -133,6 +140,10 @@ install(SCRIPT ${deploy_script})
 include(CTest)
 if(BUILD_TESTING)
     find_package(Qt6 REQUIRED COMPONENTS Test)
+    qt_add_executable(ztl_cloud_tests tests/test_cloud.cpp)
+    target_link_libraries(ztl_cloud_tests PRIVATE ztl_components Qt6::Test)
+    add_test(NAME cloud COMMAND ztl_cloud_tests)
+    set_tests_properties(cloud PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 90)
     qt_add_executable(ztl_calendar_robustness_tests tests/test_calendar_robustness.cpp)
     target_link_libraries(ztl_calendar_robustness_tests PRIVATE ztl_components Qt6::Test)
     add_test(NAME calendar_robustness COMMAND ztl_calendar_robustness_tests)

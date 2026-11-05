@@ -254,3 +254,25 @@ bool NoteDepartment::reorder(int kind,const QStringList &ids){
     if(!publicRepo.saveOrder(kind,ids)){message=publicRepo.error();return false;}
     message.clear();emit changed();return true;
 }
+
+QJsonArray NoteDepartment::cloudEntries() const {
+    QJsonArray result;for(auto value:publicRepo.entries()){
+        const auto e=value.toObject();
+        if(e["kind"]==2||(e["kind"]==1&&e["targetType"]=="website"))result.append(e);
+    }return result;
+}
+bool NoteDepartment::applyCloudOrder(int kind,const QStringList &ids){
+    if(kind!=1&&kind!=2)return false;
+    QStringList merged=ids;merged.removeDuplicates();
+    for(const auto &id:publicRepo.order(kind)){
+        auto e=entry(id);if(e["kind"]==1&&e["targetType"]!="website"&&!merged.contains(id))merged.append(id);
+    }
+    if(!publicRepo.saveOrder(kind,merged)){message=publicRepo.error();return false;}emit changed();return true;
+}
+bool NoteDepartment::applyCloudEntry(const QString &id,const QJsonObject &entry,bool deleted){
+    const auto old=this->entry(id);
+    if(!old.isEmpty()&&!(old["kind"]==2||(old["kind"]==1&&old["targetType"]=="website"))){message="同步 ID 与本地秘密或文件书签冲突";return false;}
+    if(!deleted&&(entry["id"]!=id||!(entry["kind"]==2||(entry["kind"]==1&&entry["targetType"]=="website")))){message="云端纸条类型无效";return false;}
+    auto next=withoutId(publicRepo.entries(),id);if(!deleted)next.append(entry);
+    if(!publicRepo.save(next,publicRepo.indexed())){message=publicRepo.error();return false;}emit changed();return true;
+}

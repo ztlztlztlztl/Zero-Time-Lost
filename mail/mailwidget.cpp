@@ -26,7 +26,7 @@ MailWidget::MailWidget(MailGetService *department,QWidget *parent):QWidget(paren
     auto backKey=new QShortcut(QKeySequence(Qt::Key_Escape),reading);backKey->setContext(Qt::WidgetWithChildrenShortcut);connect(backKey,&QShortcut::activated,backButton,&QPushButton::click);
     connect(starButton,&QPushButton::clicked,this,[this]{selected.starred=!selected.starred;MailManager::getInstance()->setStar(selected.ownerEmail,selected.uid,selected.starred);starButton->setText(selected.starred?"取消收藏":"收藏");});
     connect(deleteButton,&QPushButton::clicked,this,[this]{MailManager::getInstance()->deleteMail(selected.ownerEmail,selected.uid);backButton->click();});
-    connect(m_mailSimpleDisplay,&MailSimpleDisplayWidget::refreshRequest,department,&MailGetService::mailPolling);
+    connect(m_mailSimpleDisplay,&MailSimpleDisplayWidget::refreshRequest,department,[department]{department->mailPolling(true);});
     connect(m_mailSimpleDisplay,&MailSimpleDisplayWidget::historyRequest,department,&MailGetService::mailHistory);
     connect(m_mailSimpleDisplay,&MailSimpleDisplayWidget::restoreRequest,department,&MailGetService::restoreMail);
     connect(department,&MailGetService::restoreFinished,m_mailSimpleDisplay,&MailSimpleDisplayWidget::restoreFinished);

@@ -16,4 +16,5 @@ private:
     QUrl endpoint;
     QPointer<QNetworkReply> pending;
     QString active;
+    quint64 cloudGeneration=0;
 };

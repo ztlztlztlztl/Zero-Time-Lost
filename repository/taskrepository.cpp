@@ -27,7 +27,13 @@ TaskRepository::~TaskRepository() { db.close(); db=QSqlDatabase(); QSqlDatabase:
 QList<QJsonObject> TaskRepository::all() const {
     if(snapshotValid)return snapshot;
     QList<QJsonObject> result; QSqlQuery q(db);
-    if(q.exec("SELECT payload FROM tasks")) while(q.next()) result.append(QJsonDocument::fromJson(q.value(0).toByteArray()).object());
+    if(!q.exec("SELECT payload FROM tasks")){error=q.lastError().text();return {};}
+    while(q.next()){
+        QJsonParseError parseError;const auto doc=QJsonDocument::fromJson(q.value(0).toByteArray(),&parseError);
+        if(parseError.error!=QJsonParseError::NoError||!doc.isObject()||doc.object()["id"].toString().isEmpty()){error="事务记录损坏";return {};}
+        result.append(doc.object());
+    }
+    if(q.lastError().isValid()){error=q.lastError().text();return {};}
     snapshot=result;snapshotValid=true;return result;
 }
 QJsonObject TaskRepository::find(const QString &id) const {

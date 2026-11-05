@@ -25,6 +25,8 @@ public:
     void lazyWrite(const QJsonObject &jsonObj);
     // 强写入接口
     void forceWrite();
+    bool flush(){forceWrite();return !m_isDirty;}
+    bool readable() const {return m_readValid;}
     // 结束接口
     void endWrite(const QJsonObject &jsonObj);
 signals:
@@ -40,6 +42,7 @@ private:
     QJsonObject m_cacheBuffer; // 内存缓冲区
     bool m_isDirty;
     bool m_writeFailed=false;
+    bool m_readValid=true;
 
     void writeToDisk(const QJsonObject &jsonObj);
     void ensureDirExists();   // 剥离出来的自动建文件夹小助手
