@@ -2,7 +2,7 @@ import importlib.util
 import pathlib
 import unittest
 
-spec = importlib.util.spec_from_file_location("mail_worker", pathlib.Path(__file__).resolve().parents[1] / "scripts" / "mail_worker.py")
+spec = importlib.util.spec_from_file_location("mail_worker", pathlib.Path(__file__).resolve().parents[1] / "shared" / "mail_worker.py")
 worker = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(worker)
 

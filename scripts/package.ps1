@@ -1,20 +1,32 @@
 param(
     [string]$QtRoot = $(if ($env:QT_ROOT) { $env:QT_ROOT } else { 'D:\Qt\6.11.0\mingw_64' }),
-    [string]$Destination = ''
+    [string]$Destination = '',
+    [ValidateSet('Desktop','Manager')][string]$Component = 'Desktop',
+    [ValidateSet('Debug','Release')][string]$Configuration = 'Release',
+    [string]$BuildDirectory = ''
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot
-$toolsRoot = Join-Path (Split-Path (Split-Path $QtRoot)) 'Tools'
-$cmake = Join-Path $toolsRoot 'CMake_64\bin\cmake.exe'
-$env:PATH = (Join-Path $toolsRoot 'mingw1310_64\bin') + ';' + (Join-Path $QtRoot 'bin') + ';' + $env:PATH
-$buildPath = Join-Path $projectRoot 'build\Sidekick'
-$destination = if ($Destination) { [IO.Path]::GetFullPath($Destination) } else { Join-Path $projectRoot 'build\ZTL-package' }
-# Python is an application dependency. Deployment must include it without user configuration.
-& (Join-Path $PSScriptRoot 'prepare_runtime.ps1') -Destination (Join-Path $buildPath 'runtime')
-& $cmake --install $buildPath --prefix $destination
-if ($LASTEXITCODE -ne 0) { throw '部署 Qt 依赖失败。' }
-# Record only deployed top-level entries, so uninstall preserves unrelated user files.
-$entries = @(Get-ChildItem -LiteralPath $destination -Force | Where-Object { $_.Name -ne 'data' } | ForEach-Object Name)
-$entries += '.ztl-install.json'
-@{ product = 'Z.T.L'; entries = @($entries | Select-Object -Unique) } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $destination '.ztl-install.json') -Encoding utf8
-Write-Output (Join-Path $destination 'Z.T.L.exe')
+. (Join-Path $PSScriptRoot 'toolchain.ps1')
+$toolchain = Get-ZtlToolchain $QtRoot
+$cmake = $toolchain.CMake
+$env:PATH = $toolchain.BinPath + ';' + $env:PATH
+$componentDir = if ($Component -eq 'Manager') { 'ServerManager' } else { 'Desktop' }
+$buildPath = if ($BuildDirectory) { [IO.Path]::GetFullPath($BuildDirectory) } else { Join-Path $projectRoot "build\$componentDir\$Configuration" }
+$destination = if ($Destination) { [IO.Path]::GetFullPath($Destination) } else { Join-Path $projectRoot $(if ($Component -eq 'Manager') { 'dist\ZTL-ServerManager' } else { 'dist\ZTL' }) }
+$stage = Join-Path $projectRoot ('build\package-stage-' + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $stage | Out-Null
+& $cmake --install $buildPath --prefix $stage
+if ($LASTEXITCODE -ne 0) { throw 'Qt deployment failed; existing installation was not changed.' }
+# Construct the runtime from a clean directory, never inherit dependencies from an old package.
+$stageRuntime = [IO.Path]::GetFullPath((Join-Path $stage 'runtime'))
+if (!$stageRuntime.StartsWith($stage + '\',[StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid staging runtime.' }
+if (Test-Path -LiteralPath $stageRuntime) { Remove-Item -LiteralPath $stageRuntime -Recurse -Force }
+& (Join-Path $PSScriptRoot 'prepare_runtime.ps1') -Destination $stageRuntime
+if ($Component -eq 'Manager') { & (Join-Path $projectRoot 'deploy\scripts\prepare_runtime.ps1') -Destination $stageRuntime }
+$product = if ($Component -eq 'Manager') { 'Z.T.L.ServerManager' } else { 'Z.T.L' }
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'uninstall.ps1') -Destination (Join-Path $stage 'uninstall.ps1') -Force
+& (Join-Path $PSScriptRoot 'install-package.ps1') -Stage $stage -Destination $destination -Product $product
+if (!$stage.StartsWith([IO.Path]::GetFullPath((Join-Path $projectRoot 'build')) + '\',[StringComparison]::OrdinalIgnoreCase) -or (Get-Item -LiteralPath $stage).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Invalid completed package stage.' }
+Remove-Item -LiteralPath $stage -Recurse -Force
+Write-Output (Join-Path $destination ($product + '.exe'))

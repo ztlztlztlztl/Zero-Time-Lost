@@ -1,0 +1,9 @@
+{
+  "format": 1,
+  "protocol": 1,
+  "files": [
+    "server/__init__.py", "server/app.py", "server/store.py", "server/jobs.py", "server/validation.py",
+    "server/requirements.txt", "server/Dockerfile", "server/compose.yaml", "server/nginx.conf", "server/release.json",
+    "scripts/mail_worker.py", "scripts/product-version.txt", "scripts/cloud_backup.py", ".dockerignore"
+  ]
+}
