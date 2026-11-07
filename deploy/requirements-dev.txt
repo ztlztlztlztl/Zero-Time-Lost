@@ -1,0 +1,2 @@
+-r scripts/bootstrap-requirements.txt
+pytest==9.2.0

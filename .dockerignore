@@ -1,7 +1,15 @@
-*
+**
 !server/
-!server/*.py
+server/**
+!server/__init__.py
+!server/app.py
+!server/store.py
+!server/jobs.py
+!server/validation.py
+!server/release.json
 !server/requirements.txt
 !server/Dockerfile
 !scripts/
+scripts/**
 !scripts/mail_worker.py
+!scripts/product-version.txt

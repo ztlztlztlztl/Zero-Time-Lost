@@ -1,5 +1,6 @@
 """Run Qt sync against a disposable real HTTPS backend, including offline retry."""
 import datetime
+import argparse
 import ipaddress
 import json
 import os
@@ -21,6 +22,17 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--test-executable', type=Path)
+    args = parser.parse_args()
+    executable = args.test_executable
+    if executable is None:
+        executable = ROOT / 'build/Desktop/Release/ztl_cloud_tests.exe'
+        if not executable.is_file():
+            executable = ROOT / 'build/Desktop/ztl_cloud_tests.exe'
+    executable = executable.resolve()
+    if not executable.is_file():
+        raise FileNotFoundError('请先构建客户端测试程序，或通过 --test-executable 指定路径')
     with tempfile.TemporaryDirectory(dir=ROOT / "build", prefix="https-test-") as temp:
         directory = Path(temp)
         key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -63,7 +75,7 @@ def main():
                     time.sleep(.1)
             else:
                 raise RuntimeError("test server did not start")
-            result = subprocess.run([str(ROOT / "build/Sidekick/ztl_cloud_tests.exe"), "-o", str(ROOT / "build/cloud-integration-results.txt") + ",txt"],
+            result = subprocess.run([str(executable), "-o", str(ROOT / "build/cloud-integration-results.txt") + ",txt"],
                 cwd=ROOT, env=env, timeout=180, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
             output = (ROOT / "build/cloud-integration-results.txt").read_text(encoding="utf-8", errors="replace")
             print("\n".join(line for line in output.splitlines() if line.startswith(("PASS", "FAIL", "SKIP", "Totals", "D:/"))))

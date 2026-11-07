@@ -81,6 +81,8 @@ CMakeLists.txt.user*
 .rcc/
 .uic/
 /build*/
+/dist/
+/v2-release/
 /data/
 /runtime/
 /.qtcreator/
@@ -91,3 +93,14 @@ CMakeLists.txt.user*
 /cloud-connection.local.md
 /server/data/ztl.sqlite*
 /server/backups/
+
+# Portable application output and exported connection credentials
+*.ztlconn
+**/__pycache__/
+**/.pytest_cache/
+/desktop/build*/
+/deploy/build*/
+/desktop/data/
+/deploy/data/
+/desktop/runtime/
+/deploy/runtime/

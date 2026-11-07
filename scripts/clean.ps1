@@ -4,21 +4,23 @@ param()
 $ErrorActionPreference = 'Stop'
 $cleanupRoot = (Resolve-Path -LiteralPath (Split-Path $PSScriptRoot)).Path.TrimEnd('\')
 if (-not (Test-Path -LiteralPath (Join-Path $cleanupRoot 'CMakeLists.txt')) -or
-    -not (Test-Path -LiteralPath (Join-Path $cleanupRoot 'main.cpp')) -or
+    -not (Test-Path -LiteralPath (Join-Path $cleanupRoot 'desktop\main.cpp')) -or
     -not (Test-Path -LiteralPath (Join-Path $cleanupRoot '.git'))) {
     throw 'Run this script from the original Sidekick project checkout.'
 }
 
 # Keep source tests, fixtures, build scripts, instruct.md and repository configuration.
-# These are generated outputs, local IDE state and superseded planning/report files.
+# Only explicitly listed intermediate outputs and local IDE state can be removed.
 $cleanupRelative = @(
-    'build'
+    'build\Desktop\CMakeFiles'
+    'build\Desktop\Debug\CMakeFiles'
+    'build\Desktop\Release\CMakeFiles'
+    'build\ServerManager\CMakeFiles'
+    'build\ServerManager\Debug\CMakeFiles'
+    'build\ServerManager\Release\CMakeFiles'
     '.qtcreator'
     'scripts\__pycache__'
     'tests\__pycache__'
-    'architecture.md'
-    'methodology.md'
-    'repuire.md'
 )
 
 # Validate the complete list before deleting anything. Never follow junctions or links.
@@ -30,11 +32,18 @@ foreach ($relativePath in $cleanupRelative) {
     if (-not $resolved.StartsWith($cleanupRoot + '\', [StringComparison]::OrdinalIgnoreCase)) {
         throw "Target is outside the project: $resolved"
     }
+    $ancestor = $candidate
+    while ($ancestor -and $ancestor -ne $cleanupRoot) {
+        if ((Test-Path -LiteralPath $ancestor) -and ((Get-Item -LiteralPath $ancestor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw "Refusing linked ancestry: $ancestor" }
+        $ancestor = Split-Path $ancestor
+    }
     $entry = Get-Item -LiteralPath $resolved -Force
     if ($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) {
         throw "Refusing to remove a link: $resolved"
     }
     if ($entry.PSIsContainer) {
+        $protected = @(Get-ChildItem -LiteralPath $resolved -Recurse -Force | Where-Object { $_.Name -eq 'data' -or $_.Name -like '*install*manifest*' -or $_.Name -eq '.ztl-install.json' -or $_.Extension -eq '.exe' -and $_.Name -eq 'Z.T.L.exe' })
+        if ($protected.Count -gt 0) { throw "Target contains an installation or data; refusing to clean: $resolved" }
         $links = @(Get-ChildItem -LiteralPath $resolved -Recurse -Force -Attributes ReparsePoint)
         if ($links.Count -gt 0) { throw "Target contains links: $resolved" }
     }

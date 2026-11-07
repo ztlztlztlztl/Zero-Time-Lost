@@ -2,6 +2,7 @@ import hmac
 import os
 import hashlib
 import json
+from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Literal
 
@@ -10,6 +11,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from .jobs import Jobs, worker
 from .store import Store, encode
+from . import validation
 
 
 class Mutation(BaseModel):
@@ -27,9 +29,13 @@ class Mutation(BaseModel):
         if not self.deleted:
             if self.kind in ("calendar", "note") and self.payload.get("id") != self.id:
                 raise ValueError("记录 ID 不匹配")
+            if self.kind == "calendar":
+                validation.calendar(self.payload)
             if self.kind == "note" and not (self.payload.get("kind") == 2 or
                     self.payload.get("kind") == 1 and self.payload.get("targetType") == "website"):
                 raise ValueError("只同步普通纸条和网站书签")
+            if self.kind == "note":
+                validation.note(self.payload)
             if self.kind == "settings":
                 p = self.payload
                 if self.id != "shared" or not all(k in p for k in ("weather", "mail", "calendar", "noteTags", "weatherKey", "accounts")):
@@ -37,7 +43,7 @@ class Mutation(BaseModel):
                 if not all(isinstance(p[k], dict) for k in ("weather", "mail", "calendar")) or not isinstance(p["accounts"], list) or not isinstance(p["noteTags"], list):
                     raise ValueError("共享设置格式无效")
                 interval = p["mail"].get("pollingInterval", 5)
-                if not isinstance(interval, int) or interval != -1 and not 1 <= interval <= 1440:
+                if type(interval) is not int or interval != -1 and not 1 <= interval <= 1440:
                     raise ValueError("邮件轮询间隔无效")
                 if len(p["accounts"]) > 100:
                     raise ValueError("邮箱数量超过限制")
@@ -46,6 +52,7 @@ class Mutation(BaseModel):
                         raise ValueError("邮箱任务设置不完整")
                     if not account["port"].isdigit() or not 1 <= int(account["port"]) <= 65535:
                         raise ValueError("邮箱端口无效")
+                validation.settings(p)
             if self.kind == "order" and (self.id not in ("1", "2") or not isinstance(self.payload.get("ids"), list) or
                     not all(isinstance(i, str) and i for i in self.payload["ids"])):
                 raise ValueError("排序数据无效")
@@ -66,6 +73,7 @@ class MailRequest(BaseModel):
     validity: str = ""
     before: int = Field(default=0, ge=0)
     force: bool = False
+    retryUids: list[int] = Field(default_factory=list, max_length=200)
 
 
 def create_app(path=None, token=None, background=True):
@@ -95,7 +103,10 @@ def create_app(path=None, token=None, background=True):
         with store.connect() as db:
             states = {r[0]: json.loads(r[1]) for r in db.execute("SELECT * FROM job_status")}
             head = db.execute("SELECT COALESCE(MAX(rev),0) FROM changes").fetchone()[0]
-        return {"ok": True, "protocol": 1, "dataset": store.dataset, "head": head, "jobs": states}
+            usage = {table: db.execute("SELECT COUNT(*) FROM " + table).fetchone()[0] for table in ("objects", "changes", "receipts", "mail")}
+        release = Path(__file__).with_name("release.json")
+        version = json.loads(release.read_text()).get("version", "development") if release.exists() else "development"
+        return {"ok": True, "protocol": 1, "serverVersion": version, "capabilities": ["sync", "mail", "weather"], "dataset": store.dataset, "head": head, "jobs": states, "storage": usage, "databaseBytes": Path(store.path).stat().st_size}
 
     @app.post("/v1/mutate")
     def mutate(request: Mutation):

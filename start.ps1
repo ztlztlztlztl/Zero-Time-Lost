@@ -1,6 +1,6 @@
 param(
     [string]$QtRoot = $(if ($env:QT_ROOT) { $env:QT_ROOT } else { 'D:\Qt\6.11.0\mingw_64' }),
-    [string]$BuildDirectory = 'build\Sidekick'
+    [string]$BuildDirectory = 'build\Desktop\Release'
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
