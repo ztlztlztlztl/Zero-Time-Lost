@@ -6,6 +6,7 @@
 #include <QSslSocket>
 #include <QCheckBox>
 #include <QPushButton>
+#include <QLineEdit>
 #include "cloudsync.h"
 #include "cloudconnection.h"
 #include "configmanager.h"
@@ -17,6 +18,7 @@
 #include "cryptotool.h"
 #include "cloudsettings.h"
 #include "uistyle.h"
+#include "generalsettings.h"
 
 class CloudTests:public QObject {
     Q_OBJECT
@@ -64,6 +66,46 @@ private slots:
          auto shadow=sync.state["shadow"].toObject();auto ack=first;ack["rev"]=4;shadow["calendar:local"]=ack;sync.state["shadow"]=shadow;
          auto pending=sync.state["pending"].toObject();pending.remove("calendar:local");sync.state["pending"]=pending;sync.capture();
          auto next=sync.state["pending"].toObject()["calendar:local"].toObject();QCOMPARE(next["base"].toInteger(),4);QCOMPARE(next["payload"].toObject()["title"].toString(),QString("edited while offline"));QVERIFY(next["op"]!=first["op"]);}
+    }
+    void changedWeatherKeyInvalidatesCachedSettingsWithoutCityChange(){
+        prepare();QTemporaryDir dir;TaskRepository tasks(dir.filePath("tasks"));DDLDepartment ddl(&tasks);VaultRepository vault(dir.filePath("vault"));NoteDepartment notes(&vault);
+        QSettings settings;const auto previous=settings.value("weatherKey");
+        const auto restore=qScopeGuard([&]{if(previous.isValid())settings.setValue("weatherKey",previous);else settings.remove("weatherKey");});
+        settings.setValue("weatherKey","old-test-key");
+        CloudSync sync(&tasks,&ddl,&notes);sync.capture();
+        auto shadow=sync.state["pending"].toObject();
+        for(auto it=shadow.begin();it!=shadow.end();++it){auto r=it.value().toObject();r["rev"]=7;it.value()=r;}
+        sync.state["shadow"]=shadow;sync.state["pending"]=QJsonObject();
+        sync.capture();QVERIFY(sync.state["pending"].toObject().isEmpty());
+        settings.setValue("weatherKey","new-test-key");
+        sync.snapshot(); // A diagnostic snapshot must not consume the pending change.
+        sync.capture();
+        const auto next=sync.state["pending"].toObject()["settings:shared"].toObject();
+        QCOMPARE(next["payload"].toObject()["weatherKey"].toString(),QString("new-test-key"));
+        QCOMPARE(next["base"].toInt(),7);QCOMPARE(sync.lastCaptureCount,1);
+        const auto operation=next["op"];
+        settings.setValue("weatherKey","newest-test-key");sync.capture();
+        QCOMPARE(sync.state["pending"].toObject()["settings:shared"].toObject()["op"],operation);
+        auto accepted=next;accepted["rev"]=8;shadow["settings:shared"]=accepted;
+        sync.state["shadow"]=shadow;sync.state["pending"]=QJsonObject();sync.captureKeys.insert("settings:shared");
+        sync.capture();
+        const auto newest=sync.state["pending"].toObject()["settings:shared"].toObject();
+        QCOMPARE(newest["payload"].toObject()["weatherKey"].toString(),QString("newest-test-key"));
+        QCOMPARE(newest["base"].toInt(),8);
+        settings.setValue("weatherKey",QString());sync.capture();
+        QCOMPARE(sync.snapshot()["settings:shared"].toObject()["payload"].toObject()["weatherKey"].toString(),QString());
+    }
+    void weatherKeyEditorRequestsSyncOnApply(){
+        QSettings settings;const auto previous=settings.value("weatherKey");
+        const auto restore=qScopeGuard([&]{if(previous.isValid())settings.setValue("weatherKey",previous);else settings.remove("weatherKey");});
+        settings.setValue("weatherKey","before-edit");
+        GeneralSettings widget(GeneralSettings::Home);
+        auto field=widget.findChild<QLineEdit*>("weatherKey");QVERIFY(field);
+        QSignalSpy requested(CloudConnection::instance(),&CloudConnection::syncRequested);
+        field->setText("  after-edit  ");QTest::keyClick(field,Qt::Key_Return);
+        QCOMPARE(settings.value("weatherKey").toString(),QString("after-edit"));
+        QCOMPARE(requested.size(),1);
+        QTest::keyClick(field,Qt::Key_Return);QCOMPARE(requested.size(),1);
     }
     void incrementalCaptureIncludesExternalSnapshotsAndRepositoryChanges(){
         prepare();QTemporaryDir dir;TaskRepository tasks(dir.filePath("tasks"));DDLDepartment ddl(&tasks);VaultRepository vault(dir.filePath("vault"));NoteDepartment notes(&vault);
@@ -193,6 +235,7 @@ private slots:
         };
         {
             CloudSync sync(&tasks,&ddl,&notes);
+            QSignalSpy settingsUploaded(&sync,&CloudSync::sharedSettingsUploaded);
             bool editedWithPending=false;
             connect(&sync,&CloudSync::status,&sync,[&](const QString &message){
                 if(!editedWithPending&&message=="正在同步云端数据…"){
@@ -202,6 +245,14 @@ private slots:
             });
             sync.sync();QTRY_VERIFY_WITH_TIMEOUT(!sync.busy,30000);QVERIFY(sync.state["conflicts"].toObject().isEmpty());QVERIFY(sync.state["pending"].toObject().isEmpty());
             const auto baseline=sync.state["shadow"].toObject()["calendar:live"].toObject();QVERIFY(baseline["rev"].toInteger()>0);
+            QVERIFY(settingsUploaded.size()>0);
+            const auto previousWeatherKey=settings.value("weatherKey");
+            const auto restoreWeatherKey=qScopeGuard([&]{if(previousWeatherKey.isValid())settings.setValue("weatherKey",previousWeatherKey);else settings.remove("weatherKey");});
+            settingsUploaded.clear();settings.setValue("weatherKey","https-updated-weather-key");
+            sync.sync();QTRY_VERIFY_WITH_TIMEOUT(!sync.busy,30000);
+            QCOMPARE(settingsUploaded.size(),1);
+            QCOMPARE(sync.state["shadow"].toObject()["settings:shared"].toObject()["payload"].toObject()["weatherKey"].toString(),QString("https-updated-weather-key"));
+            settingsUploaded.clear();sync.sync();QTRY_VERIFY_WITH_TIMEOUT(!sync.busy,30000);QCOMPARE(settingsUploaded.size(),0);
             QVERIFY(editedWithPending);QCOMPARE(baseline["payload"].toObject()["title"].toString(),QString("edited with pending upload"));
             auto p=tasks.find("live");p["title"]="remote edit";
             QJsonObject request{{"op","remote1"},{"kind","calendar"},{"id","live"},{"base",baseline["rev"]},{"deleted",false},{"payload",p}};

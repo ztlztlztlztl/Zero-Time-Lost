@@ -2,6 +2,7 @@
 #include "autostart.h"
 #include "settingcontrols.h"
 #include "paths.h"
+#include "cloudconnection.h"
 GeneralSettings::GeneralSettings(Section section,QWidget *parent):QWidget(parent){
     retry.setInterval(5000);connect(&retry,&QTimer::timeout,this,[this]{QSettings pending;syncSettings(pending);});
     auto form=SettingControls::form(this);QSettings settings;
@@ -18,7 +19,7 @@ GeneralSettings::GeneralSettings(Section section,QWidget *parent):QWidget(parent
     if(section==Home){
         auto key=new QLineEdit(settings.value("weatherKey").toString().trimmed());key->setObjectName("weatherKey");key->setEchoMode(QLineEdit::Password);
         key->setPlaceholderText("高德 Web 服务类型 Key");key->setToolTip("回车或移开焦点后应用。请使用高德 Web 服务类型 Key。");form->addRow(SettingControls::label("高德天气 Key"),key);
-        connect(key,&QLineEdit::editingFinished,this,[this,key]{const auto value=key->text().trimmed();key->setText(value);QSettings s;if(s.value("weatherKey").toString()==value)return;s.setValue("weatherKey",value);syncSettings(s);emit applied();});
+        connect(key,&QLineEdit::editingFinished,this,[this,key]{const auto value=key->text().trimmed();key->setText(value);QSettings s;if(s.value("weatherKey").toString()==value)return;s.setValue("weatherKey",value);syncSettings(s);emit CloudConnection::instance()->syncRequested();emit applied();});
         toggle("界面动效","animation",true);
     }else if(section==DDL){
         number("静默开始","quietStart",23,0,23," 时");number("静默结束（相同=关闭）","quietEnd",7,0,23," 时");
