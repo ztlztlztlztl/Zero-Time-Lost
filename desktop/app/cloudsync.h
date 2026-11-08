@@ -20,6 +20,7 @@ class CloudSync : public QObject {
   signals:
     void status(const QString &message);
     void synced();
+    void sharedSettingsUploaded();
 
   private:
     friend class CloudTests;

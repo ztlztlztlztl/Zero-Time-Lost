@@ -121,6 +121,11 @@ void CloudSync::markDirty(const QString &kind, const QString &id) {
         debounce.start();
 }
 QJsonObject CloudSync::snapshot() const {
+    // QSettings credentials can change without a ConfigManager notification.
+    // Check this small value before reusing the shared-settings snapshot.
+    const auto weatherKey = QSettings().value("weatherKey").toString();
+    if (snapshotCache["settings:shared"].toObject()["payload"].toObject()["weatherKey"].toString() != weatherKey)
+        invalidKinds.insert("settings");
     if (taskRevision != tasks->revision())
         invalidKinds.insert("calendar");
     if (noteRevision != notes->cloudRevision()) {
@@ -236,7 +241,7 @@ QJsonObject CloudSync::snapshot() const {
                     {"mail", mail.toJson()},
                     {"calendar", deadline.toJson()},
                     {"noteTags", QJsonArray::fromStringList(c->noteTags())},
-                    {"weatherKey", QSettings().value("weatherKey").toString()},
+                    {"weatherKey", weatherKey},
                     {"accounts", accounts}}));
     }
     if (readable) {
@@ -693,6 +698,8 @@ void CloudSync::next() {
                 finish("状态保存失败");
                 return;
             }
+            if (key == "settings:shared" && same(state["shadow"].toObject()[key].toObject(), request))
+                emit sharedSettingsUploaded();
             next();
         },
         true);

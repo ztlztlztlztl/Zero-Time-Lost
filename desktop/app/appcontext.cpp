@@ -15,6 +15,7 @@ AppContext::AppContext(QObject *parent):QObject(parent),clock(this),tasks(Paths:
     MailAccountManager::getInstance()->initialize();
     if(!MailManager::getInstance()->initialize())qWarning()<<"邮件数据库初始化失败："<<MailManager::getInstance()->error();
     cloud=new CloudSync(&tasks,&ddl,&notes,this);
+    connect(cloud,&CloudSync::sharedSettingsUploaded,this,[this]{home.refresh(true);});
     connect(cloud,&CloudSync::synced,this,[this]{if(CloudConnection::enabled()&&ConfigManager::getInstance()->getMailBasical().pollingInterval!=-1)mail.mailPolling(false);});
     connect(CloudConnection::instance(),&CloudConnection::settingsChanged,this,[this]{mail.stop();reloadSettings();});
     if(!ddl.purgeExpired(QDateTime::currentDateTime()))qWarning()<<"事务清理失败："<<ddl.error();
