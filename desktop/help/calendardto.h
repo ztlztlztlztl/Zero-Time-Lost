@@ -3,6 +3,24 @@
 #include "tagrules.h"
 // Validate serialized dates in their source timezone, never in the receiving PC's timezone.
 namespace CalendarDTO {
+inline QJsonObject canonicalEmptyPrefix(QJsonObject t) {
+    const auto repeat = t["repeat"].toString("none");
+    if (!t.contains("until") || !QStringList{"daily", "weekly", "monthly"}.contains(repeat))
+        return t;
+    const auto until = QDate::fromString(t["until"].toString(), Qt::ISODate);
+    if (!until.isValid()) return t;
+    const auto first = Recurrence::start(t).date();
+    if (!first.isValid() || until >= first)
+        return t;
+    // Splitting at the first occurrence leaves no prefix occurrences. Keep the
+    // template as a valid empty range, without inventing a historical date.
+    const auto day = first.toString(Qt::ISODate);
+    auto excluded = t["excluded"].toArray();
+    if (!excluded.contains(day)) excluded.append(day);
+    t["until"] = day;
+    t["excluded"] = excluded;
+    return t;
+}
 inline QString typeError(const QJsonObject &t) {
     const auto kind = t["type"].toString("ddl"), repeat = t["repeat"].toString("none");
     if (!QStringList{"ddl", "label", "interval"}.contains(kind))

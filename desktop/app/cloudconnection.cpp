@@ -37,15 +37,21 @@ void CloudConnection::request(const QString &path,const QJsonObject &body,Callba
         reply->deleteLater();
         if(expected!=identity()||expectedGeneration!=generation){callback({},"云端配置已改变，本次响应未应用");return;}
         const int http=reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const auto bytes=reply->readAll();
         if(reply->error()!=QNetworkReply::NoError||http!=200){
             QString message;
             if(http==401)message="云端令牌无效，请检查设置";
             else if(http==409)message="云端数据版本或游标异常，请核查服务器备份恢复情况";
+            else if(http==422){
+                const auto details=QJsonDocument::fromJson(bytes).object()["detail"].toArray();
+                const auto reason=details.isEmpty()?QString():details.first().toObject()["msg"].toString().left(240);
+                message="云端数据校验失败（HTTP 422）"+(reason.isEmpty()?QString():"："+reason)+"；本地修改已保留";
+            }
             else if(reply->error()==QNetworkReply::SslHandshakeFailedError)message="云端 HTTPS 验证失败，请检查 IP、系统时间及证书文件";
             else message="云端连接失败（HTTP "+QString::number(http)+"），本地修改已保留";
             callback({},message);return;
         }
-        QJsonParseError error;auto doc=QJsonDocument::fromJson(reply->readAll(),&error);
+        QJsonParseError error;auto doc=QJsonDocument::fromJson(bytes,&error);
         if(error.error!=QJsonParseError::NoError||!doc.isObject()){callback({},"云端响应格式异常");return;}
         callback(doc.object(),{});
     });

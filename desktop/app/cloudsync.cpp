@@ -124,7 +124,7 @@ QJsonObject CloudSync::snapshot() const {
     // QSettings credentials can change without a ConfigManager notification.
     // Check this small value before reusing the shared-settings snapshot.
     const auto weatherKey = QSettings().value("weatherKey").toString();
-    if (snapshotCache["settings:shared"].toObject()["payload"].toObject()["weatherKey"].toString() != weatherKey)
+    if (snapshotCache.value("settings:shared").toObject()["payload"].toObject()["weatherKey"].toString() != weatherKey)
         invalidKinds.insert("settings");
     if (taskRevision != tasks->revision())
         invalidKinds.insert("calendar");
@@ -164,14 +164,14 @@ QJsonObject CloudSync::snapshot() const {
     if (invalidKinds.contains("calendar")) {
         if (snapshotCache.isEmpty())
             for (const auto &task : tasks->all())
-                add(record("calendar", task["id"].toString(), task));
+                add(record("calendar", task["id"].toString(), CalendarDTO::canonicalEmptyPrefix(task)));
         else
             for (const auto &id : tasks->changesSince(taskRevision)) {
                 const auto task = tasks->find(id);
                 if (task.isEmpty())
                     remove("calendar", id);
                 else
-                    add(record("calendar", id, task));
+                    add(record("calendar", id, CalendarDTO::canonicalEmptyPrefix(task)));
             }
     }
     if (invalidKinds.contains("note") && snapshotCache.isEmpty())
@@ -359,6 +359,20 @@ void CloudSync::capture() {
             keys.insert(it.key());
     }
     lastCaptureCount = keys.size();
+    // Old empty-prefix requests fail validation before the server can accept
+    // them. Repair only those invalid payloads, with a fresh operation ID;
+    // keep valid in-flight operations immutable.
+    if (fullCapture) for (auto it=pending.begin();it!=pending.end();++it) {
+        auto request=it.value().toObject();
+        if(request["kind"]!="calendar" || request["deleted"].toBool())continue;
+        const auto before=request["payload"].toObject();
+        const auto after=CalendarDTO::canonicalEmptyPrefix(before);
+        if(before!=after && CalendarDTO::validate(after).isEmpty()) {
+            request["payload"]=after;
+            request["op"]=QUuid::createUuid().toString(QUuid::WithoutBraces);
+            it.value()=request;
+        }
+    }
     pending = CloudOutbox::collect(local, shadow, pending, conflicts, keys);
     if (pending != state["pending"].toObject()) {
         state["pending"] = pending;

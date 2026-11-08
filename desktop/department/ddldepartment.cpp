@@ -432,7 +432,12 @@ QList<QJsonObject> DDLDepartment::prepareSplit(const QString &id,const QDate &fr
         message=Recurrence::validate(replacement);if(!message.isEmpty())return {};
         replacement["repeatLast"]=Recurrence::nth(replacement,replacement["countLimit"].toInt()).toString(Qt::ISODate);
     }
-    previous["until"]=from.addDays(-1).toString(Qt::ISODate);updates.prepend(previous);updates.append(replacement);
+    const auto first=Recurrence::start(previous).date();
+    if(from==first){
+        previous["until"]=first.toString(Qt::ISODate);
+        auto excluded=previous["excluded"].toArray();if(!excluded.contains(previous["until"]))excluded.append(previous["until"]);previous["excluded"]=excluded;
+    }else previous["until"]=from.addDays(-1).toString(Qt::ISODate);
+    updates.prepend(previous);updates.append(replacement);
     return updates;
 }
 

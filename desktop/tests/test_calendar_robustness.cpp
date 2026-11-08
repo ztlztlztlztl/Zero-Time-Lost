@@ -10,6 +10,7 @@
 #include "draftstore.h"
 #include "configmanager.h"
 #include "paths.h"
+#include "calendardto.h"
 
 class CalendarRobustnessTests:public QObject {
     Q_OBJECT
@@ -25,6 +26,26 @@ private slots:
     void suffixCountAndIdentity(){
         TaskRepository repo(storage.filePath("count.db"));DDLDepartment dept(&repo);QVERIFY(dept.save(make("ten")));const auto before=dept.occurrences(day,day.addDays(30));auto t=suffix(dept,before[4]);t["note"]="changed note";
         QCOMPARE(t["remainingCount"].toInt(),6);const auto snapshot=dept.templates();QVERIFY(!dept.previewSplit("ten",day.addDays(4),t).isEmpty());QCOMPARE(dept.templates(),snapshot);QVERIFY(dept.splitSeries("ten",day.addDays(4),t));const auto after=dept.occurrences(day,day.addDays(30));QCOMPARE(after.size(),10);for(int i=0;i<10;++i)QCOMPARE(after[i].identity(),before[i].identity());
+    }
+    void splitAtFirstOccurrenceKeepsEveryTemplateValidForSync(){
+        for(const auto &kind:QStringList{"ddl","interval"}){
+            TaskRepository repo(storage.filePath("first-prefix-"+kind+".db"));DDLDepartment dept(&repo);
+            QVERIFY(dept.save(make("series",5,kind)));
+            const auto before=dept.occurrences(day,day.addDays(10));QCOMPARE(before.size(),5);
+            auto edit=suffix(dept,before.first());edit["note"]="updated series";
+            QVERIFY(dept.splitSeries("series",day,edit));
+            const auto prefix=dept.task("series");
+            QCOMPARE(prefix["until"].toString(),day.toString(Qt::ISODate));
+            QVERIFY(prefix["excluded"].toArray().contains(day.toString(Qt::ISODate)));
+            for(const auto &t:dept.templates())QVERIFY2(CalendarDTO::validate(t).isEmpty(),qPrintable(CalendarDTO::validate(t)));
+            const auto after=dept.occurrences(day,day.addDays(10));QCOMPARE(after.size(),before.size());
+            for(int i=0;i<before.size();++i){QCOMPARE(after[i].identity(),before[i].identity());QCOMPARE(after[i].due,before[i].due);}
+            auto later=suffix(dept,after[2]);later["note"]="later suffix";
+            if(kind=="interval")later["start"]=after[2].start.toString(Qt::ISODate);
+            QVERIFY2(dept.splitSeries(after[2].taskId,day.addDays(2),later),qPrintable(dept.error()));
+            for(const auto &t:dept.templates())QVERIFY2(CalendarDTO::validate(t).isEmpty(),qPrintable(CalendarDTO::validate(t)));
+            QCOMPARE(dept.occurrences(day,day.addDays(10)).size(),5);
+        }
     }
     void suffixKeepsStatesAndRepeatedSplits(){
         TaskRepository repo(storage.filePath("states.db"));DDLDepartment dept(&repo);QVERIFY(dept.save(make("states",6)));auto before=dept.occurrences(day,day.addDays(20));QVERIFY(dept.complete(before[1]));QVERIFY(dept.removeOccurrence(before[2]));QVERIFY(dept.setOccurrence("states",before[3].key,{{"title","special"}}));

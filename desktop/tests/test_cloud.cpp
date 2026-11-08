@@ -19,6 +19,7 @@
 #include "cloudsettings.h"
 #include "uistyle.h"
 #include "generalsettings.h"
+#include "calendardto.h"
 
 class CloudTests:public QObject {
     Q_OBJECT
@@ -106,6 +107,71 @@ private slots:
         QCOMPARE(settings.value("weatherKey").toString(),QString("after-edit"));
         QCOMPARE(requested.size(),1);
         QTest::keyClick(field,Qt::Key_Return);QCOMPARE(requested.size(),1);
+    }
+    void repairsRejectedEmptyPrefixWithoutChangingValidInflightRequests(){
+        prepare();QTemporaryDir dir;TaskRepository tasks(dir.filePath("tasks"));DDLDepartment ddl(&tasks);VaultRepository vault(dir.filePath("vault"));NoteDepartment notes(&vault);
+        const QJsonObject legacy{{"id","empty-prefix"},{"title","series"},{"type","interval"},{"repeat","weekly"},{"hasDue",true},
+            {"start","2032-11-08T08:00:00+08:00"},{"due","2032-11-08T09:50:00+08:00"},{"zone","Asia/Shanghai"},
+            {"until","2032-11-07"},{"weekdays",QJsonArray{QDate(2032,11,8).dayOfWeek()}},{"countLimited",true},{"countLimit",10}};
+        QVERIFY(!CalendarDTO::validate(legacy).isEmpty());QVERIFY(tasks.save(legacy));
+        const QJsonObject valid{{"id","following"},{"title","valid following task"},{"repeat","none"},{"hasDue",false}};
+        QVERIFY(tasks.save(valid));QString repairedOperation;
+        {
+            CloudSync sync(&tasks,&ddl,&notes);sync.capture();
+            auto pending=sync.state["pending"].toObject();
+            auto rejected=pending["calendar:empty-prefix"].toObject();rejected["payload"]=legacy;rejected["op"]="rejected-legacy-operation";pending["calendar:empty-prefix"]=rejected;
+            const auto immutable=pending["calendar:following"].toObject();
+            sync.state["pending"]=pending;sync.fullCapture=true;sync.capture();
+            const auto repaired=sync.state["pending"].toObject()["calendar:empty-prefix"].toObject();
+            const auto payload=repaired["payload"].toObject();
+            QVERIFY(CalendarDTO::validate(payload).isEmpty());QCOMPARE(payload["until"].toString(),QString("2032-11-08"));
+            QVERIFY(payload["excluded"].toArray().contains("2032-11-08"));
+            repairedOperation=repaired["op"].toString();QVERIFY(repairedOperation!="rejected-legacy-operation");
+            QCOMPARE(sync.state["pending"].toObject()["calendar:following"].toObject(),immutable);
+            QCOMPARE(tasks.find("empty-prefix"),legacy); // Preserve the original local record.
+            QCOMPARE(ddl.occurrences(QDate(2032,11,1),QDate(2033,2,1)).size(),1); // Only the undated task remains.
+            sync.capture();QCOMPARE(sync.state["pending"].toObject()["calendar:empty-prefix"].toObject(),repaired);
+        }
+        CloudSync restarted(&tasks,&ddl,&notes);restarted.capture();
+        QCOMPARE(restarted.state["pending"].toObject()["calendar:empty-prefix"].toObject()["op"].toString(),repairedOperation);
+    }
+    void coldStartEnumeratesExistingCalendarAndNotesBeforeDetectingDeletions(){
+        QTemporaryDir dir;const auto originalRoot=qEnvironmentVariable("ZTL_DATA_DIR");
+        qputenv("ZTL_DATA_DIR",dir.path().toUtf8());
+        const auto restore=qScopeGuard([&]{qputenv("ZTL_DATA_DIR",originalRoot.toUtf8());});
+        prepare();
+        {
+            TaskRepository tasks(dir.filePath("tasks"));DDLDepartment ddl(&tasks);VaultRepository vault(dir.filePath("vault"));NoteDepartment notes(&vault);
+            QVERIFY(tasks.save({{"id","cold-calendar"},{"title","existing calendar"},{"hasDue",false},{"repeat","none"}}));
+            QVERIFY(notes.save({{"id","cold-note"},{"title","existing note"},{"body","saved before restart"},{"kind",2}}));QVERIFY(notes.reorder(2,{"cold-note"}));QVERIFY(notes.flush());
+            CloudSync sync(&tasks,&ddl,&notes);sync.capture();
+            auto shadow=sync.state["pending"].toObject();
+            QVERIFY(shadow.contains("calendar:cold-calendar"));QVERIFY(shadow.contains("note:cold-note"));
+            for(auto it=shadow.begin();it!=shadow.end();++it){auto value=it.value().toObject();value["rev"]=11;it.value()=value;}
+            sync.state["shadow"]=shadow;sync.state["pending"]=QJsonObject();QVERIFY(sync.save());
+        }
+        {
+            TaskRepository tasks(dir.filePath("tasks"));DDLDepartment ddl(&tasks);VaultRepository vault(dir.filePath("vault"));NoteDepartment notes(&vault);
+            QCOMPARE(tasks.revision(),quint64(0));QCOMPARE(tasks.all().size(),1);
+            CloudSync sync(&tasks,&ddl,&notes);QVERIFY(sync.snapshotCache.isEmpty());
+            const auto snapshot=sync.snapshot();
+            QVERIFY(snapshot.contains("calendar:cold-calendar"));QVERIFY(snapshot.contains("note:cold-note"));
+            QVERIFY(snapshot["order:2"].toObject()["payload"].toObject()["ids"].toArray().contains("cold-note"));
+            sync.capture();
+            const auto pending=sync.state["pending"].toObject();
+            // Reopening legacy notes may normalize an absent deleted field to null.
+            // That harmless update must never turn existing records into deletions.
+            for(auto it=pending.begin();it!=pending.end();++it){
+                QCOMPARE(it.key(),QString("note:cold-note"));
+                const auto record=it.value().toObject();
+                QVERIFY(!record["deleted"].toBool());
+                auto payload=record["payload"].toObject();
+                auto original=sync.state["shadow"].toObject()[it.key()].toObject()["payload"].toObject();
+                payload.remove("deleted");original.remove("deleted");
+                QCOMPARE(payload,original);
+            }
+            QVERIFY(!sync.state["shadow"].toObject()["calendar:cold-calendar"].toObject()["deleted"].toBool());
+        }
     }
     void incrementalCaptureIncludesExternalSnapshotsAndRepositoryChanges(){
         prepare();QTemporaryDir dir;TaskRepository tasks(dir.filePath("tasks"));DDLDepartment ddl(&tasks);VaultRepository vault(dir.filePath("vault"));NoteDepartment notes(&vault);
@@ -236,6 +302,18 @@ private slots:
         {
             CloudSync sync(&tasks,&ddl,&notes);
             QSignalSpy settingsUploaded(&sync,&CloudSync::sharedSettingsUploaded);
+            const QJsonObject legacy{{"id","https-empty-prefix"},{"title","legacy empty prefix"},{"repeat","daily"},{"hasDue",true},
+                {"due","2032-01-01T10:00:00+08:00"},{"zone","Asia/Shanghai"},{"until","2031-12-31"}};
+            QVERIFY(tasks.save(legacy));sync.capture();
+            auto queued=sync.state["pending"].toObject();auto rejected=queued["calendar:https-empty-prefix"].toObject();
+            rejected["payload"]=legacy;rejected["op"]="rejected-https-prefix";queued["calendar:https-empty-prefix"]=rejected;sync.state["pending"]=queued;sync.fullCapture=true;
+            {
+                QEventLoop loop;QString failure;
+                CloudConnection::instance()->request("/v1/mutate",rejected,[&](const QJsonObject &,const QString &error){failure=error;loop.quit();},true);
+                QTimer::singleShot(20000,&loop,&QEventLoop::quit);loop.exec();
+                QVERIFY(failure.contains("422"));QVERIFY(failure.contains("calendar.until"));
+                QVERIFY(!failure.contains("legacy empty prefix"));
+            }
             bool editedWithPending=false;
             connect(&sync,&CloudSync::status,&sync,[&](const QString &message){
                 if(!editedWithPending&&message=="正在同步云端数据…"){
@@ -245,6 +323,8 @@ private slots:
             });
             sync.sync();QTRY_VERIFY_WITH_TIMEOUT(!sync.busy,30000);QVERIFY(sync.state["conflicts"].toObject().isEmpty());QVERIFY(sync.state["pending"].toObject().isEmpty());
             const auto baseline=sync.state["shadow"].toObject()["calendar:live"].toObject();QVERIFY(baseline["rev"].toInteger()>0);
+            const auto repaired=sync.state["shadow"].toObject()["calendar:https-empty-prefix"].toObject()["payload"].toObject();
+            QCOMPARE(repaired["until"].toString(),QString("2032-01-01"));QVERIFY(repaired["excluded"].toArray().contains("2032-01-01"));
             QVERIFY(settingsUploaded.size()>0);
             const auto previousWeatherKey=settings.value("weatherKey");
             const auto restoreWeatherKey=qScopeGuard([&]{if(previousWeatherKey.isValid())settings.setValue("weatherKey",previousWeatherKey);else settings.remove("weatherKey");});
